@@ -1,0 +1,184 @@
+/* 
+   path_set.[hc] - path argument functions
+
+   Copyright (C) 2007 Ed Hynan
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+#include "config.h"
+
+#include "hdr_cfg.h"
+
+/* this program's various incs */
+#include "cprec.h"
+#include "path_set.h"
+#include "walk.h"
+#include "lib_misc.h"
+#include "xmalloc.h"
+
+/* flage to set if dvd has lower case names */
+int fnlower;
+/* flage to set if paths are too long */
+int  expaths;
+
+/* buffers for pathnames */
+#if DYNALLOC_BUFFERS
+char* vidd;
+int   viddlen;
+char* outd;
+int   outdlen;
+char* mntd;
+int   mntdlen;
+char* nbuf;
+
+size_t  outdbufdlen;
+size_t  mntdbufdlen;
+size_t  viddbufdlen;
+size_t  nbufbufdlen;
+#else
+char vidd[PATH_MAX + 1];
+int  viddlen;
+char outd[PATH_MAX + 1];
+int  outdlen;
+char mntd[PATH_MAX + 1];
+int  mntdlen;
+char nbuf[PATH_MAX + 1];
+
+size_t  outdbufdlen = A_SIZE(outd);
+size_t  mntdbufdlen = A_SIZE(mntd);
+size_t  viddbufdlen = A_SIZE(vidd);
+size_t  nbufbufdlen = A_SIZE(nbuf);
+#endif
+ 
+
+void
+unset_paths(void)
+{	
+#if DYNALLOC_BUFFERS
+	if ( mntd )
+		free(mntd);
+	mntd = NULL;
+	if ( outd )
+		free(outd);
+	outd = NULL;
+	if ( vidd )
+		free(vidd);
+	vidd = NULL;
+	if ( nbuf )
+		free(nbuf);
+	nbuf = NULL;
+	viddlen = outdlen = mntdlen = 0;
+#else
+	mntd[mntdlen = 0] = '\0';
+	outd[outdlen = 0] = '\0';
+	vidd[viddlen = 0] = '\0';
+	nbuf[0] = '\0';
+#endif
+	expaths = fnlower = 0;
+}
+
+void
+set_paths(const char* mountp, const char* outname)
+{
+	unset_paths();
+
+#if DYNALLOC_BUFFERS
+	if ( (mntdlen = get_max_path()) < 0 ) {
+		pfeall(_("%: failed to get path maximum - %s\n"),
+			program_name, strerror(errno));
+		exit(1);
+	}
+	mntdbufdlen = mntdlen;
+	viddbufdlen = nbufbufdlen = outdbufdlen = mntdbufdlen;
+	mntd = xmalloc(sizeof(char) * mntdbufdlen);
+	outd = xmalloc(sizeof(char) * outdbufdlen);
+	vidd = xmalloc(sizeof(char) * viddbufdlen);
+	nbuf = xmalloc(sizeof(char) * nbufbufdlen);
+#endif
+
+	outdlen = strcntcpy(outd, outname, outdbufdlen);
+	if ( outdlen >= outdbufdlen ) {
+		pfeall(_("%s: destination arg too long %s\n"),
+			program_name, outname);
+		exit(1);
+	}
+
+	/* clear trailing seperator */
+	while ( outdlen && outd[outdlen - 1] == '/' ) {
+		outd[--outdlen] = '\0';
+	}
+	if ( !outdlen ) {
+		pfeall(_("%s: bad target argument: %s\n"),
+			program_name, outname);
+		exit(1);
+	}
+
+	mntdlen = strcntcpy(mntd, mountp, mntdbufdlen);
+	if ( mntdlen >= mntdbufdlen ) {
+		pfeall(_("%s: source arg too long %s\n"),
+			program_name, mountp);
+		exit(1);
+	}
+	viddlen = strcntcpy(vidd, outd, viddbufdlen);
+	
+	/* return if buffers don't have reasonable space */
+	if ( (outdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > outdbufdlen ) {
+		expaths = 1;
+		pfeopt(_("%s: WARNING - target argument very long: %d\n"),
+			program_name, outdlen);
+		return;
+	}
+	if ( (mntdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > mntdbufdlen ) {
+		expaths = 1;
+		pfeopt(_("%s: WARNING - source argument very long: %d\n"),
+			program_name, mntdlen);
+		return;
+	}
+
+	/* add trailing seperator . . . */
+	if ( mntdlen && mntd[mntdlen - 1] != '/' ) {
+		mntd[mntdlen++] = '/';
+	}
+	vidd[viddlen++] = '/';
+	/* . . . and name to check */
+	strcpy(&mntd[mntdlen], "VIDEO_TS");
+	if ( !access(mntd, F_OK) ) {
+		okvid = 1;
+		viddlen +=
+		strcntcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
+	} else {
+		strcpy(&mntd[mntdlen], "video_ts");
+		if ( !access(mntd, F_OK) ) {
+			okvid = 1;
+			viddlen +=
+			strcntcpy(&vidd[viddlen],
+				ign_lc ? "video_ts" : "VIDEO_TS",
+				A_SIZE(vidd) - viddlen);
+		}
+	}
+	mntd[mntdlen] = '\0';
+
+	/* clear trailing seperator */
+	while ( mntdlen && mntd[mntdlen - 1] == '/' ) {
+		mntd[--mntdlen] = '\0';
+	}
+	if ( !mntdlen ) {
+		pfeall(_("%s: bad argument: %s\n"),
+			program_name, mountp);
+		exit(1);
+	}
+}
+

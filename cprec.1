@@ -1,0 +1,185 @@
+.\"                              hey, Emacs:   -*- nroff -*-
+.\" cprec is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; see the file COPYING.  If not, write to
+.\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.\" .TH CPREC 1 "November 22, 2007"
+.TH CPREC 1 "January 17, 2010"
+.\" Please update the above date whenever this man page is modified.
+.\"
+.\" Some nroff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins (default)
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+cprec \- A recursive directory hierarchy copier; much like `cp -R'.
+.SH SYNOPSIS
+.B cprec
+.RI [ options ]
+[\-\fBn\fP \fIdvd_node\fP \-\fBd\fP <\fI0\(en\100\fP>]
+<\fIsource\fP \fI...\fP> <\fItarget\fP>
+.SH DESCRIPTION
+\fBcprec\fP copies directory hierarchies, and optionally video DVD data
+using
+.nh
+\fIlibdvdread\fP
+.hy
+(including decryption if
+.nh
+\fIlibdvdcss\fP
+.hy
+is available).
+.PP
+Copying is always recursive for directory source arguments, like `cp -R'.
+Optionally meta-data (times, ownership and mode) may be
+preserved in the copy, and operation may be forced to proceed,
+i.e. overwriting existing targets and continuing
+as well as possible after errors.
+.PP
+It is not the intention of \fIcprec\fP to be a replacement for
+the tried and true \fIcp\fP command. The intention is to backup
+video DVD data as a copy of the entire directory hierarchy on the DVD,
+the program was made more general in to facilitate
+additions to the target directory structure; for example, scans of
+cover images or booklets, or perhaps favored `jacket' files.
+The recursive copying functionality has been developed beyond the typical
+needs of video DVD backup, and \fIcprec\fP might be useful as a
+simple copy command.
+.PP
+It is not the intention of \fIcprec\fP to facilitate copyright
+infringement. (In fact this software is copyrighted, and distributed
+with a license for its use.) It is intended for backups, which any
+sane copyright law must allow (although the sanity of such laws
+may be uncertain), and for legal copying by license or by absence
+of prohibition.
+.SH OPTIONS
+\fBcprec\fP accepts the following options:
+.\" dry-run has been disabled in the program (unmaintained).
+.\" .TP
+.\" .B  \-\-dry-run
+.\" Take no real actions.
+.TP
+.BR  \-q , " \-\-quiet" , " \-\-silent"
+Inhibit usual output.
+.TP
+.BR  \-v , " \-\-verbose"
+Print more information.
+.TP
+.BR  \-d , " \-\-dvdbackup" " \fIN\fP"
+Perform video DVD backup if
+.nh
+\fIlibdvdread\fP
+.hy
+is available and a suitable version.
+If \fBN\fP is \fI0\fP then a full dvd backup is done.
+If greater than \fI0\fP
+but less than \fI100\fP then a single title set is selected.
+If \fI100\fP then
+.nh
+`\fBVIDEO_TS.VOB\fP'
+.hy
+is selected.
+The \-\fBn\fP <\fInode\fP> argument must be given with \-\fBd\fP
+if the default \(em probably
+.nh
+`\fB/dev/dvd\fP'
+.hy
+\(em is not the correct
+device node.
+At least one
+.nh
+<\fIsource\fP>
+.hy
+argument must be the mount point of
+the mounted DVD (such that the
+.nh
+`\fBVIDEO_TS\fP'
+.hy
+directory is a child of that argument).
+.TP
+.BR  \-n , " \-\-node" " <\fIdevice_node\fP>"
+The raw device node associated with the DVD reader.
+For example, on \fIGNU/Linux\fP it might be \fB/dev/hdc\fP,
+on \fINetBSD\fP on an i386 it might be \fB/dev/rcd0d\fP.
+The default is
+.nh
+`\fB/dev/dvd\fP'
+.hy
+(unless changed before compilation).
+.TP
+.BR \-s , " \-\-simple\-copy"
+Simply copy files and do nothing special for video DVD entries;
+no use of
+.nh
+\fIlibdvdread\fP.
+.hy
+This is the default without \-\fBd\fP.
+.TP
+.BR \-E , " \-\-ignore-existing"
+Do not fail if target file exists, and do not overwrite it.
+.TP
+.BR \-S , " \-\-ignore-symlinks"
+Do not make equivalent symbolic links; copy link target to new file.
+.TP
+.BR \-H , " \-\-ignore-hardlinks"
+Do not make equivalent hard links; copy data to new file.
+.TP
+.BR \-D , " \-\-ignore-specials"
+Do not make equivalent device nodes or pipes. Unix domain sockets
+are always ignored.
+.TP
+.BR \-N , " \-\-ignore-nonreadable"
+Do not fail if a source directory is not readable.
+.TP
+.BR \-p , " \-\-preserve"
+Attempt to set time and mode on output from input.
+Failure is never fatal.
+.TP
+.BR \-f , " \-\-force"
+Forceful operation. Overwrite existing output files, and try
+to continue after errors which by default cause an exit with failure.
+.TP
+.BR  \-L , " --libdvdr" " \fINAME\fP"
+Use shared library \fINAME\fP as the DVD reader.
+Only available if configured for dynamic loading of reader.
+This must be
+.nh
+\fIlibdvdread\fP
+.hy
+version 3 or something compatible.
+.TP
+.BR \-h , " \-\-help"
+Show summary of options.
+.TP
+.BR \-V , " \-\-version"
+Show version of program.
+.nh
+.SH ENVIRONMENT
+See the source code.
+.SH COPYRIGHT
+Copyright \(co 2007 Ed Hynan. Source code license is the GNU
+General Public License <http://www.gnu.org/licenses/gpl.html>.
+There is NO WARRANTY.
+.SH AUTHOR
+Ed Hynan <edhynan@gmail.com>.
+.SH "SEE ALSO"
+.BR cp (1), 
+.BR mkisofs (1),
+.BR growisofs (1),
+.BR cdrecord (1).
