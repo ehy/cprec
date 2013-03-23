@@ -19,6 +19,11 @@
 # include <config.h>
 #endif
 
+/* this include is specific to the current package (it
+ * provides error() substitute) -- remove this include
+ * if this source file is reused in another package --
+ * unless, of course, the included lib_misc is used too
+ */
 #include "lib_misc.h"
 
 #if __STDC__
