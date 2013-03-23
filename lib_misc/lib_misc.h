@@ -65,12 +65,18 @@
 #	define	HAVE_VPRINTF	1
 #	define	HAVE_STDARG_H	1
 #	define	HAVE_VARARGS_H	0
-#	define	HAVE_ERROR	1
+#	define	HAVE_ERROR	0
 #endif
 
 /* needed things */
 #ifndef _
-#	define	_(txt)	txt
+#	if ENABLE_NLS
+#		include <libintl.h>
+#		define _(Text) gettext (Text)
+#	else
+#		define textdomain(Domain)
+#		define _(Text) Text
+#	endif
 #endif
 
 /* helpful things */
@@ -128,6 +134,9 @@ int lmsc_pfoall(const char*, ...); /* print format to out stream not optionally 
 int lmsc_pfeopt(const char*, ...); /* print format to err stream optionally */
 int lmsc_pfeall(const char*, ...); /* print format to err stream not optionally */
 int lmsc_pf_dbg(const char*, ...); /* print format debug messages optionally */
+#if ! HAVE_ERROR
+#endif
+void lmsc_error(int code, int errn, const char* fmt, ...);
 #if NO_PUTS_MACROS
 int lmsc_oputs(const char*); /* print string to out stream optionally */
 int lmsc_aputs(const char*); /* print string to out stream not optionally */
@@ -189,6 +198,9 @@ void lmsc_pf_init_files(void);
 #define	pfeopt	lmsc_pfeopt
 #define	pfeall	lmsc_pfeall
 #define	pf_dbg	lmsc_pf_dbg
+#if ! HAVE_ERROR
+#define error	lmsc_error
+#endif
 #if NO_PUTS_MACROS
 #define	oputs	lmsc_oputs
 #define	aputs	lmsc_aputs

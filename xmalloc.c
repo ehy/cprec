@@ -19,6 +19,8 @@
 # include <config.h>
 #endif
 
+#include "lib_misc.h"
+
 #if __STDC__
 # define VOID void
 #else
