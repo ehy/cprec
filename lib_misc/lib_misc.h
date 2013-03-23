@@ -135,8 +135,8 @@ int lmsc_pfeopt(const char*, ...); /* print format to err stream optionally */
 int lmsc_pfeall(const char*, ...); /* print format to err stream not optionally */
 int lmsc_pf_dbg(const char*, ...); /* print format debug messages optionally */
 #if ! HAVE_ERROR
-#endif
 void lmsc_error(int code, int errn, const char* fmt, ...);
+#endif
 #if NO_PUTS_MACROS
 int lmsc_oputs(const char*); /* print string to out stream optionally */
 int lmsc_aputs(const char*); /* print string to out stream not optionally */
