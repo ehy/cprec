@@ -1,0 +1,41 @@
+#
+# makefile for lib_misc
+#
+.POSIX:
+
+RM = rm -f -r
+
+LIB = lib_misc.a
+
+OBJS = \
+	lib_misc.o \
+	lmsc_chcase.o \
+	lmsc_get_max_hlink.o \
+	lmsc_get_max_path.o \
+	lmsc_get_nofd.o \
+	lmsc_get_page_size.o \
+	lmsc_mk_aligned_ptr.o \
+	lmsc_pfio.o \
+	lmsc_s_tol.o \
+	lmsc_statihack.o \
+	lmsc_strlcpy.o \
+	lmsc_wrall.o \
+
+
+all: $(LIB)
+
+# SysV, traditional, ar opts w/o dash;
+# posix specifies the dash; also does
+# not have ranlib, but systems probably
+# have compatitblity ranlib if they
+# don't need it.
+$(LIB) : $(OBJS)
+	$(AR) -cru $@ $(OBJS)
+	test X"$(RANLIB)" = X || $(RANLIB) $@
+
+clean:
+	-$(RM) *.o
+
+cleanall: clean
+	-$(RM) $(LIB)
+
