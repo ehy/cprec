@@ -1,10 +1,16 @@
 bin_PROGRAMS=cprec
-cprec_SOURCES=cprec.c cprec.h apue_ftw.c apue_ftw.h cpf.c cpf.h ino.c ino.h block_hash.c block_hash.h meta_set.h meta_set.c path_set.h path_set.c lib_misc.h lib_misc.c walk.h walk.c dl_drd.h dl_drd.c cprec.1 xmalloc.c xmalloc.h hdr_cfg.h system.h aclocal.m4 getopt.c getopt1.c getopt.h
+cprec_SOURCES=cprec.c cprec.h apue_ftw.c apue_ftw.h cpf.c cpf.h ino.c ino.h block_hash.c block_hash.h meta_set.h meta_set.c path_set.h path_set.c walk.h walk.c dl_drd.h dl_drd.c cprec.1 xmalloc.c xmalloc.h hdr_cfg.h system.h aclocal.m4 getopt.c getopt1.c getopt.h
 
 #  uncomment the following if cprec requires the math library
 #cprec_LDADD=-lm
+cprec_LDADD = lib_misc/lib_misc.a
 
 EXTRA_DIST=cprec.lsm.in cprec.spec.in cprec.texinfo
+
+SUBDIRS = lib_misc
+
+AM_CPPFLAGS = -I$(srcdir)/lib_misc
+
 
 #  if you write a self-test script named `chk', uncomment the
 #  following and add `chk' to the EXTRA_DIST list

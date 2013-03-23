@@ -130,4 +130,7 @@ AC_CHECK_SIZEOF(char*, 4)
 
 dnl Checks for library functions.
 
+dnl subdir configures
+AC_CONFIG_SUBDIRS(lib_misc)
+
 AC_OUTPUT(Makefile cprec.lsm cprec.spec)
