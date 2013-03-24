@@ -34,6 +34,11 @@
 #error "FIX headers for va_list"
 #endif
 
+#ifndef PFIO_DEBUG_ENVNAME
+#	define PFIO_DEBUG_ENVNAME	"PFIO_DEBUG"
+#endif /* PFIO_DEBUG_ENVNAME */
+static const char* pfio_dbg_envvar_str = PFIO_DEBUG_ENVNAME;
+
 static int pf_init_done;
 static int do_pfoopt;
 static int do_pfeopt;
@@ -61,7 +66,7 @@ lmsc_pf_debug_check(void)
 {
 	static int done;
 	const char* p;
-	const char* str = "CPREC_DEBUG";
+	const char* str = pfio_dbg_envvar_str;
 
 	if ( done )
 		return;
