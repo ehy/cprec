@@ -406,15 +406,15 @@ cprec(int texist, int tisdir)
 				lv = strtol(penv, 0, 0);
 				
 				if ( errno || lv < 1 || lv > block_read_count ) {
-					fprintf(stderr,
-						"bad \"CPREC_RETRYBLOCKS\" value \"%s\" - "
-						"using default %zu\n"
-						, penv, retrybadblk);
+					pfeall(
+					_("\"%s\"==\"%s\" - using default %zu\n")
+					,"CPREC_RETRYBLOCKS"
+					, penv, retrybadblk);
 				} else {
 					retrybadblk = (size_t)lv;
-					fprintf(stderr,
-						"using CPREC_RETRYBLOCKS %zu\n",
-						retrybadblk);
+					pfeopt(
+					_("using CPREC_RETRYBLOCKS %zu\n"),
+					retrybadblk);
 				}
 			}
 			pfoopt(
