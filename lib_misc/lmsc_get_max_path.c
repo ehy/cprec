@@ -50,10 +50,16 @@ lmsc_get_max_per_path(const char* pth)
 	long l;
 	int en = errno;
 	errno = 0;
-	l = pathconf("/", _PC_PATH_MAX);
+	/* POSIX does not specify behavior
+	 * if path is not a directory
+	 */
+	l = pathconf(pth, _PC_PATH_MAX);
 	if ( l < 0 ) {
 		if ( errno )
 			return -1;
+		/* this should not be reached, but if it is
+		 * we'll return a value
+		 */
 		pm = -1;
 	} else
 		pm = (int)MIN(INT_MAX, l);
@@ -64,7 +70,11 @@ lmsc_get_max_per_path(const char* pth)
 #ifdef PATH_MAX
 		pm = PATH_MAX;
 #else
+#ifdef _POSIX_PATH_MAX
+		pm = _POSIX_PATH_MAX;
+#else
 		pm = 1024;
+#endif
 #endif
 	}
 
