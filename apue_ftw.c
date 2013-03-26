@@ -142,8 +142,7 @@ apue_ftw(const char* pathname, cbf_t* func, int nopenfd)
 		return -1;
 	}
 	
-	if ( strcntcpy(S.path, pathname, S.pathlen + 1)
-	     >= (S.pathlen + 1) ) {
+	if ( strlcpy(S.path, pathname, S.pathlen+1) >= (S.pathlen+1) ) {
 		errno = EINVAL;
 		return -1;
 	}

@@ -1152,7 +1152,7 @@ wr_regmask(char* d, int dlen, unsigned val)
 	m = PATH_MAX + 1 - dlen;
 
 	for ( i = 0; (p = nms[i]) != NULL; i++ ) {
-		int f = strcntcpy(&d[dlen], p, m);
+		int f = strlcpy(&d[dlen], p, m);
 		
 		if ( f >= m ) {
 			pfeall(_("%s: name too long: %s + %s\n"),

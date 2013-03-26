@@ -280,7 +280,7 @@ ftwcb(const char* file, const struct stat* sb, int flag)
 		}
 		psrc = &file[mntdlen + 1];
 		mntd[mntdlen] = '/';
-		sz = strcntcpy(&mntd[mntdlen + 1], psrc, l);
+		sz = strlcpy(&mntd[mntdlen + 1], psrc, l);
 		if ( sz >= l ) {
 			pfeall(_("%s: found source name too long (%ld): %s\n"),
 				program_name, (long)sz, psrc);
@@ -296,7 +296,7 @@ ftwcb(const char* file, const struct stat* sb, int flag)
 		}
 		pdst = &outd[outdlen];
 		*pdst++ = '/';
-		sz = strcntcpy(pdst, psrc, l);
+		sz = strlcpy(pdst, psrc, l);
 		if ( sz >= l ) {
 			pfeall(
 			_("%s: found destination name too long (%ld): %s\n"),

@@ -109,7 +109,7 @@ set_paths(const char* mountp, const char* outname)
 	nbuf = xmalloc(sizeof(char) * nbufbufdlen);
 #endif
 
-	outdlen = strcntcpy(outd, outname, outdbufdlen);
+	outdlen = strlcpy(outd, outname, outdbufdlen);
 	if ( outdlen >= outdbufdlen ) {
 		pfeall(_("%s: destination arg too long %s\n"),
 			program_name, outname);
@@ -126,13 +126,13 @@ set_paths(const char* mountp, const char* outname)
 		exit(1);
 	}
 
-	mntdlen = strcntcpy(mntd, mountp, mntdbufdlen);
+	mntdlen = strlcpy(mntd, mountp, mntdbufdlen);
 	if ( mntdlen >= mntdbufdlen ) {
 		pfeall(_("%s: source arg too long %s\n"),
 			program_name, mountp);
 		exit(1);
 	}
-	viddlen = strcntcpy(vidd, outd, viddbufdlen);
+	viddlen = strlcpy(vidd, outd, viddbufdlen);
 	
 	/* return if buffers don't have reasonable space */
 	if ( (outdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > outdbufdlen ) {
@@ -158,13 +158,13 @@ set_paths(const char* mountp, const char* outname)
 	if ( !access(mntd, F_OK) ) {
 		okvid = 1;
 		viddlen +=
-		strcntcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
+		strlcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
 	} else {
 		strcpy(&mntd[mntdlen], "video_ts");
 		if ( !access(mntd, F_OK) ) {
 			okvid = 1;
 			viddlen +=
-			strcntcpy(&vidd[viddlen],
+			strlcpy(&vidd[viddlen],
 				ign_lc ? "video_ts" : "VIDEO_TS",
 				A_SIZE(vidd) - viddlen);
 		}
