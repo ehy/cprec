@@ -472,7 +472,7 @@ cprec(int texist, int tisdir)
 		 *  sources are to be created under target
 		 */
 		if ( !(okvid && desired_title_s) || simple_copy ) {
-			size_t len;
+			size_t len, buflen;
 			const char* p;
 
 			p = strrchr(mntd, '/');
@@ -482,20 +482,27 @@ cprec(int texist, int tisdir)
 			else
 				p++;
 			len = strlen(p);
-			if ( (outdbufdlen - outdlen - 1) <= len ) {
-				pfeall(_("%s: output name too long: %s, %s\n"),
+			buflen = outdbufdlen - outdlen - 1;
+			if ( buflen <= len ) {
+				pfeall(
+				_("%s: output name too long: %s, %s\n"),
 					program_name, p, outd);
 				return EXIT_FAILURE;
 			}
 			outd[outdlen++] = '/';
-			strcpy(&outd[outdlen], p);
+			if ( strlcpy(&outd[outdlen], p, buflen)
+			   >= buflen ) {
+				pfeall(_("%s: internal error\n"),
+					program_name);
+				return EXIT_FAILURE;
+			}
 			outdlen += len;
 		}
 	}
 
 	top.sb = xmalloc(sizeof(*top.sb) + outdlen + 1);
 	top.path = (char*)top.sb + sizeof(*top.sb);
-	strcpy(top.path, outd);
+	strlcpy(top.path, outd, outdlen + 1);
 	top.ndirs = 0;
 	top.pdirs = NULL;
 	top.alloc = 0;
@@ -518,7 +525,13 @@ cprec(int texist, int tisdir)
 			/* don't use the VIDEO_TS directory
 			 * for the select copy
 			 */
-			strcpy(vidd, outd);
+			if ( strlcpy(vidd, outd, viddbufdlen)
+			   >= viddbufdlen ) {
+				pfeall(
+				_("%s: internal string length error"),
+					program_name);
+				return EXIT_FAILURE;
+			}
 			viddlen = outdlen;
 		}
 		walk();
