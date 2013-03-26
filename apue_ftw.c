@@ -18,6 +18,7 @@
 
 #include "hdr_cfg.h"
 #include "apue_ftw.h"
+#include "lib_misc.h"
 
 /* the following cpp lines straight from autoconf manual */
 /* commented but left for example: autogen tool provided file
@@ -112,51 +113,42 @@ apue_ftw(const char* pathname, cbf_t* func, int nopenfd)
 {
 	int		ret;
 	SIVA		S;
-	static int	pm;
 
-	if ( !pm ) {
-#ifdef PATH_MAX
-		pm = PATH_MAX;
-#else
-#define PATH_MAX 1024
-#if HAVE_PATHCONF
-		int en = errno;
-		errno = 0;
-		if ( (pm = pathconf("/", _PC_PATH_MAX)) < 0 ) {
-			if ( errno )
-				return -1;
-			pm = PATH_MAX;
-		} else
-			pm++;
-		errno = en;
-#else
-		pm = PATH_MAX;
-#endif
-#endif
+	/* lstat: see comment below */
+	if ( lstat(pathname, &S.sb) < 0 ) {
+		return errno == EACCES ?
+			func(S.path, &S.sb, FTW_NS) : -1;
 	}
 
-	S.pathlen = (size_t)pm;
-	S.pathstrlen = strlen(pathname);
-	if ( S.pathstrlen > S.pathlen ) {
-		errno = EINVAL;
-		return -1;
+	if ( S_ISDIR(S.sb.st_mode) ) {
+		/* func from lib_misc: calls patchconf(PATH_MAX) */
+		int pm = get_max_per_path(pathname);
+
+		if ( pm <= 0 ) {
+			if ( ! errno )
+				errno = EINVAL;
+			return -1;
+		}
+
+		S.pathstrlen = strlen(pathname);
+		S.pathlen = (size_t)pm + S.pathstrlen;
+	} else {
+		S.pathstrlen = strlen(pathname);
+		S.pathlen = S.pathstrlen;
 	}
 
-	S.path = malloc((size_t)S.pathlen + 1);
+	S.path = malloc(S.pathlen + 1);
 	if ( S.path == NULL ) {
 		return -1;
 	}
 	
-	strcpy(S.path, pathname);
+	if ( strcntcpy(S.path, pathname, S.pathlen + 1)
+	     >= (S.pathlen + 1) ) {
+		errno = EINVAL;
+		return -1;
+	}
 
 	do {
-		/* lstat: see next comment */
-		if ( lstat(S.path, &S.sb) < 0 ) {
-			ret = errno == EACCES ?
-				func(S.path, &S.sb, FTW_NS) : -1;
-			break;
-		}
-
 		/* A symbolic link.  Not followed in this implementation:
 		** if a dvd's udf or iso9660 filesystem has RR extension
 		** and symlinks, then the link either points to
