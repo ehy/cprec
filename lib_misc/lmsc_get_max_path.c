@@ -23,6 +23,7 @@
 
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -30,13 +31,20 @@
 #	define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+#ifndef DEFAULT_PATH_MAXIMUM
+#define DEFAULT_PATH_MAXIMUM 1024
+#endif
+
 int
 lmsc_get_max_path(void)
 {
 	static int pm;
 
-	if ( !pm ) {
+	if ( !pm || pm == -1 ) {
 		pm = lmsc_get_max_per_path("/");
+		if ( pm != -1 ) {
+			pm += 1;
+		}
 	}
 
 	return pm;
@@ -57,7 +65,7 @@ lmsc_get_max_per_path(const char* pth)
 	if ( l < 0 ) {
 		if ( errno )
 			return -1;
-		/* this should not be reached, but if it is
+		/* this can be reached if indeterminate;
 		 * we'll return a value
 		 */
 		pm = -1;
@@ -73,9 +81,16 @@ lmsc_get_max_per_path(const char* pth)
 #ifdef _POSIX_PATH_MAX
 		pm = _POSIX_PATH_MAX;
 #else
-		pm = 1024;
+		pm = DEFAULT_PATH_MAXIMUM;
 #endif
 #endif
+		// having used a fallback,
+		// simplistically subtract arg length
+		pm -= strlen(pth);
+		if ( pm < 0 ) {
+			pm = -1;
+			errno = ERANGE;
+		}
 	}
 
 	return pm;
