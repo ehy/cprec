@@ -25,6 +25,8 @@
 #if HAVE_VPRINTF
 
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 
 #if HAVE_STDARG_H
 #include <stdarg.h>
