@@ -1,6 +1,6 @@
 # cprec.spec
 #
-# Copyright (c) 2007 Ed Hynan freecode@verizon.net
+# Copyright (c) 2007 Ed Hynan edhynan@gmail.com
 #
 %define name cprec
 %define version @VERSION@
@@ -19,7 +19,7 @@ Group: Application/Misc
 #Distribution:
 #Icon:
 #URL:
-#Packager: Ed Hynan freecode@verizon.net
+#Packager: Ed Hynan edhynan@gmail.com
 
 # source + patches
 Source: %{name}-%{version}.tar.gz

@@ -8,8 +8,8 @@ Description:	A recursive directory hierarchy copier; much like 'cp -Rp'.
 		video DVD data using libdvdread (including decryption
 		if libdvdcss is available).
 Keywords:	backup video-DVD
-Author: 	freecode@verizon.net (Ed Hynan)
-Maintained-by:	freecode@verizon.net (Ed Hynan)
+Author: 	edhynan@gmail.com (Ed Hynan)
+Maintained-by:	edhynan@gmail.com (Ed Hynan)
 Primary-site:	freecode.example.com pub/Linux/apps/some/directory
 		31k cprec-@VERSION@.tar.gz
 		500  cprec.lsm

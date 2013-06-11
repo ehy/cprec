@@ -135,7 +135,7 @@ A recursive directory hierarchy copier; much like 'cp -Rp'.
       --usage                Give a short usage message
   -V, --version              Print program version
 
-Report bugs to <freecode@@verizon.net>.
+Report bugs to <edhynan@gmail.com>.
 @end example
 
 @node Invoking cprec, Problems, Sample, Top
@@ -192,13 +192,13 @@ and then exit successfully.
 @cindex problems
 
 If you find a bug in @command{cprec}, please send electronic mail to
-@email{freecode@@verizon.net}.  Include the version number, which you can find by
+@email{edhynan@gmail.com}.  Include the version number, which you can find by
 running @w{@samp{cprec --version}}.  Also include in your message the
 output that the program produced and the output you expected.@refill
 
 If you have other questions, comments or suggestions about
 @command{cprec}, contact the author via electronic mail to
-@email{freecode@@verizon.net}.  The author will try to help you out, although he
+@email{edhynan@gmail.com}.  The author will try to help you out, although he
 may not have time to fix your problems.
 
 @node Concept Index,  , Problems, Top
