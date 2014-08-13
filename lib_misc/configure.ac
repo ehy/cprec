@@ -1,9 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 
-#AC_INIT(lib_misc.a)
-AC_INIT([lib_misc.a], [0.1.1])
 dnl Every other copy of the package version number gets its value from here
-AM_INIT_AUTOMAKE(lib_misc, 0.1.1)
+AC_INIT([lib_misc.a], [0.1.2])
+AM_INIT_AUTOMAKE([-Wall -Werror])
 
 dnl create a config.h file (Automake will add -DHAVE_CONFIG_H)
 AM_CONFIG_HEADER(config.h)
@@ -28,10 +27,10 @@ AC_SYS_LONG_FILE_NAMES
 
 
 dnl Checks for programs.
-AC_PROG_INSTALL
+#AC_PROG_INSTALL
 AC_PROG_CC
+AM_PROG_AR
 AC_PROG_RANLIB
-#AM_PROG_AR
 AC_C_INLINE
 
 dnl Checks for libraries.

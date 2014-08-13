@@ -1,8 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(cprec.c)
 dnl Every other copy of the package version number gets its value from here
-AM_INIT_AUTOMAKE(cprec, 0.1.1)
+AC_INIT([cprec], [0.1.2])
+AM_INIT_AUTOMAKE([-Wall -Werror])
 
 dnl create a config.h file (Automake will add -DHAVE_CONFIG_H)
 AM_CONFIG_HEADER(config.h)
@@ -26,9 +26,9 @@ dnl Check file names
 AC_SYS_LONG_FILE_NAMES
 
 dnl arg to allow disabling of linking libdvdread
-AC_ARG_WITH(libdvdread, AS_HELP_STRING([--without-libdvdread],
-                          [don't link -ldvdread (but try dynamic loading)]),,
-with_libdvdread=yes)
+AC_ARG_WITH([libdvdread], AS_HELP_STRING([--with-libdvdread],
+	[try to link -ldvdread (the better default is to try dynamic loading)]),,
+	[with_libdvdread=no])
 
 dnl Checks for programs.
 AC_PROG_INSTALL
@@ -44,7 +44,7 @@ if test x"$with_libdvdread" = xyes; then
 #  the default search path of the compiler and linker. Or it might be
 #  'hand' installed anywhere. But it must be found. There seems to be
 #  no autoconf magic for this, and all the 'googling' I could stand was
-#  little help. Therefore shell script is resorted to, knowing well it sucks.
+#  little help. Therefore shell script is resorted to.
 #
 _search_hack_prefix_list="/usr/local /opt/local /opt /usr/pkg"
 _search_hack_headers_list="include/dvdread/dvd_reader.h"
