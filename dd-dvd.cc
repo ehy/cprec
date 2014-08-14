@@ -1,5 +1,3 @@
-//
-//
 /* 
    dd-dvd.c++ -- 'dd' a video DVD using libdvdread API on video related
    data so that libdvdread may employ libdvdcss if available
@@ -42,6 +40,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "hdr_cfg.h"
+#include "dl_drd.h"
+
 #   if defined(__sun) && ! defined(__linux)
 #      include <sys/mnttab.h>
 #      ifndef MNTTAB
@@ -50,19 +51,6 @@
 #   elif ! NEED_GETFSFILE
 #      include <fstab.h>
 #   endif
-
-#include <dvdread/dvd_reader.h>
-
-#   if 	HAVE_DVD_UDF_H
-#include <dvdread/dvd_udf.h>
-#   else  // if 	HAVE_DVD_UDF_H
-// Ubuntu libdvdread package includes dvd_udf.h in installation;
-// OpenBSD 4.4 for example does not -- add proto and hope for link
-extern "C" {
-uint32_t
-UDFFindFile(dvd_reader_t *device, char *filename, uint32_t *size);
-}
-#   endif // if 	HAVE_DVD_UDF_H
 
 #ifndef STDOUT_FILENO
 #   define STDOUT_FILENO 1
@@ -77,6 +65,8 @@ UDFFindFile(dvd_reader_t *device, char *filename, uint32_t *size);
 #   define HAVE_GETPAGESIZE 1
 #endif
 
+extern "C" { const char* program_name = "dd-dvd"; }
+
 using namespace std;
 using namespace rel_ops;
 
@@ -90,11 +80,11 @@ public:
     operator const T* () const { return p; }
 };
 
-const size_t blk_sz = DVD_VIDEO_LB_LEN; // this is 2048
+const size_t blk_sz = drd_VIDEO_LB_LEN; // this is 2048
 
 const size_t block_read_count = 4096;
 
-typedef dvd_reader_t* dvd_reader_p;
+typedef drd_reader_t* dvd_reader_p;
 
 size_t numbadblk = 0;
 size_t retrybadblk = 2;
@@ -574,7 +564,7 @@ list_build(file_list& lst, dvd_reader_p drd)
  */
 ssize_t
 copy_vob_badblks(
-	dvd_file_t* dvdfile,
+	drd_file_t* dvdfile,
 	int inp, int out,
 	unsigned char* buf,
 	size_t blkcnt,
@@ -686,7 +676,7 @@ copy_vob_badblks(
 // copy IFO of BUP with DVDReadBytes()
 ssize_t
 copy_ifo(
-	dvd_file_t* dvdfile,
+	drd_file_t* dvdfile,
 	int inp, int out,
 	unsigned char* buf,
 	size_t blkcnt,
@@ -733,7 +723,7 @@ copy_ifo(
 // if poff==0 do fd copy else do vob copy
 ssize_t
 copy_vob(
-	dvd_file_t* dvdfile,
+	drd_file_t* dvdfile,
 	int inp, int out,
 	unsigned char* buf,
 	size_t blkcnt,
@@ -855,12 +845,12 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			const char* sdom;
 			if ( ftype == vtf_vob ) {
 				sdom =   vf.nfile ?
-					"DVD_READ_TITLE_VOBS" :
-					"DVD_READ_MENU_VOBS";
+					"drd_READ_TITLE_VOBS" :
+					"drd_READ_MENU_VOBS";
 			} else if ( ftype == vtf_ifo ) {
-				sdom = "DVD_READ_INFO_FILE";
+				sdom = "drd_READ_INFO_FILE";
 			} else {
-				sdom = "DVD_READ_INFO_BACKUP_FILE";
+				sdom = "drd_READ_INFO_BACKUP_FILE";
 			}
 			
 			size_t rsz = vf.size / blk_sz;
@@ -979,26 +969,26 @@ dd_ops_exec(
 			// copy DVD type data:
                         // setup libdvdread 'domain'
 			vtf_type ftype = vf.type;
-			dvd_read_domain_t dom;
+			drd_read_t dom;
 			const char* sdom;
 			if ( ftype == vtf_vob ) {
 				dom =   vf.nfile ?
-					DVD_READ_TITLE_VOBS :
-					DVD_READ_MENU_VOBS;
+					drd_READ_TITLE_VOBS :
+					drd_READ_MENU_VOBS;
 				sdom =   vf.nfile ?
-					"DVD_READ_TITLE_VOBS" :
-					"DVD_READ_MENU_VOBS";
+					"drd_READ_TITLE_VOBS" :
+					"drd_READ_MENU_VOBS";
 			} else if ( ftype == vtf_ifo ) {
-				dom = DVD_READ_INFO_FILE;
-				sdom = "DVD_READ_INFO_FILE";
+				dom = drd_READ_INFO_FILE;
+				sdom = "drd_READ_INFO_FILE";
 			} else {
-				dom = DVD_READ_INFO_BACKUP_FILE;
-				sdom = "DVD_READ_INFO_BACKUP_FILE";
+				dom = drd_READ_INFO_BACKUP_FILE;
+				sdom = "drd_READ_INFO_BACKUP_FILE";
 			}
 			
 			// copy DVD type data:
                         // open libdvdread 'domain'
-			dvd_file_t* df = DVDOpenFile(dvd, int(vf.nset), dom);
+			drd_file_t* df = DVDOpenFile(dvd, int(vf.nset), dom);
 			if ( df == 0 ) {
 				fprintf(stderr,
 				    "failed to open title %u at block %llu\n",

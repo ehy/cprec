@@ -27,12 +27,27 @@ AC_SYS_LONG_FILE_NAMES
 
 dnl arg to allow disabling of linking libdvdread
 AC_ARG_WITH([libdvdread], AS_HELP_STRING([--with-libdvdread],
-	[try to link -ldvdread (the better default is to try dynamic loading)]),,
-	[with_libdvdread=no])
+  [try to link -ldvdread (the better default is to try dynamic loading)]),,
+  [with_libdvdread=no])
+
+dnl dd-dvd only if requested
+AC_ARG_ENABLE([dd-dvd], AS_HELP_STRING([--enable-dd-dvd],
+  [try to build the dd-dvd program which requires C++ and uses libdvdread functions that might not be public in the shared library]),,
+  [enable_dd_dvd=no])
+
+dnl dd-dvd only if requested
+AS_IF([test x"$enable_dd_dvd" != xno],
+[
+AM_CONDITIONAL(WITH_DD_DVD, true)
+AC_DEFINE(WITH_DD_DVD,[],[Enabled dd-dvd])
+], [
+AM_CONDITIONAL(WITH_DD_DVD, false)
+])
 
 dnl Checks for programs.
 AC_PROG_INSTALL
 AC_PROG_CC
+AC_PROG_CXX
 AC_C_INLINE
 
 dnl Checks for libraries.
@@ -90,7 +105,7 @@ AC_CHECK_LIB(dvdread, DVDReadBlocks,, AC_CHECK_LIB(dl, dlsym))
 else
 # libdvdread not enabled
 if test x"$with_libdvdread" = x || test x"$with_libdvdread" = xno; then
-AC_MSG_NOTICE(Skipping check for libdvdread: --without-libdvdread)
+AC_MSG_NOTICE(Skipping check for libdvdread: --with-libdvdread not given)
 AC_CHECK_LIB(dl, dlsym)
 else
 #  Here user has given a specific library argument; will assume such a user
