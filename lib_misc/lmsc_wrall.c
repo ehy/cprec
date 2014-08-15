@@ -25,66 +25,86 @@
 #include <errno.h>
 #include <unistd.h>
 
+/*
+ * a BOOLEAN proc(void) is useful for a check on
+ * signal interrupt -- if available, make a
+ * testable definition so it is used
+ */
+#ifndef signal_check_intr
+static int signal_check_intr(void)
+{
+	return 0;
+}
+#endif
+
+/* uncertainty: just in case */
+#ifndef EWOULDBLOCK
+#	define EWOULDBLOCK EAGAIN
+#endif
 
 ssize_t
 lmsc_write_all(int fd, void* buf, size_t count)
 {
-        ssize_t rem, tw;
-        char* p = buf;
+	ssize_t rem, tw;
+	char* p = buf;
 
-        for ( rem = count; rem; ) {
+	for ( rem = count; rem; ) {
 		errno = 0;
-                tw = write(fd, &p[count-rem], rem);
-                if ( tw < 0 ) {
-                        if ( errno == EAGAIN ) {
-				/* allow 0 return, if that's what
-				 * it is, and let caller check errno,
-				 * which if 0 means EOF
+		tw = write(fd, &p[count-rem], rem);
+		if ( tw < 0 ) {
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+				/* this proc is not designed for
+				 * non-blocking IO -- handle elsewhere
 				 */
 				break;
 			}
-                        if ( errno == EINTR ) {
+			if ( errno == EINTR ) {
+				if ( signal_check_intr() ) {
+					break;
+				}
 				errno = 0;
-                                continue;
-                        }
-                        return tw;
-                }
-                rem -= tw;
-        }
+				continue;
+			}
+			return tw;
+		}
+		rem -= tw;
+	}
 
-        return count - rem;
+	return count - rem;
 }
 
 ssize_t
 lmsc_read_all(int fd, void* buf, size_t count)
 {
-        ssize_t rem, tw;
-        char* p = buf;
+	ssize_t rem, tw;
+	char* p = buf;
 
-        for ( rem = count; rem; ) {
+	for ( rem = count; rem; ) {
 		errno = 0;
-                tw = read(fd, &p[count-rem], rem);
-                if ( tw < 0 ) {
-                        if ( errno == EAGAIN ) {
-				/* allow 0 return, if that's what
-				 * it is, and let caller check errno,
-				 * which if 0 means EOF
+		tw = read(fd, &p[count-rem], rem);
+		if ( tw < 0 ) {
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+				/* this proc is not designed for
+				 * non-blocking IO -- handle elsewhere
 				 */
 				break;
 			}
-                        if ( errno == EINTR ) {
+			if ( errno == EINTR ) {
+				if ( signal_check_intr() ) {
+					break;
+				}
 				errno = 0;
-                                continue;
-                        }
+				continue;
+			}
 			return tw;
-                }
+		}
 		if ( tw == 0 ) {
 			break;
 		}
-                rem -= tw;
-        }
+		rem -= tw;
+	}
 
-        return count - rem;
+	return count - rem;
 }
 
 

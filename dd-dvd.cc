@@ -1,6 +1,5 @@
 /* 
-   dd-dvd.c++ -- 'dd' a video DVD using libdvdread API on video related
-   data so that libdvdread may employ libdvdcss if available
+   dd-dvd.cc -- backup to disk a video DVD image
 
    Copyright (C) 2010 Ed Hynan
 
@@ -40,8 +39,19 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+extern "C" {
 #include "hdr_cfg.h"
+#include "lib_misc.h"
 #include "dl_drd.h"
+}
+
+// function {read,write}_all() are inlcuded here,
+// but lib_misc has them too: save the space if so.
+#ifdef _LIB_MISC_H_
+#	if defined(read_all) && defined(write_all)
+#		define RW_ALL_DEFINED 1
+#	endif
+#endif
 
 #   if defined(__sun) && ! defined(__linux)
 #      include <sys/mnttab.h>
@@ -150,7 +160,7 @@ get_page_size()
 unsigned char*
 mk_aligned_ptr(unsigned char* up)
 {
-	const size_t p_sz = sizeof(char*);
+	const size_t p_sz = sizeof(unsigned char*);
 	int pgsz = get_page_size();
 
 	if ( p_sz == 8 ) {
@@ -158,7 +168,7 @@ mk_aligned_ptr(unsigned char* up)
 	} else if ( p_sz == 4 ) {
 		up += pgsz - ((uint32_t)(uint64_t)up & (uint32_t)(pgsz-1));
 	} else {
-		fprintf(stderr, "cannot handle pointer size %u\n",
+		pfeall("cannot handle pointer size %u\n",
 			unsigned(p_sz));
 		exit(EXIT_FAILURE);
 	}
@@ -166,55 +176,58 @@ mk_aligned_ptr(unsigned char* up)
 	return up;
 }
 
+// these two read/write funcs are probably in lib_misc
+// so use those; RW_ALL_DEFINED is defined in this source
+#if ! RW_ALL_DEFINED
 ssize_t
 write_all(int fd, void* buf, size_t count)
 {
-        ssize_t rem, tw;
-        char* p = static_cast<char*>(buf);
+	ssize_t rem, tw;
+	char* p = static_cast<char*>(buf);
 
-        for ( rem = count; rem; ) {
-                tw = write(fd, &p[count-rem], rem);
-                if ( tw < 0 ) {
-                        if ( errno == EAGAIN || errno == EINTR ) {
-                                #if DEBUG_IO_INTR
+	for ( rem = count; rem; ) {
+		tw = write(fd, &p[count-rem], rem);
+		if ( tw < 0 ) {
+			if ( errno == EAGAIN || errno == EINTR ) {
+				#if DEBUG_IO_INTR
 				perror("continuing interrupted write");
 				#endif
 				continue;
 			}
-                        return tw;
-                }
-                rem -= tw;
-        }
+			return tw;
+		}
+		rem -= tw;
+	}
 
-        return count;
+	return count;
 }
 
 ssize_t
 read_all(int fd, void* buf, size_t count)
 {
-        ssize_t rem, tw;
-        char* p = static_cast<char*>(buf);
+	ssize_t rem, tw;
+	char* p = static_cast<char*>(buf);
 
-        for ( rem = count; rem; ) {
-                tw = read(fd, &p[count-rem], rem);
-                if ( tw < 0 ) {
-                        if ( errno == EAGAIN || errno == EINTR ) {
-                                #if DEBUG_IO_INTR
-                                perror("continuing interrupted read");
+	for ( rem = count; rem; ) {
+		tw = read(fd, &p[count-rem], rem);
+		if ( tw < 0 ) {
+			if ( errno == EAGAIN || errno == EINTR ) {
+				#if DEBUG_IO_INTR
+				perror("continuing interrupted read");
 				#endif
-                                continue;
+				continue;
 			}
-                        return tw;
-                }
+			return tw;
+		}
 		if ( tw == 0 ) {
 			return count - rem;
 		}
-                rem -= tw;
-        }
+		rem -= tw;
+	}
 
         return count;
 }
-
+#endif // #if ! RW_ALL_DEFINED
 
 // not just VOB actually; ifo/bup too
 class vt_file {
@@ -344,7 +357,7 @@ public:
 		file_list::const_iterator e = lst.end();
 		for ( ; i != e; i++ ) {
 			const vt_file& vf = *i;
-			fprintf(stderr, "%s%s %u: %s\n",
+			pfeall("%s%s %u: %s\n",
 				pfx,
 				vtfext[vf.type],
 				vf.nfile,
@@ -443,13 +456,13 @@ setmap_build(const file_list& flst, setnum_list& slst, vt_set_map& smap)
 void
 setmap_print(const setnum_list& slst, const vt_set_map& smap)
 {
-	fprintf(stderr, "\nVideo file groups:\n");
+	pfeall("\nVideo file groups:\n");
 
 	vt_set_map::const_iterator es = smap.end();
 	for ( size_t n = 0; n < slst.size(); n++ ) {
 		vtf_set_index ix(slst[n]);
 
-		fprintf(stderr, "  VT set %02u (%s) containing:\n",
+		pfeall("  VT set %02u (%s) containing:\n",
 			ix.nset,
 			vtfext[ix.type]);
 
@@ -501,7 +514,7 @@ list_print(file_list& lst)
 	file_list::iterator e = lst.end();
 
 	for ( unsigned n = 0; i != e; i++, n++ ) {
-		fprintf(stderr, "%03u)  %10llu  %10llu  %s\n"
+		pfeall("%03u)  %10llu  %10llu  %s\n"
 		    , n
 		    , (unsigned long long)(*i).block
 		    , (unsigned long long)(*i).size
@@ -610,7 +623,7 @@ copy_vob_badblks(
 				nb = ssz / blk_sz;
 			}
 		} else {
-			fprintf(stderr, "FATAL internal error: inp == %d\n",
+			pfeall("FATAL internal error: inp == %d\n",
 				inp);
 			errno = EINVAL;
 			return -1;
@@ -662,7 +675,7 @@ copy_vob_badblks(
 	
 	numbadblk += bad;
 	tm2 = time(0);
-	fprintf(stderr,
+	pfeall(
 		"%lu bad blocks zeroed in read of %lu "
 		"(%g good blocks) in %llu seconds\n",
 		bad, (unsigned long)blkcnt,
@@ -789,10 +802,13 @@ copy_vob(
 	return blkcnt - cnt;
 }
 
+// Just go through collected data and print, showing ops
+// to be done, but do nothing else -- same function signature
+// as dd_ops_exec() so that a selected call can be made
 off_t
 dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 {
-	fprintf(stderr, "\nDD operations on %zu blocks:\n",
+	pfeall("\nDD operations on %zu blocks:\n",
 		tot_blks);
 
 	off_t fptr = 0;
@@ -801,7 +817,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 		vtf_set_index ix(slst[n]);
 		const vtf_set& vs = smap.find(ix)->second;
 
-		fprintf(stderr, "file group %02u:%s, %zu files:\n",
+		pfeall("file group %02u:%s, %zu files:\n",
 			vs.nset, vtfext[vs.type], vs.count());
 
 		for ( size_t nvf = 0; nvf < vs.count(); nvf++ ) {
@@ -809,7 +825,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 
                         // basic error checks
 			if ( off_t(vf.block) < fptr ) {
-				fprintf(stderr,
+				pfeall(
 				    "internal error: wanted block %llu"
                                     ", had %llu (new offset < current)\n",
 					(unsigned long long)fptr,
@@ -817,7 +833,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 				exit(EXIT_FAILURE);
 			}
 			if ( vf.size % blk_sz ) {
-				fprintf(stderr,
+				pfeall(
 				    "input error: vob(%u,%u) size %%"
                                     " blocks size == %llu (file size"
                                     " not multiple of blocks)\n",
@@ -829,7 +845,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			// if space between vts files, do DD copy
 			size_t ddbsz = size_t(vf.block) - fptr;
 			if ( ddbsz ) {
-				fprintf(stderr,
+				pfeall(
 				    "DD at %llu to %llu:"
 				    " %zu blocks, %zu bytes\n",
 					(unsigned long long)fptr,
@@ -845,16 +861,16 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			const char* sdom;
 			if ( ftype == vtf_vob ) {
 				sdom =   vf.nfile ?
-					"drd_READ_TITLE_VOBS" :
-					"drd_READ_MENU_VOBS";
+					"DVD_READ_TITLE_VOBS" :
+					"DVD_READ_MENU_VOBS";
 			} else if ( ftype == vtf_ifo ) {
-				sdom = "drd_READ_INFO_FILE";
+				sdom = "DVD_READ_INFO_FILE";
 			} else {
-				sdom = "drd_READ_INFO_BACKUP_FILE";
+				sdom = "DVD_READ_INFO_BACKUP_FILE";
 			}
 			
 			size_t rsz = vf.size / blk_sz;
-			fprintf(stderr,
+			pfeall(
 			    "%s(%u, %u) at %llu to %llu:"
 			    " %llu blocks, %llu bytes"
 			    " in domain %s\n",
@@ -871,7 +887,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 	// final dd of remaining data
 	if ( size_t(fptr) < tot_blks ) {
 		size_t ddbsz = off_t(tot_blks) - fptr;
-		fprintf(stderr,
+		pfeall(
 		    "DD remainder at %llu to %llu: %zu blocks, %zu bytes\n",
 			(unsigned long long)fptr,
 			(unsigned long long)fptr + ddbsz,
@@ -880,19 +896,20 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 		fptr += off_t(ddbsz);
 	}
 	if ( size_t(fptr) > tot_blks ) {
-		fprintf(stderr,
+		pfeall(
 		    "ERROR: write offset > total blocks: %llu > %zu\n",
 			(unsigned long long)fptr, tot_blks);
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "DD operations: %llu blocks, %llu bytes to write\n",
+	pfeall("DD operations: %llu blocks, %llu bytes to write\n",
 		(unsigned long long)fptr,
 		(unsigned long long)fptr * blk_sz);
 
 	return fptr;
 }
 
+// Go through collected data and executes operations they require
 off_t
 dd_ops_exec(
 	const setnum_list& slst,
@@ -901,7 +918,7 @@ dd_ops_exec(
 	dvd_reader_p dvd, int inp, int out
 	)
 {
-	fprintf(stderr, "\nDD of %zu block filesystem:\n",
+	pfeall("\nDD of %zu block filesystem:\n",
 		tot_blks);
 
 	off_t fptr = 0;
@@ -910,7 +927,7 @@ dd_ops_exec(
 		vtf_set_index ix(slst[n]);
 		const vtf_set& vs = smap.find(ix)->second;
 
-		fprintf(stderr, "file group %02u:%s, %zu files:\n",
+		pfeall("file group %02u:%s, %zu files:\n",
 			vs.nset, vtfext[vs.type], vs.count());
 
 		int setoff = 0;
@@ -919,7 +936,7 @@ dd_ops_exec(
 			
                         // basic error checks
                         if ( off_t(vf.block) < fptr ) {
-				fprintf(stderr,
+				pfeall(
 				    "internal error: wanted block %llu"
                                     ", had %llu (new offset < current)\n",
 					(unsigned long long)fptr,
@@ -927,7 +944,7 @@ dd_ops_exec(
 				exit(EXIT_FAILURE);
 			}
 			if ( vf.size % blk_sz ) {
-				fprintf(stderr,
+				pfeall(
 				    "input error: vob(%u,%u) size %%"
                                     " blocks size == %llu (file size"
                                     " not multiple of blocks)\n",
@@ -939,7 +956,7 @@ dd_ops_exec(
 			// if space between vts files, do DD copy
 			size_t ddbsz = size_t(vf.block) - fptr;
 			if ( ddbsz ) {
-				fprintf(stderr,
+				pfeall(
 				    "DD at %llu to %llu:"
 				    " %zu blocks, %zu bytes\n",
 					(unsigned long long)fptr,
@@ -950,14 +967,14 @@ dd_ops_exec(
 				off_t pos = fptr * blk_sz;
 				off_t ret = lseek(inp, pos, SEEK_SET);
 				if ( ret != pos ) {
-					fprintf(stderr,
+					pfeall(
 					    "failed input seek to %llu\n",
 						(unsigned long long)pos);
 					exit(EXIT_FAILURE);
 				}
 				ret = copy_vob(0, inp, out, iobuffer, ddbsz, 0);
 				if ( ret != ddbsz ) {
-					fprintf(stderr,
+					pfeall(
 					    "DD failed at block %llu, %zu\n",
 						(unsigned long long)fptr,
 						ddbsz);
@@ -976,21 +993,21 @@ dd_ops_exec(
 					drd_READ_TITLE_VOBS :
 					drd_READ_MENU_VOBS;
 				sdom =   vf.nfile ?
-					"drd_READ_TITLE_VOBS" :
-					"drd_READ_MENU_VOBS";
+					"DVD_READ_TITLE_VOBS" :
+					"DVD_READ_MENU_VOBS";
 			} else if ( ftype == vtf_ifo ) {
 				dom = drd_READ_INFO_FILE;
-				sdom = "drd_READ_INFO_FILE";
+				sdom = "DVD_READ_INFO_FILE";
 			} else {
 				dom = drd_READ_INFO_BACKUP_FILE;
-				sdom = "drd_READ_INFO_BACKUP_FILE";
+				sdom = "DVD_READ_INFO_BACKUP_FILE";
 			}
 			
 			// copy DVD type data:
                         // open libdvdread 'domain'
 			drd_file_t* df = DVDOpenFile(dvd, int(vf.nset), dom);
 			if ( df == 0 ) {
-				fprintf(stderr,
+				pfeall(
 				    "failed to open title %u at block %llu\n",
 					vf.nset,
 					(unsigned long long)vf.block);
@@ -1001,7 +1018,7 @@ dd_ops_exec(
                         // use libdvdread API (within copy*()) per file type
 			size_t szr;
 			size_t rsz = vf.size / blk_sz;
-			fprintf(stderr,
+			pfeall(
 			    "%s(%u, %u) at %llu to %llu:"
 			    " %llu blocks, %llu bytes"
 			    " in domain %s\n",
@@ -1025,7 +1042,7 @@ dd_ops_exec(
 			// copy DVD type data:
                         // error check
 			if ( szr != rsz ) {
-				fprintf(stderr,
+				pfeall(
 				    "failed copy title %u.%u at block %llu\n",
 					vf.nset, vf.nfile,
 					(unsigned long long)vf.block);
@@ -1041,7 +1058,7 @@ dd_ops_exec(
 	// final dd of remaining data
 	if ( size_t(fptr) < tot_blks ) {
 		size_t ddbsz = off_t(tot_blks) - fptr;
-		fprintf(stderr,
+		pfeall(
 		    "DD remainder at %llu to %llu: %zu blocks, %zu bytes\n",
 			(unsigned long long)fptr,
 			(unsigned long long)fptr + ddbsz,
@@ -1051,14 +1068,14 @@ dd_ops_exec(
 		off_t pos = fptr * blk_sz;
 		off_t ret = lseek(inp, pos, SEEK_SET);
 		if ( ret != pos ) {
-			fprintf(stderr,
+			pfeall(
 				"failed input seek to %llu\n",
 				(unsigned long long)pos);
 			exit(EXIT_FAILURE);
 		}
 		ret = copy_vob(0, inp, out, iobuffer, ddbsz, 0);
 		if ( ret != ddbsz ) {
-			fprintf(stderr,
+			pfeall(
 				"DD failed at block %llu, %zu\n",
 				(unsigned long long)fptr,
 				ddbsz);
@@ -1068,13 +1085,13 @@ dd_ops_exec(
 	}
 
 	if ( size_t(fptr) > tot_blks ) {
-		fprintf(stderr,
+		pfeall(
 		    "ERROR: write offset > total blocks: %llu > %zu\n",
 			(unsigned long long)fptr, tot_blks);
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "DONE: %llu blocks, %llu bytes written\n",
+	pfeall("DONE: %llu blocks, %llu bytes written\n",
 		(unsigned long long)fptr,
 		(unsigned long long)fptr * blk_sz);
 
@@ -1117,7 +1134,7 @@ get_vol_blocks(int fd)
 
 	// optional sanity check:
 	if ( lblk != bblk ) {
-		fprintf(stderr, "failed to get volume block count\n");
+		pfeall("failed to get volume block count\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -1138,7 +1155,7 @@ get_mount_dev(const char* mtpt, string& name)
 	FILE* fp = fopen(MNTTAB, "r");
 	if ( fp == 0 ) {
 		perror(MNTTAB);
-		fprintf(stderr, "cannot open %s\n", MNTTAB);
+		pfeall("cannot open %s\n", MNTTAB);
 		return false;
 	}
 	struct mnttab sm;
@@ -1148,7 +1165,7 @@ get_mount_dev(const char* mtpt, string& name)
 			continue;
 		}
 		name = sm.mnt_special;
-		fprintf(stderr,
+		pfeall(
 			"using device %s for argument %s\n",
 			sm.mnt_special, mtpt);
 		fclose(fp);
@@ -1158,19 +1175,19 @@ get_mount_dev(const char* mtpt, string& name)
 		perror("getmntent");
 	}
 	fclose(fp);
-	fprintf(stderr, "cannot find device for %s\n", mtpt);
+	pfeall("cannot find device for %s\n", mtpt);
 	return false;
 #   elif ! NEED_GETFSFILE
 	struct fstab* stp = getfsfile(mtpt);
 	if ( stp == 0 ) {
-		fprintf(stderr,
+		pfeall(
 			"cannot find device for %s\n",
 			mtpt);
 		endfsent();
 		return false;
 	}
 	name = stp->fs_spec;
-	fprintf(stderr,
+	pfeall(
 		"using device %s for argument %s\n",
 		stp->fs_spec, mtpt);
 	endfsent();
@@ -1178,6 +1195,51 @@ get_mount_dev(const char* mtpt, string& name)
 #   else
 	return false;
 #   endif
+}
+
+void
+env_checkvars()
+{
+	const char* ep;
+	if ( (ep = getenv("DDD_DRYRUN")) != 0 ) {
+		if ( strcasecmp(ep, "0") &&
+			 strcasecmp(ep, "no") &&
+			 strcasecmp(ep, "false") ) {
+			dryrun = true;
+		}
+	}
+	if ( (ep = getenv("DDD_VERBOSE")) != 0 ) {
+		if ( !strcasecmp(ep, "0") ||
+			 !strcasecmp(ep, "no") ||
+			 !strcasecmp(ep, "false") ) {
+			verbose = 0;
+		} else {
+			int v;
+			switch ( *ep ) {
+				case '0': v = 0; break;
+				case '1': v = 1; break;
+				case '2': v = 2; break;
+				case '3': v = 3; break;
+				default:  v = 4; break;
+			}
+			verbose = v;
+		}
+	}
+	if ( (ep = getenv("DDD_RETRYBLOCKS")) != 0 ) {
+		errno = 0;
+		long lv = strtol(ep, 0, 0);
+		
+		if ( errno || lv < 1 || lv > block_read_count ) {
+			perror("bad \"DDD_RETRYBLOCKS\" value");
+			pfeall(
+				"using default %zu\n", retrybadblk);
+		} else {
+			retrybadblk = static_cast<size_t>(lv);
+			pfeall(
+				"using DDD_RETRYBLOCKS %zu\n",
+				retrybadblk);
+		}
+	}
 }
 
 int
@@ -1194,6 +1256,46 @@ main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
+	/* get envireonment vars 1st so options override */
+	env_checkvars();
+	/* TODO: add options handling */
+
+	/* setup stream helpers */
+	pf_assign_files(fopen("/dev/null", "w"), stderr);
+	// NO stdout messages! data goes there
+	pf_setup(0, verbose >= 1);
+
+#if ! HAVE_LIBDVDREAD
+	const char* drd_libname = drd_altname;
+	if ( open_drd(drd_libname, get_drd_defflags()) ) {
+		pfeall(_("%s: failed loading %s\n"),
+			program_name, drd_libname);
+		return EXIT_FAILURE;
+	}
+
+	pfeopt(_("%s: using %s for dvdread library\n"),
+		program_name, drd_libname);
+
+	if ( int nf = load_drd_syms() ) {
+		pfeall(_("%s: failed loading %d symbols from %s\n"),
+			program_name, nf, drd_libname);
+		return EXIT_FAILURE;
+	}
+
+	if ( DVDVersion == NULL ) {
+		pfeopt(_("%s: dvdread library has no DVDVersion()\n")
+			_("\tnote version < %s API unknown\n"),
+			program_name, "0.9.4");
+	} else {
+		int v = DVDVersion();
+		pfeopt(_("%s: %s version %d.%d.%d found\n"),
+			program_name, drd_libname,
+			(v / 10000) % 100,
+			(v / 100) % 100,
+			v % 100);
+	}
+#endif
+
 	struct stat sb;
 	if ( stat(argv[1], &sb) ) {
 		perror(argv[1]);
@@ -1205,6 +1307,7 @@ main(int argc, char* argv[])
 		);
 	iobuffer = mk_aligned_ptr(buffalloc);
 
+
 	// allowing character dev too, as it might work on BSD
 	string inname;
 	if ( S_ISREG(sb.st_mode) ||
@@ -1212,58 +1315,15 @@ main(int argc, char* argv[])
 		inname = argv[1];
 	} else if ( S_ISDIR(sb.st_mode) ) {
 		if ( get_mount_dev(argv[1], inname) == false ) {
-			fprintf(stderr, "if %s is the mount point"
+			pfeall("if %s is the mount point"
 				" of a DVD device, give device name"
 				" instead\n", argv[1]);
 			return EXIT_FAILURE;
 		}
 	} else {
-		fprintf(stderr, "unsupported file type %s\n",
+		pfeall("unsupported file type %s\n",
 			argv[1]);
 		return EXIT_FAILURE;
-	}
-
-	{
-		const char* ep;
-		if ( (ep = getenv("DDD_DRYRUN")) != 0 ) {
-			if ( strcasecmp(ep, "0") &&
-			     strcasecmp(ep, "no") &&
-			     strcasecmp(ep, "false") ) {
-				dryrun = true;
-			}
-		}
-		if ( (ep = getenv("DDD_VERBOSE")) != 0 ) {
-			if ( !strcasecmp(ep, "0") ||
-			     !strcasecmp(ep, "no") ||
-			     !strcasecmp(ep, "false") ) {
-				verbose = 0;
-			} else {
-				int v;
-				switch ( *ep ) {
-					case '0': v = 0; break;
-					case '1': v = 1; break;
-					case '2': v = 2; break;
-					case '3': v = 3; break;
-					default:  v = 4; break;
-				}
-				verbose = v;
-			}
-		}
-		if ( (ep = getenv("DDD_RETRYBLOCKS")) != 0 ) {
-			errno = 0;
-			long lv = strtol(ep, 0, 0);
-			
-			if ( errno || lv < 1 || lv > block_read_count ) {
-				perror("bad \"DDD_RETRYBLOCKS\" value");
-				fprintf(stderr,
-					"using default %zu\n", retrybadblk);
-			} else {
-				retrybadblk = static_cast<size_t>(lv);
-				fprintf(stderr,
-					"using DDD_RETRYBLOCKS %zu\n",
-					retrybadblk);
-			}
-		}
 	}
 
 	int out, inp = open(inname.c_str(), O_RDONLY);
@@ -1282,7 +1342,7 @@ main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 	if ( verbose && dryrun && argc > 2 ) {
-		fprintf(stderr, "in dry run: output %s not opened\n",
+		pfeall("in dry run: output %s not opened\n",
 			argv[2]);
 	}
 
@@ -1291,7 +1351,7 @@ main(int argc, char* argv[])
 
 	dvd_reader_p drd = DVDOpen(inname.c_str());
 	if ( drd == 0 ) {
-		fprintf(stderr, "failed opening %s\n", inname.c_str());
+		pfeall("failed opening %s\n", inname.c_str());
 		return EXIT_FAILURE;
 	}
 
@@ -1312,7 +1372,7 @@ main(int argc, char* argv[])
 	if ( dryrun || verbose >= 3 ) {
 		wrbl = dd_ops_print(setlist, setmap, volblks);
 		if ( wrbl != volblks ) {
-			fprintf(stderr,
+			pfeall(
 			    "FAIL: %llu written; expected %zu\n",
 				(unsigned long long)(wrbl * blk_sz),
 				volblks * blk_sz);
@@ -1324,7 +1384,7 @@ main(int argc, char* argv[])
 		wrbl =
 		  dd_ops_exec(setlist, setmap, volblks, drd, inp, out);
 		if ( wrbl != volblks ) {
-			fprintf(stderr,
+			pfeall(
 			    "FAIL: %llu written; expected %zu\n",
 				(unsigned long long)(wrbl * blk_sz),
 				volblks * blk_sz);
@@ -1333,7 +1393,7 @@ main(int argc, char* argv[])
 	}
 
 	if ( numbadblk ) {
-		fprintf(stderr,
+		pfeall(
 		    "found %zu bad blocks in %s; zeroed in output\n",
 		    numbadblk,
 		    inname.c_str());
