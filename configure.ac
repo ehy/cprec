@@ -133,7 +133,7 @@ AC_STRUCT_ST_BLOCKS
 AC_FUNC_ALLOCA
 AC_FUNC_FSEEKO
 AC_FUNC_CLOSEDIR_VOID
-AC_CHECK_FUNCS(mkfifo vprintf doprnt seekdir telldir getrlimit pathconf getpagesize sysconf strlcpy mmap lstat readlink symlink lchown lchmod lutimes utimes error dlsym posix_memalign)
+AC_CHECK_FUNCS(mkfifo vprintf doprnt seekdir telldir getrlimit pathconf getpagesize sysconf strlcpy mmap lstat readlink symlink lchown lchmod lutimes utimes error dlsym posix_memalign getfsfile endfsent)
 AC_CHECK_FUNC(mknod)
 
 dnl Checks for typedefs, structures, and compiler characteristics.

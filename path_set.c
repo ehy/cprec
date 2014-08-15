@@ -101,12 +101,12 @@ set_paths(const char* mountp, const char* outname)
 			program_name, strerror(errno));
 		exit(1);
 	}
-	mntdbufdlen = mntdlen;
-	viddbufdlen = nbufbufdlen = outdbufdlen = mntdbufdlen;
-	mntd = xmalloc(sizeof(char) * mntdbufdlen);
-	outd = xmalloc(sizeof(char) * outdbufdlen);
-	vidd = xmalloc(sizeof(char) * viddbufdlen);
-	nbuf = xmalloc(sizeof(char) * nbufbufdlen);
+	mntdlen *= sizeof(char); /* ha ha ha */
+	viddbufdlen = nbufbufdlen = outdbufdlen = mntdbufdlen = mntdlen;
+	mntd = xmalloc(mntdbufdlen);
+	outd = xmalloc(outdbufdlen);
+	vidd = xmalloc(viddbufdlen);
+	nbuf = xmalloc(nbufbufdlen);
 #endif
 
 	outdlen = strlcpy(outd, outname, outdbufdlen);

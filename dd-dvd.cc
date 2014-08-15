@@ -984,7 +984,7 @@ dd_ops_exec(
 			}
 
 			// copy DVD type data:
-                        // setup libdvdread 'domain'
+			// setup libdvdread 'domain'
 			vtf_type ftype = vf.type;
 			drd_read_t dom;
 			const char* sdom;
@@ -1004,7 +1004,7 @@ dd_ops_exec(
 			}
 			
 			// copy DVD type data:
-                        // open libdvdread 'domain'
+			// open libdvdread 'domain'
 			drd_file_t* df = DVDOpenFile(dvd, int(vf.nset), dom);
 			if ( df == 0 ) {
 				pfeall(
@@ -1015,7 +1015,7 @@ dd_ops_exec(
 			}
 
 			// copy DVD type data:
-                        // use libdvdread API (within copy*()) per file type
+			// use libdvdread API (within copy*()) per file type
 			size_t szr;
 			size_t rsz = vf.size / blk_sz;
 			pfeall(
@@ -1040,7 +1040,7 @@ dd_ops_exec(
 			}
 
 			// copy DVD type data:
-                        // error check
+			// error check
 			if ( szr != rsz ) {
 				pfeall(
 				    "failed copy title %u.%u at block %llu\n",
@@ -1050,7 +1050,7 @@ dd_ops_exec(
 			}
 
 			// update pointer and loop
-                        fptr += rsz;
+			fptr += rsz;
 			DVDCloseFile(df);
 		}
 	}
@@ -1109,28 +1109,28 @@ get_vol_blocks(int fd)
 	}
 
 	const off_t seek1 = 2048 * 16;
-        if ( lseek(fd, seek1, SEEK_SET) != seek1 ) {
-                perror("lseek(SEEK_SET)");
-                exit(EXIT_FAILURE);
-        }
+	if ( lseek(fd, seek1, SEEK_SET) != seek1 ) {
+		perror("lseek(SEEK_SET)");
+		exit(EXIT_FAILURE);
+	}
 
-        if ( read_all(fd, iobuffer, 2048) != 2048 ) {
-                perror("read(2048)");
-                exit(EXIT_FAILURE);
-        }
+	if ( read_all(fd, iobuffer, 2048) != 2048 ) {
+		perror("read(2048)");
+		exit(EXIT_FAILURE);
+	}
 
-        const size_t boff = 84;
-        const size_t loff = 80;
+	const size_t boff = 84;
+	const size_t loff = 80;
 
-        unsigned char* pd;
+	unsigned char* pd;
 
-        pd = &iobuffer[loff];
-        uint32_t lblk = (uint32_t(pd[0]) <<  0) | (uint32_t(pd[1]) <<  8) |
-                        (uint32_t(pd[2]) << 16) | (uint32_t(pd[3]) <<  24);
+	pd = &iobuffer[loff];
+	uint32_t lblk = (uint32_t(pd[0]) <<  0) | (uint32_t(pd[1]) <<  8) |
+		(uint32_t(pd[2]) << 16) | (uint32_t(pd[3]) <<  24);
 
-        pd = &iobuffer[boff];
-        uint32_t bblk = (uint32_t(pd[0]) << 24) | (uint32_t(pd[1]) << 16) |
-                        (uint32_t(pd[2]) <<  8) | (uint32_t(pd[3]) <<  0);
+	pd = &iobuffer[boff];
+	uint32_t bblk = (uint32_t(pd[0]) << 24) | (uint32_t(pd[1]) << 16) |
+		(uint32_t(pd[2]) <<  8) | (uint32_t(pd[3]) <<  0);
 
 	// optional sanity check:
 	if ( lblk != bblk ) {

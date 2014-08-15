@@ -127,6 +127,13 @@ unsigned char* lmsc_mk_aligned_ptr(unsigned char* up, size_t alnmnt);
 int lmsc_s_tol(const char* str, long* result, char** endp, int base);
 
 /*
+ * wrap strdup (POSIX) making failure fatal
+ * with configurable message
+ */
+extern const char* lmsc_x_strdup_failmsg;
+char* lmsc_x_strdup(const char*);
+
+/*
  * print format to out or err streams optionally or unconditionally.
  */
 int lmsc_pfoopt(const char*, ...); /* print format to out stream optionally */
@@ -189,6 +196,9 @@ void lmsc_pf_init_files(void);
 #define	mk_aligned_ptr	lmsc_mk_aligned_ptr
 /* wrap strtol(): returns nonzero on error */
 #define	s_tol	lmsc_s_tol
+
+#define x_strdup_failmsg	lmsc_x_strdup_failmsg
+#define x_strdup			lmsc_x_strdup
 
 /*
  * print format to out or err streams optionally or unconditionally.

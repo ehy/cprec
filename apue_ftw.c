@@ -111,8 +111,8 @@ static int dopath(SIVA* S, int lvl);
 int
 apue_ftw(const char* pathname, cbf_t* func, int nopenfd)
 {
-	int		ret;
-	SIVA		S;
+	int 	ret;
+	SIVA	S;
 
 	/* lstat: see comment below */
 	if ( lstat(pathname, &S.sb) < 0 ) {
@@ -131,18 +131,18 @@ apue_ftw(const char* pathname, cbf_t* func, int nopenfd)
 		}
 
 		S.pathstrlen = strlen(pathname);
-		S.pathlen = (size_t)pm + S.pathstrlen;
+		S.pathlen = (size_t)pm + S.pathstrlen + 1;
 	} else {
 		S.pathstrlen = strlen(pathname);
-		S.pathlen = S.pathstrlen;
+		S.pathlen = S.pathstrlen + 1;
 	}
 
-	S.path = malloc(S.pathlen + 1);
+	S.path = malloc(S.pathlen);
 	if ( S.path == NULL ) {
 		return -1;
 	}
 	
-	if ( strlcpy(S.path, pathname, S.pathlen+1) >= (S.pathlen+1) ) {
+	if ( strlcpy(S.path, pathname, S.pathlen) >= S.pathlen ) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -233,6 +233,7 @@ dopath(SIVA* S, int lvl)
 	doff = 0;
 	while ( (dirp = readdir(S->dpv[dind])) != NULL ) {
 		size_t nlen;
+		ssize_t ptr_sz = (ssize_t)S->pathlen - (ssize_t)(ptr - S->path);
 		
 		#ifndef HAVE_SEEKDIR
 		doff++;
@@ -245,7 +246,9 @@ dopath(SIVA* S, int lvl)
 
 		/* append name */
 		nlen = NLENGTH(dirp);
-		if ( (plen + nlen) >= S->pathlen ) {
+		if ( ptr_sz < 0
+			|| (plen + nlen) >= S->pathlen
+			|| ptr_sz <= strlcpy(ptr, dirp->d_name, ptr_sz) ) {
 			#ifdef ENAMETOOLONG
 	  		errno = ENAMETOOLONG;
 			#else
@@ -254,7 +257,6 @@ dopath(SIVA* S, int lvl)
 			ret = -1;
 			break;
 		}
-		strcpy(ptr, dirp->d_name);
 
 		/* lstat: see next comment */
 		if ( lstat(S->path, &S->sb) < 0 ) {

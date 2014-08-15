@@ -20,17 +20,35 @@
 
 /* this program's various incs */
 #include "lib_misc.h"
+#include <string.h>
+#include <errno.h>
 
 #if LIB_MISC_TESTING
 #	define LIB_MISC_FUNC_PTRS 1
 #endif
 
-/* just these two outside of #if LIB_MISC_FUNC_PTRS
- * to give this trans unit minimum contents; plus
- * these can be very useful.
+/* TODO: put x_string funcs in own file */
+
+/*
+ * wrap strdup (POSIX) making failure fatal
+ * with configurable message
  */
-ssize_t	    (*p_lmsc_read_all)(int fd, void* buf, size_t count) = lmsc_read_all;
-ssize_t	    (*p_lmsc_write_all)(int fd, void* buf, size_t count) = lmsc_write_all;
+const char* lmsc_x_strdup_failmsg = "strdup() failed";
+char* lmsc_x_strdup(const char* src)
+{
+	char* p = strdup(src);
+
+	if ( p == NULL ) {
+		/* lmsc_pf_init_files() does nothing if not needed */
+		lmsc_pf_init_files();
+		lmsc_pfeall("%s (%s)\n",
+			lmsc_x_strdup_failmsg,
+			strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	return p;
+}
 
 #if LIB_MISC_FUNC_PTRS
 

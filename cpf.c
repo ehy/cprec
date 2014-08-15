@@ -51,6 +51,12 @@ const size_t blk_sz = drd_VIDEO_LB_LEN;
 /* found bad blocks? */
 unsigned long numbadblk = 0;
 
+/* these pairs are used in ifo copy error handling */
+struct { const char* c, * r; } ifo_cmps[] = {
+	{ "BUP", "IFO" }, { "bup", "ifo" },
+	{ "IFO", "BUP" }, { "ifo", "bup" }
+};
+
 /* static procedures */
 static int disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz);
 static ssize_t copy_vob_badblks(drd_file_t* dvdfile
@@ -63,6 +69,40 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
 		, int infd, int outfd
 		, unsigned char* buf
 		, size_t blkcnt, long* poff);
+
+/* string safety return checks; fatal err */
+#define SCPYCHK(d, s, c) \
+	{ \
+		size_t n = c; \
+		if ( n <= strlcpy(d, s, n) ) { \
+			pfeall( \
+				_("%s: internal string error in pointer or size\n"), \
+				program_name); \
+			exit(60); \
+		} \
+	}
+/* for snprintf into nbuf: use as NBP((args to snprintf)), no ; */
+#define NBP(ARGS) \
+	{ \
+		int n = snprintf ARGS ; \
+		if ( n <= nbufbufdlen || n < 0 ) { \
+			pfeall( \
+				_("%s: internal string error in pointer or size\n"), \
+				program_name); \
+			exit(60); \
+		} \
+	}
+/* for snprintf into 'pn', a pointer into mntd -- as above macro */
+#define PNP(ARGS) \
+	{ \
+		int c = (int)PNREM; int n = snprintf ARGS ; \
+		if ( n <= c || n < 0 ) { \
+			pfeall( \
+				_("%s: internal string error in pointer or size\n"), \
+				program_name); \
+			exit(60); \
+		} \
+	}
 
 /* flags to open output files */
 #define OPENFL O_RDWR|O_CREAT|O_EXCL|O_TRUNC|O_NOFOLLOW|O_LARGEFILE
@@ -93,6 +133,8 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		return;
 	}
 
+	/* pn is a pointer into a buffer: careful with this! */
+	#define PNREM ((size_t)MAX((ssize_t)0, ((ssize_t)mntdbufdlen - (ssize_t)(pn - mntd))))
 	pn = &mntd[mntdlen];
 	*pn++ = '/';
 	*pn = '\0';
@@ -132,7 +174,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		uint32_t blk, fsz;
 
 		for ( i = desired_title == 0 ? 0 : 2; i < 3; i++ ) {
-		strcpy(pn, fnstr[i]);
+		SCPYCHK(pn, fnstr[i], PNREM);
 		if ( statihack(mntd, pn, &sb) ) {
 			if ( errno == ENOENT ) {
 				pfeopt(_("%s: %s does not exist\n"),
@@ -151,11 +193,11 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		}
 
 		if ( strcmp(pn, fnstr[i]) ) {
-			sprintf(nbuf,
-				ign_lc ? fmtsl[i] : fmtsu[i], vidd);
+			NBP((nbuf, nbufbufdlen,
+				ign_lc ? fmtsl[i] : fmtsu[i], vidd))
 			fnlower = 1;
 		} else {
-			sprintf(nbuf, fmtsu[i], vidd);
+			NBP((nbuf, nbufbufdlen, fmtsu[i], vidd))
 		}
 
 		pfoopt(_("X %s size %zu\n"), nbuf, sb.st_size);
@@ -246,7 +288,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 while ( do0 && pt->has_ifo ) {
 		uint32_t blk, fsz;
 
-		sprintf(pn, "VIDEO_TS/VTS_%02d_%d.IFO", i, 0);
+		PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.IFO", i, 0))
 		if ( statihack(mntd, pn, &(pt->ifos[0])) ) {
 			if ( errno == ENOENT ) {
 				do0 = 0;
@@ -262,9 +304,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		}
 
 		if ( fnlower && ign_lc )
-			sprintf(nbuf, "%s/vts_%02d_%d.ifo", vidd, i, 0);
+			NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.ifo", vidd, i, 0))
 		else
-			sprintf(nbuf, "%s/VTS_%02d_%d.IFO", vidd, i, 0);
+			NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.IFO", vidd, i, 0))
 
 		pfoopt(_("X %s size %zu\n"), nbuf, pt->ifos[0].st_size);
 
@@ -331,7 +373,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 while ( do0 && pt->has_bup ) {
 		uint32_t blk, fsz;
 
-		sprintf(pn, "VIDEO_TS/VTS_%02d_%d.BUP", i, 0);
+		PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.BUP", i, 0))
 		if ( statihack(mntd, pn, &(pt->bups[0])) ) {
 			if ( errno == ENOENT ) {
 				do0 = 0;
@@ -347,9 +389,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		}
 
 		if ( fnlower && ign_lc )
-			sprintf(nbuf, "%s/vts_%02d_%d.bup", vidd, i, 0);
+			NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.bup", vidd, i, 0))
 		else
-			sprintf(nbuf, "%s/VTS_%02d_%d.BUP", vidd, i, 0);
+			NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.BUP", vidd, i, 0))
 
 		pfoopt(_("X %s size %zu\n"), nbuf, pt->bups[0].st_size);
 
@@ -425,32 +467,32 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		 * over the bad, since they are identical.
 		 */
 		} else if ( ifo_badbl || bup_badbl ) {
+			size_t i;
 			char* p;
-			char* dst = xmalloc((strlen(nbuf)+1) * sizeof(nbuf[0]));
-			strcpy(dst, nbuf);
+			char* dst = x_strdup(nbuf); /* no ret on err */
 
-			/* Note lack of error checking: filename
-			 * *must* have expected suffix at this point.
+			/*
+			 * Note: filename *must* have expected suffix at this point,
+			 * hence the literal 4 at strlcpy().
 			 */
 			p = strrchr(ifo_badbl ? dst : nbuf, '.');
-			switch ( p[1] ) {
-				case 'B':
-					strcpy(p, ".IFO");
-					break;
-				case 'b':
-					strcpy(p, ".ifo");
-					break;
-				case 'I':
-					strcpy(p, ".BUP");
-					break;
-				case 'i':
-					strcpy(p, ".bup");
-					break;
-				default:
+			if ( p++ == NULL ) {
 				/* At this point there is no longer
 				 * any reason to live.
 				 */
-					abort();
+				abort();
+			}
+			for ( i = 0; i < A_SIZE(ifo_cmps); i++ ) {
+				if ( ! strcmp(p, ifo_cmps[i].c) ) {
+					strlcpy(p, ifo_cmps[i].r, 4);
+					break;
+				}
+			}
+			if ( i >= A_SIZE(ifo_cmps) ) {
+				/* At this point there is no longer
+				 * any reason to live.
+				 */
+				abort();
 			}
 
 			pfeall(_("%s: copying %s to %s (bad blocks)\n"),
@@ -481,7 +523,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		} /* do0 */
                 /* end do BUP */
 		
-		sprintf(pn, "VIDEO_TS/VTS_%02d_%d.VOB", i, 0);
+		PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.VOB", i, 0))
 		if ( statihack(mntd, pn, &(pt->vobs[0])) ) {
 			if ( errno == ENOENT ) {
 				do0 = 0;
@@ -498,9 +540,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
 		if ( do0 ) {
 		if ( fnlower && ign_lc )
-			sprintf(nbuf, "%s/vts_%02d_%d.vob", vidd, i, 0);
+			NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.vob", vidd, i, 0))
 		else
-			sprintf(nbuf, "%s/VTS_%02d_%d.VOB", vidd, i, 0);
+			NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.VOB", vidd, i, 0))
 
 		pfoopt(_("X %s size %zu\n"), nbuf, pt->vobs[0].st_size);
 		} /* do0 */
@@ -624,7 +666,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 		uint32_t blk, fsz;
 		size_t sz;
 
-		sprintf(pn, "VIDEO_TS/VTS_%02d_%d.VOB", i, j);
+		PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.VOB", i, j))
 		if ( statihack(mntd, pn, &(pt->vobs[j])) ) {
 			if ( errno == ENOENT )
 				continue;
@@ -638,9 +680,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 			exit(14);
 		}
 		if ( fnlower && ign_lc )
-			sprintf(nbuf, "%s/vts_%02d_%d.vob", vidd, i, j);
+			NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.vob", vidd, i, j))
 		else
-			sprintf(nbuf, "%s/VTS_%02d_%d.VOB", vidd, i, j);
+			NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.VOB", vidd, i, j))
 
 		/* check for multiple 'links' to file; 1st seen 2010 */
 		blk = UDFFindFile(dvdreader, pn-1, &fsz);
@@ -777,8 +819,7 @@ int
 copy_bup_ifo(char* src, const char* dest)
 {
 	int ret;
-	char BUP[] = ".BUP", bup[] = ".bup";
-	char IFO[] = ".IFO", ifo[] = ".ifo";
+	size_t i;
 	char buf[8];
 	char* t, * s, * r, * q, * p = strrchr(src, '.');
 	
@@ -789,40 +830,32 @@ copy_bup_ifo(char* src, const char* dest)
 	if ( q != strstr(src, "/VIDEO_TS/") && q != strstr(src, "/video_ts/") )
 		return -1;
 
-	strcpy(buf, p);
+	strlcpy(buf, p, A_SIZE(buf));
 	
-	s = NULL;
-	r = malloc(strlen(dest) + 1);
-	if ( r ) {
-		strcpy(r, dest);
-		s = strrchr(r, '.');
-		if ( s == NULL ) {
-			free(r);
-			r = NULL;
+	r = x_strdup(dest);
+	s = strrchr(r, '.');
+	if ( s == NULL ) {
+		free(r);
+		r = NULL;
+	}
+	
+	p++;
+	for ( i = 0; i < A_SIZE(ifo_cmps); i++ ) {
+		if ( ! strcmp(p, ifo_cmps[i].c) ) {
+			strlcpy(p, ifo_cmps[i].r, 4);
+			if ( r && s ) {
+				strlcpy(s, ifo_cmps[i].r, 4);
+			}
+			break;
 		}
 	}
-	
-	if ( !strcmp(p, IFO) ) {
-		strcpy(p, BUP);
-		if ( r && s )
-			strcpy(s, BUP);
-	} else if ( !strcmp(p, ifo) ) {
-		strcpy(p, bup);
-		if ( r && s )
-			strcpy(s, bup);
-	} else if ( !strcmp(p, BUP) ) {
-		strcpy(p, IFO);
-		if ( r && s )
-			strcpy(s, IFO);
-	} else if ( !strcmp(p, bup) ) {
-		strcpy(p, ifo);
-		if ( r && s )
-			strcpy(s, ifo);
-	} else {
-		if ( r )
+	if ( i >= A_SIZE(ifo_cmps) ) {
+		if ( r ) {
 			free(r);
+		}
 		return -1;
 	}
+	--p;
 
 	if ( r ) {
 		struct stat tsb;
@@ -831,18 +864,27 @@ copy_bup_ifo(char* src, const char* dest)
 			t = r;
 		else
 			t = src;
-	} else
+	} else {
 		t = src;
+	}
 
 	pfeopt(_("%s: trying %s -> %s\n"), program_name, t, dest);
 	ret = copy_file(t, dest);
+
 	if ( ret ) {
 		unlink(dest);
-		if ( do_ioerrs > 1 )
+		if ( do_ioerrs > 1 ) {
+			pfeall(_("%s: trying forceful copy %s -> %s\n"),
+				program_name, t, dest);
 			ret = copy_file_force(t, dest);
+		}
+	}
+	if ( ret ) {
+		pfeall(_("%s: failed copy %s -> %s\n"),
+			program_name, t, dest);
 	}
 
-	strcpy(p, buf);
+	strlcpy(p, buf, strlen(buf) + 1);
 	if ( r )
 		free(r);
 	
