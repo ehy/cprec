@@ -36,7 +36,10 @@
 #include <sys/types.h>
 #endif
 
-#if STDC_HEADERS
+/* EH: August 16, 2014 12:58:14 PM GMT --
+ * add __STDC__ to test below for OpenIndiana etc.
+ */
+#if STDC_HEADERS || defined(__STDC__)
 # include <stdlib.h>
 #else
 VOID *calloc ();
@@ -65,9 +68,15 @@ void free ();
 # define _(Text) Text
 #endif
 
+/* EH: August 16, 2014 12:58:14 PM GMT --
+ * lib_misc/lib_misc.h may #define error, but
+ * Sun cc is not handling the definition at
+ * the proto below -- so, undef
+ */
 #if HAVE_ERROR_H
+#undef error
 #include "error.h"
-#else
+#elif ! defined(error)
 #	if __STDC__ && (HAVE_VPRINTF || HAVE_DOPRNT)
 	void error (int, int, const char *, ...);
 #	else
