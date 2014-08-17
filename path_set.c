@@ -90,9 +90,22 @@ unset_paths(void)
 	expaths = fnlower = 0;
 }
 
+/* string safety return checks; fatal err */
+#define SCPYCHK(d, s, c) \
+	{ \
+		size_t n = c; \
+		if ( n <= strlcpy(d, s, n) ) { \
+			pfeall( \
+				_("%s: internal string error in pointer or size\n"), \
+				program_name); \
+			exit(60); \
+		} \
+	}
+
 void
 set_paths(const char* mountp, const char* outname)
 {
+	size_t sz;
 	unset_paths();
 
 #if DYNALLOC_BUFFERS
@@ -154,13 +167,13 @@ set_paths(const char* mountp, const char* outname)
 	}
 	vidd[viddlen++] = '/';
 	/* . . . and name to check */
-	strcpy(&mntd[mntdlen], "VIDEO_TS");
+	SCPYCHK(&mntd[mntdlen], "VIDEO_TS", mntdbufdlen - mntdlen)
 	if ( !access(mntd, F_OK) ) {
 		okvid = 1;
 		viddlen +=
-		strlcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
+			strlcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
 	} else {
-		strcpy(&mntd[mntdlen], "video_ts");
+		SCPYCHK(&mntd[mntdlen], "video_ts", mntdbufdlen - mntdlen)
 		if ( !access(mntd, F_OK) ) {
 			okvid = 1;
 			viddlen +=

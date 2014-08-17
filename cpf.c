@@ -76,8 +76,8 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
 		size_t n = c; \
 		if ( n <= strlcpy(d, s, n) ) { \
 			pfeall( \
-				_("%s: internal string error in pointer or size\n"), \
-				program_name); \
+				_("%s: internal string error in pointer or size (line %u)\n"), \
+				program_name, __LINE__); \
 			exit(60); \
 		} \
 	}
@@ -85,10 +85,10 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
 #define NBP(ARGS) \
 	{ \
 		int n = snprintf ARGS ; \
-		if ( n <= nbufbufdlen || n < 0 ) { \
+		if ( n >= nbufbufdlen || n < 0 ) { \
 			pfeall( \
-				_("%s: internal string error in pointer or size\n"), \
-				program_name); \
+				_("%s: internal string error in pointer or size (line %u)\n"), \
+				program_name, __LINE__); \
 			exit(60); \
 		} \
 	}
@@ -98,8 +98,8 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
 		int c = (int)PNREM; int n = snprintf ARGS ; \
 		if ( n <= c || n < 0 ) { \
 			pfeall( \
-				_("%s: internal string error in pointer or size\n"), \
-				program_name); \
+				_("%s: internal string error in pointer or size (line %u)\n"), \
+				program_name, __LINE__); \
 			exit(60); \
 		} \
 	}
@@ -839,7 +839,7 @@ copy_bup_ifo(char* src, const char* dest)
 		r = NULL;
 	}
 	
-	p++;
+	p++; /* '.' is not in cmp strings */
 	for ( i = 0; i < A_SIZE(ifo_cmps); i++ ) {
 		if ( ! strcmp(p, ifo_cmps[i].c) ) {
 			strlcpy(p, ifo_cmps[i].r, 4);
