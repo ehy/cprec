@@ -96,7 +96,7 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
 #define PNP(ARGS) \
 	{ \
 		int c = (int)PNREM; int n = snprintf ARGS ; \
-		if ( n <= c || n < 0 ) { \
+		if ( n >= c || n < 0 ) { \
 			pfeall( \
 				_("%s: internal string error in pointer or size (line %u)\n"), \
 				program_name, __LINE__); \
