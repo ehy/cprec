@@ -73,24 +73,24 @@ const char drd_altname[] = "libdvdread.so";
 const int  drd_defflags  = RTLD_LAZY;
 void* handle;
 
-drd_reader_t*    (*DVDOpen)(const char*);
-void     (*DVDClose)(drd_reader_t*);
-drd_file_t*    (*DVDOpenFile)(drd_reader_t*, int, drd_read_t);
-void     (*DVDCloseFile)(drd_file_t*);
-ssize_t  (*DVDReadBlocks)(drd_file_t*, int, size_t, unsigned char*);
-int      (*DVDFileSeek)(drd_file_t*, int);
-ssize_t  (*DVDReadBytes)(drd_file_t*, void*, size_t);
-ssize_t  (*DVDFileSize)(drd_file_t*);
-int      (*DVDDiscID)(drd_reader_t*, unsigned char*);
-int      (*DVDUDFVolumeInfo)(drd_reader_t*, char*, unsigned int,
+drd_reader_t*    (*drd_DVDOpen)(const char*);
+void     (*drd_DVDClose)(drd_reader_t*);
+drd_file_t*    (*drd_DVDOpenFile)(drd_reader_t*, int, drd_read_t);
+void     (*drd_DVDCloseFile)(drd_file_t*);
+ssize_t  (*drd_DVDReadBlocks)(drd_file_t*, int, size_t, unsigned char*);
+int      (*drd_DVDFileSeek)(drd_file_t*, int);
+ssize_t  (*drd_DVDReadBytes)(drd_file_t*, void*, size_t);
+ssize_t  (*drd_DVDFileSize)(drd_file_t*);
+int      (*drd_DVDDiscID)(drd_reader_t*, unsigned char*);
+int      (*drd_DVDUDFVolumeInfo)(drd_reader_t*, char*, unsigned int,
                       unsigned char*, unsigned int);
-int      (*DVDISOVolumeInfo)(drd_reader_t*, char*, unsigned int,
+int      (*drd_DVDISOVolumeInfo)(drd_reader_t*, char*, unsigned int,
                       unsigned char*, unsigned int);
-int      (*DVDUDFCacheLevel)(drd_reader_t*, int);
+int      (*drd_DVDUDFCacheLevel)(drd_reader_t*, int);
 /* special case: DVDVersion was not in libdvdread 904; this might be NULL */
-int      (*DVDVersion)(void);
+int      (*drd_DVDVersion)(void);
 /* proto in dvdread/dvd_udf.h -- reliable published interface? */
-uint32_t (*UDFFindFile)(drd_reader_t*, char*, uint32_t*);
+uint32_t (*drd_UDFFindFile)(drd_reader_t*, char*, uint32_t*);
 
 int
 load_drd_syms(void)
@@ -102,7 +102,7 @@ load_drd_syms(void)
 /* dlsym() null return is not strictly an error, but not OK here */
 #undef  SYMLOAD
 #define SYMLOAD(S, C, E) \
-if ( (S = (C)dlsym(handle, #S)) == 0 ) { \
+if ( (drd_##S = (C)dlsym(handle, #S)) == 0 ) { \
   const char* p = dlerror(); \
   nerr += E; \
   pfeall(_("%s: failed on symbol %s: %s\n"), \

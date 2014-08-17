@@ -63,27 +63,7 @@ typedef enum {
 typedef void drd_file_t;
 typedef void drd_reader_t;
 
-/* function pointers */
-extern drd_reader_t*	(*DVDOpen)(const char*);
-extern void	(*DVDClose)(drd_reader_t*);
-extern drd_file_t*	(*DVDOpenFile)(drd_reader_t*, int, drd_read_t);
-extern void	(*DVDCloseFile)(drd_file_t*);
-extern ssize_t  (*DVDReadBlocks)(drd_file_t*, int, size_t, unsigned char*);
-extern int	(*DVDFileSeek)(drd_file_t*, int);
-extern ssize_t  (*DVDReadBytes)(drd_file_t*, void*, size_t);
-extern ssize_t  (*DVDFileSize)(drd_file_t*);
-extern int	(*DVDDiscID)(drd_reader_t*, unsigned char*);
-extern int	(*DVDUDFVolumeInfo)(drd_reader_t*, char*, unsigned int,
-                      unsigned char*, unsigned int);
-extern int      (*DVDISOVolumeInfo)(drd_reader_t*, char*, unsigned int,
-                      unsigned char*, unsigned int);
-extern int      (*DVDUDFCacheLevel)(drd_reader_t*, int);
-/* special case: DVDVersion was not in libdvdread 904; this might be NULL */
-extern int      (*DVDVersion)(void);
-/* proto in dvdread/dvd_udf.h -- reliable published interface? */
-extern uint32_t (*UDFFindFile)(drd_reader_t*, char*, uint32_t*);
-
-/* function pointer typedefs to quieten noisy compilers w/ casts */
+/* function pointer typedefs */
 typedef drd_reader_t*	(*DVDOpen_t)(const char*);
 typedef void	(*DVDClose_t)(drd_reader_t*);
 typedef drd_file_t*	(*DVDOpenFile_t)(drd_reader_t*, int, drd_read_t);
@@ -102,6 +82,38 @@ typedef int      (*DVDUDFCacheLevel_t)(drd_reader_t*, int);
 typedef int      (*DVDVersion_t)(void);
 /* proto in dvdread/dvd_udf.h -- reliable published interface? */
 typedef uint32_t (*UDFFindFile_t)(drd_reader_t*, char*, uint32_t*);
+
+/* function pointers */
+extern DVDOpen_t drd_DVDOpen;
+#define DVDOpen drd_DVDOpen
+extern DVDClose_t drd_DVDClose;
+#define DVDClose drd_DVDClose
+extern DVDOpenFile_t drd_DVDOpenFile;
+#define DVDOpenFile drd_DVDOpenFile
+extern DVDCloseFile_t drd_DVDCloseFile;
+#define DVDCloseFile drd_DVDCloseFile
+extern DVDReadBlocks_t drd_DVDReadBlocks;
+#define DVDReadBlocks drd_DVDReadBlocks
+extern DVDFileSeek_t drd_DVDFileSeek;
+#define DVDFileSeek drd_DVDFileSeek
+extern DVDReadBytes_t drd_DVDReadBytes;
+#define DVDReadBytes drd_DVDReadBytes
+extern DVDFileSize_t drd_DVDFileSize;
+#define DVDFileSize drd_DVDFileSize
+extern DVDDiscID_t drd_DVDDiscID;
+#define DVDDiscID drd_DVDDiscID
+extern DVDUDFVolumeInfo_t drd_DVDUDFVolumeInfo;
+#define DVDUDFVolumeInfo drd_DVDUDFVolumeInfo
+extern DVDISOVolumeInfo_t drd_DVDISOVolumeInfo;
+#define DVDISOVolumeInfo drd_DVDISOVolumeInfo
+extern DVDUDFCacheLevel_t drd_DVDUDFCacheLevel;
+#define DVDUDFCacheLevel drd_DVDUDFCacheLevel
+/* special case: DVDVersion was not in libdvdread 904; this might be NULL */
+extern DVDVersion_t drd_DVDVersion;
+#define DVDVersion drd_DVDVersion
+/* proto in dvdread/dvd_udf.h -- reliable published interface? */
+extern UDFFindFile_t drd_UDFFindFile;
+#define UDFFindFile drd_UDFFindFile
 
 /* extern vars */
 extern const char drd_defname[];
