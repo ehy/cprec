@@ -24,7 +24,7 @@
 #include "cprec.h"
 #include "lib_misc.h"
 #include "ino.h"
-/* Prototypes for functions defined in xmalloc.c. */
+/* xcalloc, etc */
 #include "xmalloc.h"
 
 #undef MULTIPLIER
@@ -243,15 +243,13 @@ ino_check_args(dit_t_t dev, dit_t_t ino, nlink_t nlink, const char* path)
 	i = id->id_count++;
 #if HARDLINK_STORE_PATHS
 	if ( ino_store_paths || i == 0 ) {
-		id->id_paths[i] = xmalloc(strlen(path) + 1);
-		strcpy(id->id_paths[i], path);
+		id->id_paths[i] = x_strdup(path);
 	}
 	if ( i == 0 )
-		id->id_path0 = id->id_paths[0];
+		id->id_path0 = id->id_paths[i];
 #else
 	if ( i == 0 ) {
-		id->id_path0 = xmalloc(strlen(path) + 1);
-		strcpy(id->id_path0, path);
+		id->id_path0 = x_strdup(path);
 	}
 #endif
 

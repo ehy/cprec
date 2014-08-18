@@ -52,10 +52,8 @@ void free ();
 # include <string.h>
 #else
 #	if __STDC__
-	char *strcpy (char *, const char *);
 	size_t strlen (const char *);
 #	else
-	char *strcpy ();
 	size_t strlen ();
 #	endif
 #endif
@@ -154,18 +152,5 @@ xrealloc (p, n)
   p = realloc (p, n);
   if (p == 0)
     p = fixup_null_alloc (n);
-  return p;
-}
-
-/* Make a copy of a string in a newly allocated block of memory. */
-
-char *
-xstrdup (str)
-     char *str;
-{
-  VOID *p;
-
-  p = xmalloc (strlen (str) + 1);
-  strcpy (p, str);
   return p;
 }

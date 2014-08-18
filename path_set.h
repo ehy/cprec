@@ -63,5 +63,23 @@ extern size_t  mntdbufdlen;
 extern size_t  viddbufdlen;
 extern size_t  nbufbufdlen;
  
+/* some helpful snprintf macros for these buffers */
+/* for snprintf into outd, mntd, vidd, nbuf */
+#define OBPRINTF(ret, ARGS, nxit) CHECKSNPRINTF(outd, ret, ARGS, nxit)
+#define MBPRINTF(ret, ARGS, nxit) CHECKSNPRINTF(mntd, ret, ARGS, nxit)
+#define VBPRINTF(ret, ARGS, nxit) CHECKSNPRINTF(vidd, ret, ARGS, nxit)
+#define NBPRINTF(ret, ARGS, nxit) CHECKSNPRINTF(nbuf, ret, ARGS, nxit)
+
+#define CHECKSNPRINTF(BUF, R, ARGS, NXIT) \
+{ \
+	int n = snprintf ARGS ; \
+	if ( n >= (BUF##bufdlen) || n < 0 ) { \
+		pfeall( \
+		_("%s: internal error in pointer or size (using %s, %s:%u)\n") \
+		, program_name, #BUF, __FILE__, (unsigned)__LINE__); \
+		exit(NXIT); \
+	} \
+	R = n; \
+}
 
 #endif /* _PATH_SET_H_ */

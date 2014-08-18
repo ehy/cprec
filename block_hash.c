@@ -109,10 +109,9 @@ blk_check(blkhash_t addr, const char* name, filesize_t sz)
 	}
 
 	if ( bhi->bh_count == 0 ) { /* just created: initialize */
-		bhi->bh_name = xmalloc(strlen(name) + 1);
-		strcpy(bhi->bh_name, name);
-                bhi->bh_block = addr;
-                bhi->bh_size = sz;
+		bhi->bh_name = x_strdup(name);
+		bhi->bh_block = addr;
+		bhi->bh_size = sz;
 	}
 	bhi->bh_count++;
 

@@ -31,6 +31,7 @@
 /* this program's various incs */
 #include "meta_set.h"
 #include "cprec.h"
+#include "lib_misc.h"
 #include "xmalloc.h"
 
 #ifndef CHOWN_TAKES_NEG1
@@ -171,14 +172,14 @@ set_dire_t(const char* path, const struct stat* sb)
 
 	/* last->path is substr at front of path we are downlevel */
 	if ( (ptmp = strstr(path, last->path)) && ptmp == path ) {
+		size_t sz;
 		dire_p pnew;
 
 		if ( !strcmp(path, last->path) )
 			return;
 
-		#ifdef DEBUG
 		pf_dbg(_("dbg: down %s -> %s\n"), last->path, path);
-		#endif
+
 		if ( last->ndirs >= last->alloc ) {
 			last->alloc += REALLOC_dire_t;
 			last->pdirs = xrealloc(last->pdirs
@@ -186,13 +187,20 @@ set_dire_t(const char* path, const struct stat* sb)
 		}
 		
 		pnew = &last->pdirs[last->ndirs++];
-		pnew->sb = xmalloc(strlen(path) + 1 + sizeof(*pnew->sb));
+		sz = strlen(path) + 1 + sizeof(*pnew->sb);
+		pnew->sb = xmalloc(sz);
 		pnew->path = (char*)pnew->sb + sizeof(*pnew->sb);
-		strcpy(pnew->path, path);
+		sz = sz + 1 - sizeof(*pnew->sb);
+		if ( strlcpy(pnew->path, path, sz) >= sz ) {
+			pfeall(_("%s: path part too long (%zu: %s) (%s:%u)\n"),
+				program_name, sz, path, __FILE__, (unsigned)__LINE__);
+			exit(EXIT_FAILURE);
+		}
 		pnew->ppare = last;
 		pnew->ndirs = 0;
 		pnew->pdirs = NULL;
 		pnew->alloc = 0;
+		/* safe: see above */
 		memcpy(pnew->sb, sb, sizeof(*sb));
 		last = pnew;
 		

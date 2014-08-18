@@ -60,10 +60,8 @@ void free ();
 # include <string.h>
 #else
 #	if __STDC__
-	char *strcpy (char *, const char *);
 	size_t strlen (const char *);
 #	else
-	char *strcpy ();
 	size_t strlen ();
 #	endif
 #endif

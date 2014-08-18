@@ -73,36 +73,36 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
 /* string safety return checks; fatal err */
 #define SCPYCHK(d, s, c) \
 	{ \
-		size_t n = c; \
-		if ( n <= strlcpy(d, s, n) ) { \
+		size_t l = c; \
+		size_t n = strlcpy(d, s, l); \
+		if ( n >= l ) { \
 			pfeall( \
-				_("%s: internal string error in pointer or size (line %u)\n"), \
-				program_name, __LINE__); \
+				_("%s: internal string error in pointer or size (%s:%u)\n"), \
+				program_name, __FILE__, (unsigned)__LINE__); \
 			exit(60); \
 		} \
+		snp_retv = (int)n; \
 	}
-/* for snprintf into nbuf: use as NBP((args to snprintf)), no ; */
-#define NBP(ARGS) \
-	{ \
-		int n = snprintf ARGS ; \
-		if ( n >= nbufbufdlen || n < 0 ) { \
-			pfeall( \
-				_("%s: internal string error in pointer or size (line %u)\n"), \
-				program_name, __LINE__); \
-			exit(60); \
-		} \
-	}
+
+/* for snprintf into nbuf: use as NBP((args to snprintf)), no ';' */
+#define NBP(ARGS) NBPRINTF(snp_retv, ARGS, 60)
+
 /* for snprintf into 'pn', a pointer into mntd -- as above macro */
 #define PNP(ARGS) \
 	{ \
-		int c = (int)PNREM; int n = snprintf ARGS ; \
+		int c = (int)PNREM; \
+		int n = snprintf ARGS ; \
 		if ( n >= c || n < 0 ) { \
 			pfeall( \
-				_("%s: internal string error in pointer or size (line %u)\n"), \
-				program_name, __LINE__); \
+				_("%s: internal string error in pointer or size (%s:%u)\n"), \
+				program_name,  __FILE__, (unsigned)__LINE__); \
 			exit(60); \
 		} \
+		snp_retv = n; \
 	}
+
+/* macros above will leave result in snp_retv; use or ignore */
+static int snp_retv;
 
 /* flags to open output files */
 #define OPENFL O_RDWR|O_CREAT|O_EXCL|O_TRUNC|O_NOFOLLOW|O_LARGEFILE
@@ -1194,8 +1194,11 @@ wr_regmask(char* d, int dlen, unsigned val)
 	m = PATH_MAX + 1 - dlen;
 
 	for ( i = 0; (p = nms[i]) != NULL; i++ ) {
-		int f = strlcpy(&d[dlen], p, m);
+		int f;
+		SCPYCHK(&d[dlen], p, m);
+		f = snp_retv;
 		
+		/* redundant w/ SCPYCHK(), but leave it */
 		if ( f >= m ) {
 			pfeall(_("%s: name too long: %s + %s\n"),
 				program_name, d, p);

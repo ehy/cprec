@@ -101,32 +101,32 @@ load_drd_syms(void)
 
 /* dlsym() null return is not strictly an error, but not OK here */
 #undef  SYMLOAD
-#define SYMLOAD(S, C, E) \
-if ( (drd_##S = (C)dlsym(handle, #S)) == 0 ) { \
+#define SYMLOAD(S, E) \
+if ( (drd_##S = (S##_t)dlsym(handle, #S)) == 0 ) { \
   const char* p = dlerror(); \
   nerr += E; \
   pfeall(_("%s: failed on symbol %s: %s\n"), \
   	program_name, #S, p ? p : _("true null address")); \
 }
-	SYMLOAD(DVDOpen, DVDOpen_t, 1)
-	SYMLOAD(DVDClose, DVDClose_t, 1)
-	SYMLOAD(DVDOpenFile, DVDOpenFile_t, 1)
-	SYMLOAD(DVDCloseFile, DVDCloseFile_t, 1)
-	SYMLOAD(DVDReadBlocks, DVDReadBlocks_t, 1)
-	SYMLOAD(DVDFileSeek, DVDFileSeek_t, 1)
-	SYMLOAD(DVDFileSize, DVDFileSize_t, 1)
-	SYMLOAD(UDFFindFile, UDFFindFile_t, 1)
-	/* special optional case: leave this last among used symbols */
-	SYMLOAD(DVDVersion, DVDVersion_t, 0)
+	SYMLOAD(DVDOpen, 1)
+	SYMLOAD(DVDClose, 1)
+	SYMLOAD(DVDOpenFile, 1)
+	SYMLOAD(DVDCloseFile, 1)
+	SYMLOAD(DVDReadBlocks, 1)
+	SYMLOAD(DVDFileSeek, 1)
+	SYMLOAD(DVDFileSize, 1)
+	SYMLOAD(UDFFindFile, 1)
+	/* special optional case: allowed to fail */
+	SYMLOAD(DVDVersion, 0)
 	/* Not used or optional so do not add to error count.
 	   If symbol is not optional then change 0 to 1
 	   and move above this comment.
 	 */
-	SYMLOAD(DVDReadBytes, DVDReadBytes_t, 0)
-	SYMLOAD(DVDDiscID, DVDDiscID_t, 0)
-	SYMLOAD(DVDUDFVolumeInfo, DVDUDFVolumeInfo_t, 0)
-	SYMLOAD(DVDISOVolumeInfo, DVDISOVolumeInfo_t, 0)
-	SYMLOAD(DVDUDFCacheLevel, DVDUDFCacheLevel_t, 0)
+	SYMLOAD(DVDReadBytes, 0)
+	SYMLOAD(DVDDiscID, 0)
+	SYMLOAD(DVDUDFVolumeInfo, 0)
+	SYMLOAD(DVDISOVolumeInfo, 0)
+	SYMLOAD(DVDUDFCacheLevel, 0)
 #undef  SYMLOAD
 
 	return nerr;
