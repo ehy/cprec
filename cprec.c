@@ -489,9 +489,13 @@ cprec(int texist, int tisdir)
 					program_name, p, outd);
 				return EXIT_FAILURE;
 			}
+
+			if ( outdlen > 0 && outd[outdlen - 1] == '/' ) {
+				outd[--outdlen] = '\0';
+				buflen++;
+			}
 			outd[outdlen++] = '/';
-			if ( strlcpy(&outd[outdlen], p, buflen)
-			   >= buflen ) {
+			if ( strlcpy(&outd[outdlen], p, buflen) >= buflen ) {
 				pfeall(_("%s: internal error\n"),
 					program_name);
 				return EXIT_FAILURE;
@@ -525,8 +529,7 @@ cprec(int texist, int tisdir)
 			/* don't use the VIDEO_TS directory
 			 * for the select copy
 			 */
-			if ( strlcpy(vidd, outd, viddbufdlen)
-			   >= viddbufdlen ) {
+			if ( strlcpy(vidd, outd, viddbufdlen) >= viddbufdlen ) {
 				pfeall(
 				_("%s: internal string length error"),
 					program_name);

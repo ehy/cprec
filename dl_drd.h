@@ -83,37 +83,40 @@ typedef int      (*DVDVersion_t)(void);
 /* proto in dvdread/dvd_udf.h -- reliable published interface? */
 typedef uint32_t (*UDFFindFile_t)(drd_reader_t*, char*, uint32_t*);
 
-/* function pointers */
-extern DVDOpen_t drd_DVDOpen;
-#define DVDOpen drd_DVDOpen
-extern DVDClose_t drd_DVDClose;
+/* macros for libdvdread symbols -- not used internally */
+#if ! DL_DRD_INTERN
 #define DVDClose drd_DVDClose
-extern DVDOpenFile_t drd_DVDOpenFile;
-#define DVDOpenFile drd_DVDOpenFile
-extern DVDCloseFile_t drd_DVDCloseFile;
 #define DVDCloseFile drd_DVDCloseFile
-extern DVDReadBlocks_t drd_DVDReadBlocks;
-#define DVDReadBlocks drd_DVDReadBlocks
-extern DVDFileSeek_t drd_DVDFileSeek;
-#define DVDFileSeek drd_DVDFileSeek
-extern DVDReadBytes_t drd_DVDReadBytes;
-#define DVDReadBytes drd_DVDReadBytes
-extern DVDFileSize_t drd_DVDFileSize;
-#define DVDFileSize drd_DVDFileSize
-extern DVDDiscID_t drd_DVDDiscID;
 #define DVDDiscID drd_DVDDiscID
-extern DVDUDFVolumeInfo_t drd_DVDUDFVolumeInfo;
-#define DVDUDFVolumeInfo drd_DVDUDFVolumeInfo
-extern DVDISOVolumeInfo_t drd_DVDISOVolumeInfo;
+#define DVDFileSeek drd_DVDFileSeek
+#define DVDFileSize drd_DVDFileSize
 #define DVDISOVolumeInfo drd_DVDISOVolumeInfo
-extern DVDUDFCacheLevel_t drd_DVDUDFCacheLevel;
+#define DVDOpen drd_DVDOpen
+#define DVDOpenFile drd_DVDOpenFile
+#define DVDReadBlocks drd_DVDReadBlocks
+#define DVDReadBytes drd_DVDReadBytes
 #define DVDUDFCacheLevel drd_DVDUDFCacheLevel
+#define DVDUDFVolumeInfo drd_DVDUDFVolumeInfo
+#define DVDVersion drd_DVDVersion
+#define UDFFindFile drd_UDFFindFile
+#endif /* DL_DRD_INTERN */
+/* function pointers */
+extern DVDCloseFile_t drd_DVDCloseFile;
+extern DVDClose_t drd_DVDClose;
+extern DVDDiscID_t drd_DVDDiscID;
+extern DVDFileSeek_t drd_DVDFileSeek;
+extern DVDFileSize_t drd_DVDFileSize;
+extern DVDISOVolumeInfo_t drd_DVDISOVolumeInfo;
+extern DVDOpenFile_t drd_DVDOpenFile;
+extern DVDOpen_t drd_DVDOpen;
+extern DVDReadBlocks_t drd_DVDReadBlocks;
+extern DVDReadBytes_t drd_DVDReadBytes;
+extern DVDUDFCacheLevel_t drd_DVDUDFCacheLevel;
+extern DVDUDFVolumeInfo_t drd_DVDUDFVolumeInfo;
 /* special case: DVDVersion was not in libdvdread 904; this might be NULL */
 extern DVDVersion_t drd_DVDVersion;
-#define DVDVersion drd_DVDVersion
 /* proto in dvdread/dvd_udf.h -- reliable published interface? */
 extern UDFFindFile_t drd_UDFFindFile;
-#define UDFFindFile drd_UDFFindFile
 
 /* extern vars */
 extern const char drd_defname[];

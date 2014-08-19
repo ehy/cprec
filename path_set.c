@@ -130,9 +130,10 @@ set_paths(const char* mountp, const char* outname)
 	}
 
 	/* clear trailing seperator */
-	while ( outdlen && outd[outdlen - 1] == '/' ) {
-		outd[--outdlen] = '\0';
-	}
+	if ( strcmp(outd, "/") )
+		while ( outdlen && outd[outdlen - 1] == '/' ) {
+			outd[--outdlen] = '\0';
+		}
 	if ( !outdlen ) {
 		pfeall(_("%s: bad target argument: %s\n"),
 			program_name, outname);
@@ -185,9 +186,10 @@ set_paths(const char* mountp, const char* outname)
 	mntd[mntdlen] = '\0';
 
 	/* clear trailing seperator */
-	while ( mntdlen && mntd[mntdlen - 1] == '/' ) {
-		mntd[--mntdlen] = '\0';
-	}
+	if ( strcmp(mntd, "/") )
+		while ( mntdlen && mntd[mntdlen - 1] == '/' ) {
+			mntd[--mntdlen] = '\0';
+		}
 	if ( !mntdlen ) {
 		pfeall(_("%s: bad argument: %s\n"),
 			program_name, mountp);

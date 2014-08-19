@@ -1283,9 +1283,10 @@ main(int argc, char* argv[])
 	}
 
 	if ( DVDVersion == NULL ) {
-		pfeopt(_("%s: dvdread library has no DVDVersion()\n")
-			_("\tnote version < %s API unknown\n"),
-			program_name, "0.9.4");
+		if ( verbose >= 2 ) {
+			pfeopt(_("%s: dvdread library %s has no DVDVersion()\n"),
+				program_name, drd_libname);
+		}
 	} else {
 		int v = DVDVersion();
 		pfeopt(_("%s: %s version %d.%d.%d found\n"),

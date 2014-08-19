@@ -24,6 +24,7 @@
 #include "hdr_cfg.h"
 #include "cprec.h"
 #include "lib_misc.h"
+#define DL_DRD_INTERN 1
 #include "dl_drd.h"
 
 #if HAVE_LIBDVDREAD
@@ -73,24 +74,22 @@ const char drd_altname[] = "libdvdread.so";
 const int  drd_defflags  = RTLD_LAZY;
 void* handle;
 
-drd_reader_t*    (*drd_DVDOpen)(const char*);
-void     (*drd_DVDClose)(drd_reader_t*);
-drd_file_t*    (*drd_DVDOpenFile)(drd_reader_t*, int, drd_read_t);
-void     (*drd_DVDCloseFile)(drd_file_t*);
-ssize_t  (*drd_DVDReadBlocks)(drd_file_t*, int, size_t, unsigned char*);
-int      (*drd_DVDFileSeek)(drd_file_t*, int);
-ssize_t  (*drd_DVDReadBytes)(drd_file_t*, void*, size_t);
-ssize_t  (*drd_DVDFileSize)(drd_file_t*);
-int      (*drd_DVDDiscID)(drd_reader_t*, unsigned char*);
-int      (*drd_DVDUDFVolumeInfo)(drd_reader_t*, char*, unsigned int,
-                      unsigned char*, unsigned int);
-int      (*drd_DVDISOVolumeInfo)(drd_reader_t*, char*, unsigned int,
-                      unsigned char*, unsigned int);
-int      (*drd_DVDUDFCacheLevel)(drd_reader_t*, int);
+DVDOpen_t drd_DVDOpen;
+DVDClose_t drd_DVDClose;
+DVDOpenFile_t drd_DVDOpenFile;
+DVDCloseFile_t drd_DVDCloseFile;
+DVDReadBlocks_t drd_DVDReadBlocks;
+DVDFileSeek_t drd_DVDFileSeek;
+DVDReadBytes_t drd_DVDReadBytes;
+DVDFileSize_t drd_DVDFileSize;
+DVDDiscID_t drd_DVDDiscID;
+DVDUDFVolumeInfo_t drd_DVDUDFVolumeInfo;
+DVDISOVolumeInfo_t drd_DVDISOVolumeInfo;
+DVDUDFCacheLevel_t drd_DVDUDFCacheLevel;
 /* special case: DVDVersion was not in libdvdread 904; this might be NULL */
-int      (*drd_DVDVersion)(void);
+DVDVersion_t drd_DVDVersion;
 /* proto in dvdread/dvd_udf.h -- reliable published interface? */
-uint32_t (*drd_UDFFindFile)(drd_reader_t*, char*, uint32_t*);
+UDFFindFile_t drd_UDFFindFile;
 
 int
 load_drd_syms(void)

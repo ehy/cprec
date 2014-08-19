@@ -263,13 +263,17 @@ ftwcb(const char* file, const struct stat* sb, int flag)
 	const char*	psrc;
 	char*		pdst;
 
-        ++cnt;
+	++cnt;
 
 	psrc = &file[mntdlen];
 
 	if ( *psrc == '/' ) {
 		/* contents of first callback w/ ftw(arg) */
 		int l;
+
+		if ( mntdlen > 0 && mntd[mntdlen - 1] == '/' ) {
+			--mntdlen;
+		}
 
 		l = (int)mntdbufdlen - mntdlen - 1;
 		if ( l <= 0 ) {
@@ -285,6 +289,10 @@ ftwcb(const char* file, const struct stat* sb, int flag)
 			pfeall(_("%s: found source name too long (%ld): %s\n"),
 				program_name, (long)sz, psrc);
 			return GOT_ERRS;
+		}
+
+		if ( outdlen > 0 && outd[outdlen - 1] == '/' ) {
+			--outdlen;
 		}
 
 		l = (int)outdbufdlen - outdlen - 1;
@@ -340,7 +348,7 @@ ftwcb(const char* file, const struct stat* sb, int flag)
 		return 0;
 	
 	pf_dbg(_("dbg: mntd \"%s\" outd \"%s\"\n"), mntd, outd);
-        return handle_file(file, sb, flag);
+	return handle_file(file, sb, flag);
 }
 
 int
