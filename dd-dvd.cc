@@ -1242,6 +1242,27 @@ env_checkvars()
 	}
 }
 
+string
+check_node(string nname)
+{
+#	if defined(__OpenBSD__) || defined(__NetBSD__)
+	string::size_type pos = nname.rfind('/');
+	if ( pos == string::npos ) {
+		return nname;
+	}
+	if ( ++pos >= nname.length() ) {
+		return nname;
+	}
+	if ( nname[pos] != 'r' ) {
+		string tmp(nname);
+		nname.insert(pos, "r");
+		pfeopt("using %s rather than %s\n",
+			nname.c_str(), tmp.c_str());
+	}
+#	endif
+	return nname;
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -1259,6 +1280,7 @@ main(int argc, char* argv[])
 	/* get envireonment vars 1st so options override */
 	env_checkvars();
 	/* TODO: add options handling */
+	string inname(argv[1]);
 
 	/* setup stream helpers */
 	pf_assign_files(fopen("/dev/null", "w"), stderr);
@@ -1298,32 +1320,29 @@ main(int argc, char* argv[])
 #endif
 
 	struct stat sb;
-	if ( stat(argv[1], &sb) ) {
-		perror(argv[1]);
+	if ( stat(inname.c_str(), &sb) ) {
+		perror(inname.c_str());
 		return EXIT_FAILURE;
 	}
 
-	auto_array<unsigned char> buffalloc(
-		block_read_count * blk_sz + get_page_size()
-		);
-	iobuffer = mk_aligned_ptr(buffalloc);
-
-
 	// allowing character dev too, as it might work on BSD
-	string inname;
-	if ( S_ISREG(sb.st_mode) ||
-	     S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode) ) {
-		inname = argv[1];
-	} else if ( S_ISDIR(sb.st_mode) ) {
+	if ( S_ISDIR(sb.st_mode) ) {
 		if ( get_mount_dev(argv[1], inname) == false ) {
 			pfeall("if %s is the mount point"
 				" of a DVD device, give device name"
 				" instead\n", argv[1]);
 			return EXIT_FAILURE;
 		}
-	} else {
-		pfeall("unsupported file type %s\n",
-			argv[1]);
+		if ( stat(inname.c_str(), &sb) ) {
+			perror(inname.c_str());
+			return EXIT_FAILURE;
+		}
+	}
+
+	if ( S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode) ) {
+		inname = check_node(inname);
+	} else if ( ! S_ISREG(sb.st_mode) ) {
+		pfeall("unsupported file type %s\n", inname.c_str());
 		return EXIT_FAILURE;
 	}
 
@@ -1332,6 +1351,7 @@ main(int argc, char* argv[])
 		perror(inname.c_str());
 		return EXIT_FAILURE;
 	}
+
 	if ( dryrun || argc == 2 ) {
 		out = STDOUT_FILENO;
 	} else {
@@ -1346,6 +1366,11 @@ main(int argc, char* argv[])
 		pfeall("in dry run: output %s not opened\n",
 			argv[2]);
 	}
+
+	auto_array<unsigned char> buffalloc(
+		block_read_count * blk_sz + get_page_size()
+		);
+	iobuffer = mk_aligned_ptr(buffalloc);
 
 	// cannot get size from struct stat: get it from ISO 9660 field
 	size_t volblks = get_vol_blocks(inp);
