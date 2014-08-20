@@ -1256,8 +1256,6 @@ check_node(string nname)
 	if ( nname[pos] != 'r' ) {
 		string tmp(nname);
 		nname.insert(pos, "r");
-		pfeopt("using %s rather than %s\n",
-			nname.c_str(), tmp.c_str());
 	}
 #	endif
 	return nname;
@@ -1281,6 +1279,7 @@ main(int argc, char* argv[])
 	env_checkvars();
 	/* TODO: add options handling */
 	string inname(argv[1]);
+	string outname(argv[2]);
 
 	/* setup stream helpers */
 	pf_assign_files(fopen("/dev/null", "w"), stderr);
@@ -1325,22 +1324,51 @@ main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	// allowing character dev too, as it might work on BSD
+	// this prog is not for directories, but see if
+	// dir is a mount anf get the device if so
 	if ( S_ISDIR(sb.st_mode) ) {
-		if ( get_mount_dev(argv[1], inname) == false ) {
+		string tname(inname);
+		// was the name a symlink?
+		if ( ! lstat(inname.c_str(), &sb) && S_ISLNK(sb.st_mode) ) {
+			const size_t sz = PATH_MAX + 1;
+			auto_array<char> buf(sz);
+			ssize_t len = readlink(inname.c_str(), buf, sz - 1);
+			if ( len > 0 ) {
+				((char*)buf)[len] = '\0';
+				tname = (char*)buf;
+				pfeopt("found %s is a symlink to %s\n",
+					inname.c_str(), tname.c_str());
+			}
+		}
+		if ( get_mount_dev(string(tname).c_str(), tname) == false ) {
 			pfeall("if %s is the mount point"
 				" of a DVD device, give device name"
-				" instead\n", argv[1]);
+				" instead\n", inname.c_str());
 			return EXIT_FAILURE;
 		}
+		// accept name change and recheck
+		inname = tname;
 		if ( stat(inname.c_str(), &sb) ) {
 			perror(inname.c_str());
 			return EXIT_FAILURE;
 		}
 	}
 
+	// allowing character dev or block; e.g. on OBSD if
+	// fs is mounted, opening block gets EBUSY, but opening
+	// char succeeds -- either will do for this code
 	if ( S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode) ) {
-		inname = check_node(inname);
+		string tname = check_node(inname);
+		if ( tname != inname ) {
+			struct stat t;
+			if ( ! stat(tname.c_str(), &t) &&
+				(S_ISCHR(t.st_mode) || S_ISBLK(t.st_mode)) ) {
+				pfeopt("using %s rather than %s\n",
+					tname.c_str(), inname.c_str());
+				inname = tname;
+				sb = t; // compiler copy
+			}
+		}
 	} else if ( ! S_ISREG(sb.st_mode) ) {
 		pfeall("unsupported file type %s\n", inname.c_str());
 		return EXIT_FAILURE;
@@ -1355,16 +1383,16 @@ main(int argc, char* argv[])
 	if ( dryrun || argc == 2 ) {
 		out = STDOUT_FILENO;
 	} else {
-		out = open(argv[2], O_TRUNC|O_CREAT|O_WRONLY, 0666);
+		out = open(outname.c_str(), O_TRUNC|O_CREAT|O_WRONLY, 0666);
 	}
 	if ( out < 0 ) {
-		perror(argv[2]);
+		perror(outname.c_str());
 		close(inp);
 		return EXIT_FAILURE;
 	}
 	if ( verbose && dryrun && argc > 2 ) {
 		pfeall("in dry run: output %s not opened\n",
-			argv[2]);
+			outname.c_str());
 	}
 
 	auto_array<unsigned char> buffalloc(
