@@ -132,31 +132,42 @@ enum {DUMMY_CODE=129
 /* statbuf for target argument */
 struct stat tsb;
 
+/* NOTE: the ridiculous (char*) casts are to quieten
+ * the compiler on Sun/Oracle (OpenIndiana) because
+ * exquisitely broken headers have omitted 'const'
+ * in the struct option definition.
+ */
+#if defined(__sun)
+#define ELLISON (char*)
+#else
+#define ELLISON
+#endif
 static struct option const long_options[] =
 {
-	{"node", required_argument, 0, 'n'},
-	{"quiet", no_argument, 0, 'q'},
-	{"silent", no_argument, 0, 'q'},
-	{"verbose", no_argument, 0, 'v'},
-	{"simple-copy", no_argument, 0, 's'},
-	{"force", no_argument, 0, 'f'},
-	{"preserve", no_argument, 0, 'p'},
+	{ELLISON "node", required_argument, 0, 'n'},
+	{ELLISON "quiet", no_argument, 0, 'q'},
+	{ELLISON "silent", no_argument, 0, 'q'},
+	{ELLISON "verbose", no_argument, 0, 'v'},
+	{ELLISON "simple-copy", no_argument, 0, 's'},
+	{ELLISON "force", no_argument, 0, 'f'},
+	{ELLISON "preserve", no_argument, 0, 'p'},
 /* dry-run is unmaintained; makes segfaults
-	{"dry-run", no_argument, 0, DRYRUN_CODE},
+	{ELLISON "dry-run", no_argument, 0, DRYRUN_CODE},
 */
-	{"dvdbackup", required_argument, 0, 'd'},
+	{ELLISON "dvdbackup", required_argument, 0, 'd'},
 #if ! HAVE_LIBDVDREAD
-	{"libdvdr", required_argument, 0, 'L'},
+	{ELLISON "libdvdr", required_argument, 0, 'L'},
 #endif
-	{"ignore-existing", no_argument, 0, 'E'},
-	{"ignore-hardlinks", no_argument, 0, 'H'},
-	{"ignore-symlinks", no_argument, 0, 'S'},
-	{"ignore-specials", no_argument, 0, 'D'},
-	{"ignore-nonreadable", no_argument, 0, 'N'},
-	{"help", no_argument, 0, 'h'},
-	{"version", no_argument, 0, 'V'},
+	{ELLISON "ignore-existing", no_argument, 0, 'E'},
+	{ELLISON "ignore-hardlinks", no_argument, 0, 'H'},
+	{ELLISON "ignore-symlinks", no_argument, 0, 'S'},
+	{ELLISON "ignore-specials", no_argument, 0, 'D'},
+	{ELLISON "ignore-nonreadable", no_argument, 0, 'N'},
+	{ELLISON "help", no_argument, 0, 'h'},
+	{ELLISON "version", no_argument, 0, 'V'},
 	{NULL, 0, NULL, 0}
 };
+#undef ELLISON
 
 /* The source arg data */
 typedef struct src_arg_st {
