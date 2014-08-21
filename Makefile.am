@@ -1,11 +1,23 @@
 bin_PROGRAMS=cprec
 
-cprec_SOURCES=cprec.c cprec.h apue_ftw.c apue_ftw.h cpf.c cpf.h ino.c ino.h block_hash.c block_hash.h meta_set.h meta_set.c path_set.h path_set.c walk.h walk.c dl_drd.h dl_drd.c cprec.1 xmalloc.c xmalloc.h hdr_cfg.h system.h aclocal.m4 getopt.c getopt1.c getopt.h
+cprec_SOURCES=cprec.c cprec.h apue_ftw.c apue_ftw.h cpf.c cpf.h ino.c ino.h block_hash.c block_hash.h meta_set.h meta_set.c path_set.h path_set.c walk.h walk.c dl_drd.h dl_drd.c cprec.1 xmalloc.c xmalloc.h hdr_cfg.h system.h aclocal.m4
+if NEED_GETOPT_C
+cprec_SOURCES+=gngetopt.h getopt.c
+endif
+if NEED_GETOPT_LONG_C
+cprec_SOURCES+=getopt1.c
+endif
 
 if WITH_DD_DVD
 bin_PROGRAMS+= dd-dvd
 dd_dvd_SOURCES=dd-dvd.cc dl_drd.h dl_drd.c
 dd_dvd_LDADD = lib_misc/lib_misc.a
+if NEED_GETOPT_C
+dd_dvd_SOURCES+=gngetopt.h getopt.c
+endif
+if NEED_GETOPT_LONG_C
+dd_dvd_SOURCES+=getopt1.c
+endif
 endif
 
 #  uncomment the following if cprec requires the math library

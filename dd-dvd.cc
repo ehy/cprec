@@ -21,6 +21,11 @@
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE_SOURCE
 
+extern "C" {
+#	include "hdr_cfg.h"
+#	include "lib_misc.h"
+#	include "dl_drd.h"
+}
 
 #include <string>
 #include <vector>
@@ -35,47 +40,54 @@
 #include <cstring>
 #include <ctime>
 #include <cerrno>
+#include <cstddef>
 #include <sys/stat.h>
 #include <fcntl.h>
+#if HAVE_GETOPT_H
+#	include <getopt.h>
+#else
+#	include "gngetopt.h"
+#endif
 #include <unistd.h>
 
-extern "C" {
-#include "hdr_cfg.h"
-#include "lib_misc.h"
-#include "dl_drd.h"
-}
-
-// function {read,write}_all() are inlcuded here,
-// but lib_misc has them too: save the space if so.
-#ifdef _LIB_MISC_H_
-#	if defined(read_all) && defined(write_all)
-#		define RW_ALL_DEFINED 1
-#	endif
-#endif
-
-#   if defined(__sun) && ! defined(__linux)
-#      include <sys/mnttab.h>
-#      ifndef MNTTAB
-#         error "on sun MNTTAB macro is expected in sys/mnttab.h: FIXME"
-#      endif
-#   elif ! NEED_GETFSFILE
-#      include <fstab.h>
+#if defined(__sun) && ! defined(__linux)
+#   include <sys/mnttab.h>
+#   ifndef MNTTAB
+#      error "on sun MNTTAB macro is expected in sys/mnttab.h: FIXME"
 #   endif
+#elif ! NEED_GETFSFILE
+#   include <fstab.h>
+#endif
 
 #ifndef STDOUT_FILENO
 #   define STDOUT_FILENO 1
 #endif
 
-#if defined(_SC_PAGE_SIZE) && ! defined(_SC_PAGESIZE)
-#   define _SC_PAGESIZE _SC_PAGE_SIZE
+#ifndef EXIT_SUCCESS
+#define EXIT_SUCCESS 0
 #endif
-#ifdef _SC_PAGESIZE
-#   define HAVE_SYSCONF 1
-#else // untested; just fail if false
-#   define HAVE_GETPAGESIZE 1
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE 1
 #endif
 
-extern "C" { const char* program_name = "dd-dvd"; }
+const char version[] = "0.1.2";
+const uint32_t vernum = (0 << 24) | (1 << 16) | (2 << 8) | 0;
+
+static struct option const long_options[] =
+{
+	{"quiet", no_argument, 0, 'q'},
+	{"verbose", no_argument, 0, 'v'},
+	{"dry-run", no_argument, 0, 'n'},
+#if ! HAVE_LIBDVDREAD
+	{"libdvdr", required_argument, 0, 'L'},
+#endif
+	{"help", no_argument, 0, 'h'},
+	{"version", no_argument, 0, 'V'},
+	{NULL, 0, NULL, 0}
+};
+
+const char default_program_name[] = "dd-dvd";
+extern "C" { const char* program_name = default_program_name; }
 
 using namespace std;
 using namespace rel_ops;
@@ -96,10 +108,13 @@ const size_t block_read_count = 4096;
 
 typedef drd_reader_t* dvd_reader_p;
 
+const char* drd_libname = 0;
+
 size_t numbadblk = 0;
 size_t retrybadblk = 2;
-int verbose;
+int verbose = 0;
 bool dryrun = false;
+bool bequiet = false;
 unsigned char* iobuffer;
 
 const char vtfdir[] = "/VIDEO_TS/";
@@ -132,102 +147,23 @@ mk_vtf_path(unsigned ts, unsigned tn, vtf_type ft = vtf_vob)
 	return vtfbuf;
 }
 
-int
-get_page_size()
+size_t
+page_size()
 {
-	int s;
+	static int s = 0;
 
-#if HAVE_SYSCONF
-	s = (int)sysconf(_SC_PAGESIZE);
-        if ( s < 0 ) {
-		perror("sysconf(_SC_PAGESIZE)");
-        }
-#elif HAVE_GETPAGESIZE
-	s = getpagesize();
-        if ( s < 0 ) {
-		perror("getpagesize()");
-        }
-#else
-#	error "Fix get_page_size() somehow!"
-#endif
-        if ( s <= 0 ) {
-		exit(EXIT_FAILURE);
-        }
+	if ( s == 0 ) {
+		s = get_page_size();
 
-	return s;
-}
-
-unsigned char*
-mk_aligned_ptr(unsigned char* up)
-{
-	const size_t p_sz = sizeof(unsigned char*);
-	int pgsz = get_page_size();
-
-	if ( p_sz == 8 ) {
-		up += pgsz - ((uint64_t)up & (uint64_t)(pgsz-1));
-	} else if ( p_sz == 4 ) {
-		up += pgsz - ((uint32_t)(uint64_t)up & (uint32_t)(pgsz-1));
-	} else {
-		pfeall("cannot handle pointer size %u\n",
-			unsigned(p_sz));
-		exit(EXIT_FAILURE);
+		if ( s <= 0 ) {
+			s = 8192;
+			pfeall(_("%s: warning, could not find page size, using %d\n"),
+				program_name, s);
+		}
 	}
 
-	return up;
+	return size_t(s);
 }
-
-// these two read/write funcs are probably in lib_misc
-// so use those; RW_ALL_DEFINED is defined in this source
-#if ! RW_ALL_DEFINED
-ssize_t
-write_all(int fd, void* buf, size_t count)
-{
-	ssize_t rem, tw;
-	char* p = static_cast<char*>(buf);
-
-	for ( rem = count; rem; ) {
-		tw = write(fd, &p[count-rem], rem);
-		if ( tw < 0 ) {
-			if ( errno == EAGAIN || errno == EINTR ) {
-				#if DEBUG_IO_INTR
-				perror("continuing interrupted write");
-				#endif
-				continue;
-			}
-			return tw;
-		}
-		rem -= tw;
-	}
-
-	return count;
-}
-
-ssize_t
-read_all(int fd, void* buf, size_t count)
-{
-	ssize_t rem, tw;
-	char* p = static_cast<char*>(buf);
-
-	for ( rem = count; rem; ) {
-		tw = read(fd, &p[count-rem], rem);
-		if ( tw < 0 ) {
-			if ( errno == EAGAIN || errno == EINTR ) {
-				#if DEBUG_IO_INTR
-				perror("continuing interrupted read");
-				#endif
-				continue;
-			}
-			return tw;
-		}
-		if ( tw == 0 ) {
-			return count - rem;
-		}
-		rem -= tw;
-	}
-
-        return count;
-}
-#endif // #if ! RW_ALL_DEFINED
 
 // not just VOB actually; ifo/bup too
 class vt_file {
@@ -1261,35 +1197,131 @@ check_node(string nname)
 	return nname;
 }
 
+/**
+ ** options section
+ */
+static void
+usage(int status)
+{
+  	printf(_("%s - \
+A simple utility to make a backup copy of a DVD filesystem.\n"), program_name);
+  	printf(_("Usage: %s [OPTION] <SOURCE device node> <TARGET file>\n"), program_name);
+
+  	printf(_("\
+Options:\n\
+  -n, --dry-run              take no real actions\n\
+  -q, --quiet, --silent      inhibit usual output\n\
+  -v, --verbose              print information; repeat -v for yet more\n\
+  %s-h, --help                 display this help and exit\n\
+  -V, --version              output version information and exit\n\
+%s"),
+#if ! HAVE_LIBDVDREAD
+_("-L, --libdvdr NAME         use NAME as dvdread library\n  "),
+#else
+"",
+#endif
+"\n  On some systems a mount point directory may be given for\n\
+  the SOURCE argument if the medium is mounted.\n\n\
+  The TARGET argument is optional: standard output is default.\n\n"
+);
+
+  	exit(status);
+}
+
+/* Set all the option flags according to the switches specified.
+   Return the index of the first non-option argument.  */
+
+static int
+decode_switches(int argc, char* argv[])
+{
+	int c;
+
+	while ( (c = getopt_long(argc, argv, 
+			   "n"	/* dry-run */
+			   "q"	/* quiet or silent */
+			   "v"	/* verbose */
+#if ! HAVE_LIBDVDREAD
+			   "L:"	/* libdvdr */
+#endif
+			   "h"	/* help */
+			   "V",	/* version */
+			   long_options, (int*)0)) != EOF )
+	{
+		switch (c)
+		{
+			case 'n':		/* --dry-run */
+				dryrun = true;
+				break;
+			case 'q':		/* --quiet, --silent */
+				verbose = 0;
+				bequiet = true;
+				break;
+			case 'v':		/* --verbose */
+				verbose += 1;
+				break;
+#if ! HAVE_LIBDVDREAD
+			case 'L':		/* --libdvdr */
+				drd_libname = optarg;
+				break;
+#endif
+			case 'V':
+				printf("%s (%s) %s (0x%08X)\n",
+					program_name, default_program_name,
+					version, (unsigned)vernum);
+				exit(EXIT_SUCCESS);
+			case 'h':
+				usage(EXIT_SUCCESS);
+			default:
+				usage(EXIT_FAILURE);
+		}
+	}
+
+	return optind;
+}
+
+inline void
+set_program_name(const char* p)
+{
+	if ( ! p || ! *p ) return;
+	const char* q = strrchr(p, '/');
+	program_name = (q && *++q) ? q : p;
+}
+
 int
 main(int argc, char* argv[])
 {
-	if ( argc < 2 ) {
-		fprintf(stderr, "input device argument needed!\n");
-		fprintf(stderr, "optional next argument of output\n");
-		return EXIT_FAILURE;
-	} else if ( argc > 3 ) {
-		fprintf(stderr, "input device argument needed!\n");
-		fprintf(stderr, "optional next argument of output\n");
-		fprintf(stderr, "too many arguments!\n");
-		return EXIT_FAILURE;
-	}
+	set_program_name(argv[0]);
 
 	/* get envireonment vars 1st so options override */
 	env_checkvars();
-	/* TODO: add options handling */
-	string inname(argv[1]);
-	string outname(argv[2]);
+	/* options handling */
+	int nopt = decode_switches(argc, argv);
+	if ( argv[nopt] == 0 ) {
+		usage(EXIT_FAILURE);
+	}
+	string inname(argv[nopt++]);
+	string outname(argv[nopt] == 0 ? "" : argv[nopt++]);
+	if ( argv[nopt] != 0 ) {
+		usage(EXIT_FAILURE);
+	}
 
 	/* setup stream helpers */
-	pf_assign_files(fopen("/dev/null", "w"), stderr);
+	// NO stdout messages! data goes there
+	if ( bequiet ) {
+		FILE* tf = fopen("/dev/null", "w");
+		pf_assign_files(tf, tf);
+	} else {
+		pf_assign_files(stderr, stderr);
+	}
 	// NO stdout messages! data goes there
 	pf_setup(0, verbose >= 1);
 
 #if ! HAVE_LIBDVDREAD
-	const char* drd_libname = drd_altname;
+	if ( drd_libname == 0 ) {
+		drd_libname = drd_altname;
+	}
 	if ( open_drd(drd_libname, get_drd_defflags()) ) {
-		pfeall(_("%s: failed loading %s\n"),
+		pfeall(_("%s: failed loading %s (LD_LIBRARY_PATH?)\n"),
 			program_name, drd_libname);
 		return EXIT_FAILURE;
 	}
@@ -1380,8 +1412,10 @@ main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	if ( dryrun || argc == 2 ) {
+	if ( dryrun || outname == "" ) {
 		out = STDOUT_FILENO;
+		if ( outname == "" )
+			outname = "<standard output>";
 	} else {
 		out = open(outname.c_str(), O_TRUNC|O_CREAT|O_WRONLY, 0666);
 	}
@@ -1391,14 +1425,14 @@ main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 	if ( verbose && dryrun && argc > 2 ) {
-		pfeall("in dry run: output %s not opened\n",
+		pfeall("in dry run: output %s not used\n",
 			outname.c_str());
 	}
 
 	auto_array<unsigned char> buffalloc(
-		block_read_count * blk_sz + get_page_size()
+		block_read_count * blk_sz + page_size()
 		);
-	iobuffer = mk_aligned_ptr(buffalloc);
+	iobuffer = mk_aligned_ptr(buffalloc, page_size());
 
 	// cannot get size from struct stat: get it from ISO 9660 field
 	size_t volblks = get_vol_blocks(inp);

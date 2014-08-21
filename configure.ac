@@ -27,22 +27,33 @@ AC_SYS_LONG_FILE_NAMES
 
 dnl arg to allow disabling of linking libdvdread
 AC_ARG_WITH([libdvdread], AS_HELP_STRING([--with-libdvdread],
-  [try to link -ldvdread (the better default is to try dynamic loading)]),,
+  [link with -ldvdread (or ARG) (the better default is to use runtime loading)]),,
   [with_libdvdread=no])
 
 dnl dd-dvd only if requested
-AC_ARG_ENABLE([dd-dvd], AS_HELP_STRING([--enable-dd-dvd],
-  [try to build the dd-dvd program which requires C++ and uses libdvdread functions that might not be public in the shared library]),,
-  [enable_dd_dvd=no])
+AC_ARG_ENABLE([dd-dvd],
+	AS_HELP_STRING([--enable-dd-dvd],
+		 [to build the dd-dvd simple dvd filesystem backup program (C++)]),
+	[case "${enableval}" in
+	yes) enable_dd_dvd=true ;;
+	no)  enable_dd_dvd=false ;;
+	*) AC_MSG_ERROR([bad value ${enableval} for --enable-dd-dvd]) ;;
+	esac],[enable_dd_dvd=false])
+AM_CONDITIONAL([WITH_DD_DVD], [test x$enable_dd_dvd = xtrue])
 
-dnl dd-dvd only if requested
-AS_IF([test x"$enable_dd_dvd" != xno],
-[
-AM_CONDITIONAL(WITH_DD_DVD, true)
-AC_DEFINE(WITH_DD_DVD,[],[Enabled dd-dvd])
-], [
-AM_CONDITIONAL(WITH_DD_DVD, false)
-])
+dnl dnl dd-dvd only if requested
+dnl AC_ARG_ENABLE([dd-dvd], AS_HELP_STRING([--enable-dd-dvd],
+dnl   [try to build the dd-dvd program which requires C++ and uses libdvdread functions that might not be public in the shared library]),,
+dnl   [enable_dd_dvd=no])
+dnl 
+dnl dnl dd-dvd only if requested
+dnl AS_IF([test x"$enable_dd_dvd" != xno],
+dnl [
+dnl AM_CONDITIONAL(WITH_DD_DVD, true)
+dnl AC_DEFINE(WITH_DD_DVD,[],[Enabled dd-dvd])
+dnl ], [
+dnl AM_CONDITIONAL(WITH_DD_DVD, false)
+dnl ])
 
 dnl Checks for programs.
 AC_PROG_INSTALL
@@ -120,7 +131,7 @@ fi
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_DIRENT
-AC_CHECK_HEADERS(unistd.h sys/param.h sys/time.h time.h sys/mkdev.h sys/sysmacros.h string.h memory.h fcntl.h dirent.h sys/ndir.h ndir.h alloca.h locale.h error.h errno.h limits.h sys/resource.h ctype.h stdarg.h varargs.h dlfcn.h)
+AC_CHECK_HEADERS(getopt.h unistd.h sys/param.h sys/time.h time.h sys/mkdev.h sys/sysmacros.h string.h memory.h fcntl.h dirent.h sys/ndir.h ndir.h alloca.h locale.h error.h errno.h limits.h sys/resource.h ctype.h stdarg.h varargs.h dlfcn.h)
 
 dnl  this jm_* was provided by an older autogen, and now causes
 dnl  warning noise with newer auto* tools: do without it and watch
@@ -133,8 +144,11 @@ AC_STRUCT_ST_BLOCKS
 AC_FUNC_ALLOCA
 AC_FUNC_FSEEKO
 AC_FUNC_CLOSEDIR_VOID
-AC_CHECK_FUNCS(mkfifo vprintf doprnt seekdir telldir getrlimit pathconf getpagesize sysconf strlcpy mmap lstat readlink symlink lchown lchmod lutimes utimes error dlsym posix_memalign getfsfile endfsent)
-AC_CHECK_FUNC(mknod)
+AC_CHECK_FUNCS(mkfifo vprintf doprnt seekdir telldir getrlimit pathconf getpagesize sysconf strlcpy mmap lstat readlink symlink lchown lchmod lutimes utimes error dlsym posix_memalign getfsfile endfsent mknod getopt getopt_long)
+
+dnl getopt{,_long}
+AM_CONDITIONAL([NEED_GETOPT_C], [test x$ac_cv_func_getopt != xyes && test x$ac_cv_func_getopt != xtrue])
+AM_CONDITIONAL([NEED_GETOPT_LONG_C], [test x$ac_cv_func_getopt_long != xyes && test x$ac_cv_func_getopt_long != xtrue])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -148,4 +162,5 @@ dnl Checks for library functions.
 dnl subdir configures
 AC_CONFIG_SUBDIRS(lib_misc)
 
-AC_OUTPUT(Makefile cprec.lsm cprec.spec)
+dnl this was original from autopackage: AC_OUTPUT(Makefile cprec.lsm cprec.spec)
+AC_OUTPUT(Makefile)

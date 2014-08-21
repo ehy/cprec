@@ -22,7 +22,8 @@
 #include <config.h>
 #endif
 
-#include "getopt.h"
+/* MOD EH: prefix getopt.h with 'gn' so system getopt.h can be used */
+#include "gngetopt.h"
 
 #if !defined __STDC__ || !__STDC__
 /* This is a separate conditional since some stdc systems

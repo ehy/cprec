@@ -30,10 +30,12 @@
  */
 #include "hdr_cfg.h"
 #include <stddef.h>
-#include <getopt.h>
-#if ! HAVE_LIBDVDREAD
-#include <dlfcn.h>
+#if HAVE_GETOPT_H
+#	include <getopt.h>
+#else
+#	include "gngetopt.h"
 #endif
+#include <unistd.h>
 
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS 0
