@@ -21,12 +21,6 @@
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE_SOURCE
 
-extern "C" {
-#	include "hdr_cfg.h"
-#	include "lib_misc.h"
-#	include "dl_drd.h"
-}
-
 #include <string>
 #include <vector>
 #include <list>
@@ -43,12 +37,19 @@ extern "C" {
 #include <cstddef>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
+
+extern "C" {
+#	include "hdr_cfg.h"
+#	include "lib_misc.h"
+#	include "dl_drd.h"
+}
+
 #if HAVE_GETOPT_H
 #	include <getopt.h>
 #else
 #	include "gngetopt.h"
 #endif
-#include <unistd.h>
 
 #if defined(__sun) && ! defined(__linux)
 #   include <sys/mnttab.h>
@@ -73,18 +74,29 @@ extern "C" {
 const char version[] = "0.1.2";
 const uint32_t vernum = (0 << 24) | (1 << 16) | (2 << 8) | 0;
 
+/* NOTE: the ridiculous (char*) casts are to quieten
+ * the compiler on Sun/Oracle (OpenIndiana) because
+ * exquisitely broken headers have omitted 'const'
+ * in the struct option definition.
+ */
+#if defined(__sun)
+#define ELLISON (char*)
+#else
+#define ELLISON
+#endif
 static struct option const long_options[] =
 {
-	{"quiet", no_argument, 0, 'q'},
-	{"verbose", no_argument, 0, 'v'},
-	{"dry-run", no_argument, 0, 'n'},
+	{ELLISON "quiet", no_argument, 0, 'q'},
+	{ELLISON "verbose", no_argument, 0, 'v'},
+	{ELLISON "dry-run", no_argument, 0, 'n'},
 #if ! HAVE_LIBDVDREAD
-	{"libdvdr", required_argument, 0, 'L'},
+	{ELLISON "libdvdr", required_argument, 0, 'L'},
 #endif
-	{"help", no_argument, 0, 'h'},
-	{"version", no_argument, 0, 'V'},
+	{ELLISON "help", no_argument, 0, 'h'},
+	{ELLISON "version", no_argument, 0, 'V'},
 	{NULL, 0, NULL, 0}
 };
+#undef ELLISON
 
 const char default_program_name[] = "dd-dvd";
 extern "C" { const char* program_name = default_program_name; }
