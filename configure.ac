@@ -2,6 +2,19 @@ dnl Process this file with autoconf to produce a configure script.
 
 dnl Every other copy of the package version number gets its value from here
 AC_INIT([cprec], [0.1.2])
+
+dnl EH: some [ ... deleted ... ] decided that autoconf should preach
+dnl and fail rather than just work, so this shell parameter is
+dnl needed on OpenIndiana (maybe all Sun) -- must preceed automake
+AS_IF([test rm != am_arrogance],
+[
+ACCEPT_INFERIOR_RM_PROGRAM=yes
+export ACCEPT_INFERIOR_RM_PROGRAM
+], [
+ACCEPT_INFERIOR_RM_PROGRAM=yes
+export ACCEPT_INFERIOR_RM_PROGRAM
+])
+
 AM_INIT_AUTOMAKE([-Wall -Werror])
 
 dnl create a config.h file (Automake will add -DHAVE_CONFIG_H)
