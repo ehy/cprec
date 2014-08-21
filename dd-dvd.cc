@@ -22,6 +22,7 @@
 #define _LARGEFILE_SOURCE
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <list>
 #include <map>
@@ -89,6 +90,8 @@ static struct option const long_options[] =
 	{ELLISON "quiet", no_argument, 0, 'q'},
 	{ELLISON "verbose", no_argument, 0, 'v'},
 	{ELLISON "dry-run", no_argument, 0, 'n'},
+	{ELLISON "block-read-count", required_argument, 0, 'b'},
+	{ELLISON "retry-block-count", required_argument, 0, 'r'},
 #if ! HAVE_LIBDVDREAD
 	{ELLISON "libdvdr", required_argument, 0, 'L'},
 #endif
@@ -116,14 +119,18 @@ public:
 
 const size_t blk_sz = drd_VIDEO_LB_LEN; // this is 2048
 
-const size_t block_read_count = 4096;
+const size_t def_block_read_count = 4096;
+const size_t max_block_read_count = 4096 * 8;
+size_t block_read_count = def_block_read_count;
 
 typedef drd_reader_t* dvd_reader_p;
 
 const char* drd_libname = 0;
 
 size_t numbadblk = 0;
-size_t retrybadblk = 2;
+
+const size_t def_retrybadblk = 48; // was 2, which can be abusive
+size_t retrybadblk = def_retrybadblk;
 int verbose = 0;
 bool dryrun = false;
 bool bequiet = false;
@@ -716,6 +723,17 @@ copy_vob(
 		
 		if ( nb <= 0 ) {
 			perror("DVD read");
+
+			/* retry is disable when retrybadblk == 0 */
+			if ( retrybadblk < 1 ) {
+				pfeopt(_("%s: retry bad block == %zu, failing\n"),
+					program_name, retrybadblk);
+				return -1;
+			}
+
+			pfeopt(_("%s: retry bad block == %zu, retrying\n"),
+				program_name, retrybadblk);
+
 			errno = 0;
 			/* call desperation procedure:
 			 * will write bogus data for failed
@@ -1177,14 +1195,11 @@ env_checkvars()
 		errno = 0;
 		long lv = strtol(ep, 0, 0);
 		
-		if ( errno || lv < 1 || lv > block_read_count ) {
+		if ( errno || lv < 1 || lv > def_block_read_count ) {
 			perror("bad \"DDD_RETRYBLOCKS\" value");
-			pfeall(
-				"using default %zu\n", retrybadblk);
 		} else {
 			retrybadblk = static_cast<size_t>(lv);
-			pfeall(
-				"using DDD_RETRYBLOCKS %zu\n",
+			fprintf(stderr, "found DDD_RETRYBLOCKS=%zu\n",
 				retrybadblk);
 		}
 	}
@@ -1215,18 +1230,23 @@ check_node(string nname)
 static void
 usage(int status)
 {
-  	printf(_("%s - \
+  	fprintf(stderr, _("%s - \
 A simple utility to make a backup copy of a DVD filesystem.\n"), program_name);
-  	printf(_("Usage: %s [OPTION] <SOURCE device node> <TARGET file>\n"), program_name);
+  	fprintf(stderr, _("Usage: %s [OPTION] <SOURCE device node> <TARGET file>\n"), program_name);
 
-  	printf(_("\
+  	fprintf(stderr, _("\
 Options:\n\
   -n, --dry-run              take no real actions\n\
   -q, --quiet, --silent      inhibit usual output\n\
   -v, --verbose              print information; repeat -v for yet more\n\
+  -b, --block-read-count     2048 byte blocks per read operation\n\
+                             (default %zu, maximum %zu)\n\
+  -r. --retry-block-count    blocks per retry on IO errors\n\
+                             (default %zu, 0 disables retrying)\n\
   %s-h, --help                 display this help and exit\n\
   -V, --version              output version information and exit\n\
 %s"),
+def_block_read_count, max_block_read_count, def_retrybadblk,
 #if ! HAVE_LIBDVDREAD
 _("-L, --libdvdr NAME         use NAME as dvdread library\n  "),
 #else
@@ -1252,6 +1272,8 @@ decode_switches(int argc, char* argv[])
 			   "n"	/* dry-run */
 			   "q"	/* quiet or silent */
 			   "v"	/* verbose */
+			   "b:"	/* read count */
+			   "r:"	/* retry count */
 #if ! HAVE_LIBDVDREAD
 			   "L:"	/* libdvdr */
 #endif
@@ -1271,13 +1293,25 @@ decode_switches(int argc, char* argv[])
 			case 'v':		/* --verbose */
 				verbose += 1;
 				break;
+			case 'b':		/* --block-read-count */
+				{
+					istringstream s(optarg);
+					s >> block_read_count;
+				}
+				break;
+			case 'r':		/* --retry-block-count */
+				{
+					istringstream s(optarg);
+					s >> retrybadblk;
+				}
+				break;
 #if ! HAVE_LIBDVDREAD
 			case 'L':		/* --libdvdr */
 				drd_libname = optarg;
 				break;
 #endif
 			case 'V':
-				printf("%s (%s) %s (0x%08X)\n",
+				fprintf(stderr, "%s (%s) %s (0x%08X)\n",
 					program_name, default_program_name,
 					version, (unsigned)vernum);
 				exit(EXIT_SUCCESS);
@@ -1327,6 +1361,30 @@ main(int argc, char* argv[])
 	}
 	// NO stdout messages! data goes there
 	pf_setup(0, verbose >= 1);
+
+	// check for reasonable count args
+	if ( block_read_count > max_block_read_count ) {
+		// set to def rather than max assuming arg was greivous error
+		block_read_count = def_block_read_count;
+		pfeall(_("%s: block read count too great, using %zu\n"),
+			program_name, block_read_count);
+	}
+	if ( block_read_count == 0 ) {
+		block_read_count = def_block_read_count;
+		pfeall(_("%s: block read count was 0, using %zu\n"),
+			program_name, block_read_count);
+	}
+	if ( retrybadblk >= block_read_count ) {
+		retrybadblk = (def_retrybadblk + 1) >> 1;
+		pfeall(_("%s: retry block count too great, using %zu\n"),
+			program_name, retrybadblk);
+	}
+	if ( verbose >= 3 ) {
+		pfeall(_("%s: using block read count %zu\n"),
+			program_name, block_read_count);
+		pfeall(_("%s: using retry block count %zu\n"),
+			program_name, retrybadblk);
+	}
 
 #if ! HAVE_LIBDVDREAD
 	if ( drd_libname == 0 ) {
