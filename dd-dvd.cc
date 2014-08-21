@@ -1085,6 +1085,7 @@ get_vol_blocks(int fd)
 		exit(EXIT_FAILURE);
 	}
 
+	// offsets into iso 9660 fs for big,little endian fs size
 	const size_t boff = 84;
 	const size_t loff = 80;
 
@@ -1294,16 +1295,10 @@ decode_switches(int argc, char* argv[])
 				verbose += 1;
 				break;
 			case 'b':		/* --block-read-count */
-				{
-					istringstream s(optarg);
-					s >> block_read_count;
-				}
+				istringstream(optarg) >> block_read_count;
 				break;
 			case 'r':		/* --retry-block-count */
-				{
-					istringstream s(optarg);
-					s >> retrybadblk;
-				}
+				istringstream(optarg) >> retrybadblk;
 				break;
 #if ! HAVE_LIBDVDREAD
 			case 'L':		/* --libdvdr */
@@ -1364,7 +1359,7 @@ main(int argc, char* argv[])
 
 	// check for reasonable count args
 	if ( block_read_count > max_block_read_count ) {
-		// set to def rather than max assuming arg was greivous error
+		// set to def rather than max assuming arg was monstrous error
 		block_read_count = def_block_read_count;
 		pfeall(_("%s: block read count too great, using %zu\n"),
 			program_name, block_read_count);
@@ -1375,7 +1370,7 @@ main(int argc, char* argv[])
 			program_name, block_read_count);
 	}
 	if ( retrybadblk >= block_read_count ) {
-		retrybadblk = (def_retrybadblk + 1) >> 1;
+		retrybadblk = (block_read_count + 1) >> 1;
 		pfeall(_("%s: retry block count too great, using %zu\n"),
 			program_name, retrybadblk);
 	}
