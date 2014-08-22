@@ -102,10 +102,13 @@ lmsc_pf_setup(int dopfo, int dopfe)
 void
 lmsc_pf_assign_files(FILE* out, FILE* err)
 {
+	/* keep pf_init_done = 1 1st! if it follows lmsc_pf_debug_check()
+	 * then the FILE* assignments are overridden
+	 */
+	pf_init_done = 1;
 	pfoutfile = out;
 	pferrfile = err;
 	lmsc_pf_debug_check();
-	pf_init_done = 1;
 }
 void
 lmsc_pf_assign_files_default(void)
