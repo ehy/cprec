@@ -14,7 +14,8 @@
 .\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 .\"
 .\" .TH CPREC 1 "November 22, 2007"
-.TH CPREC 1 "January 17, 2010"
+.\" .TH CPREC 1 "January 17, 2010"
+.TH CPREC 1 "September 1, 2014"
 .\" Please update the above date whenever this man page is modified.
 .\"
 .\" Some nroff macros, for reference:
@@ -28,7 +29,8 @@
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
 .SH NAME
-cprec \- A recursive directory hierarchy copier; much like `cp -R'.
+cprec \- A recursive directory hierarchy copier; much like `cp -R'
+with additional features to facilitate DVD backup.
 .SH SYNOPSIS
 .B cprec
 .RI [ options ]
@@ -47,26 +49,36 @@ using
 is available).
 .PP
 Copying is always recursive for directory source arguments, like `cp -R'.
-Optionally meta-data (times, ownership and mode) may be
+Optionally, meta-data (times, ownership and mode) may be
 preserved in the copy, and operation may be forced to proceed,
 i.e. overwriting existing targets and continuing
 as well as possible after errors.
 .PP
-It is not the intention of \fIcprec\fP to be a replacement for
-the tried and true \fIcp\fP command. The intention is to backup
-video DVD data as a copy of the entire directory hierarchy on the DVD,
-the program was made more general in to facilitate
-additions to the target directory structure; for example, scans of
-cover images or booklets, or perhaps favored `jacket' files.
-The recursive copying functionality has been developed beyond the typical
-needs of video DVD backup, and \fIcprec\fP might be useful as a
-simple copy command.
+Functionality of the \fIcp\fP command is reimplemented in \fIcprec\fP
+so that a backup of a video DVD may be made
+as a copy of the entire directory hierarchy on the DVD. If desired,
+the output directory can then be the source for a new DVD filesystem
+(made with a program such as
+.BR mkisofs (1)
+or
+.BR genisoimage (1)).
 .PP
-It is not the intention of \fIcprec\fP to facilitate copyright
-infringement. (In fact this software is copyrighted, and distributed
-with a license for its use.) It is intended for backups, which any
-sane copyright law must allow (although the sanity of such laws
-may be uncertain), and for legal copying by license or by absence
+Additional material can be added to the output directory
+along with the DVD file hierarchy in one command.
+For example, scans of
+cover images or included booklets, relevant images and web pages, and
+video format conversions might be conveniently stored \fIwithin\fP
+the backup.
+.PP
+There is one important difference from the behavior of \fIcp\fP
+that a user should be aware of. When making a DVD backup, if
+the output target is an existing directory, the DVD mount point
+is will not be copied under the target, only the source contents.
+See the examples section.
+.PP
+The \fIcprec\fP program is intended for backups.
+It behooves the user to be aware of pertinent laws to which
+he or she is subjected, and to act appropriately.
 of prohibition.
 .SH OPTIONS
 \fBcprec\fP accepts the following options:
@@ -172,8 +184,78 @@ Show version of program.
 .nh
 .SH ENVIRONMENT
 See the source code.
+.SH EXAMPLES
+.PP
+If the drive device node is \fI/dev/dvd\fP and is mounted on
+\fI/mnt\fP and output should be rooted in \fIbackup\fP,
+and \fIbackup\fP does not exist yet or it is an existing
+directory, and metadata should be preserved, and you would like
+verbosity:
+.IP
+.EX
+% cprec -p -v -d 0 -n /dev/dvd /mnt backup
+.EE
+.PP
+If \fIbackup\fP did not exist it would have been
+created as a directory, and on completion it
+would have contained a backup
+copy of everything found under \fI/mnt\fP including
+extra materials that may have been present. If
+\fIbackup\fP did exist
+but was not a directory, \fIcprec\fP would have failed
+with an error message. If \fIbackup\fP was an existing
+directory, the result would have been \fBthe same\fP
+as if it hadn't existed; that is, \fIcprec\fP would not
+have created \fIbackup/mnt\fP as \fIcp\fP would have,
+but instead would have  started at the contents of
+\fI/mnt\fP. This behavior should allow \fIbackup\fP
+to be the argument to a command such as mkisofs(1).
+.PP
+When not making a DVD backup \fIcprec\fP will behave
+like \fIcp\fP, so whether or not \fIbackup\fP exists
+the following commands are equivalent:
+.IP
+.EX
+% cprec -pv /mnt backup
+.EE
+.IP
+.EX
+% cp -R -p -v /mnt backup
+.EE
+.PP
+If additional materials should be included with the
+backup, give their names as arguments \fBbefore\fP
+the DVD mount point:
+.IP
+.EX
+% cprec -pvd 0 -n /dev/dvd ~/stuff/pages cover.png /mnt backup
+.EE
+.PP
+It is important that the mount point be after other sources
+when \fI-p\fP is given because after \fIcprec\fP copies
+the DVD contents it will apply metadata to the target,
+and the mount point will probably not include write
+permission for a mounted DVD; subsequent attempts to
+create files under the target fail. This is due to
+the implementation which is effectively separate
+operations for DVD and non-DVD sources. The author
+does not presently feel this problem is worthy of repair;
+simply make the mount point the last argument before
+the target.
+.PP
+Finally, it is possible to backup a selected title set. This is
+a special case in that the \fIVIDEO_TS\fP directory is not
+created. The video files will be placed under the target
+directly. Additional materials are optional and will be
+copied recursively. If the desired title set is number 2:
+.IP
+.EX
+% cprec -pvd 2 -n /dev/dvd additional-stuff /mnt backup
+.EE
+.PP
+Note that the menu file for the title set is copied too.
 .SH COPYRIGHT
-Copyright \(co 2007 Ed Hynan. Source code license is the GNU
+Copyright \(co 2014 Ed Hynan. Source code license is the GNU
 General Public License <http://www.gnu.org/licenses/gpl.html>.
 There is NO WARRANTY.
 .SH AUTHOR
@@ -181,5 +263,6 @@ Ed Hynan <edhynan@gmail.com>.
 .SH "SEE ALSO"
 .BR cp (1), 
 .BR mkisofs (1),
+.BR genisoimage (1),
 .BR growisofs (1),
 .BR cdrecord (1).
