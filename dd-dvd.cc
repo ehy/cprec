@@ -81,25 +81,26 @@ const uint32_t vernum = (0 << 24) | (1 << 16) | (2 << 8) | 0;
  * in the struct option definition.
  */
 #if defined(__sun)
-#define ELLISON (char*)
+#define CPCAST (char*)
 #else
-#define ELLISON
+#define CPCAST
 #endif
 static struct option const long_options[] =
 {
-	{ELLISON "quiet", no_argument, 0, 'q'},
-	{ELLISON "verbose", no_argument, 0, 'v'},
-	{ELLISON "dry-run", no_argument, 0, 'n'},
-	{ELLISON "block-read-count", required_argument, 0, 'b'},
-	{ELLISON "retry-block-count", required_argument, 0, 'r'},
+	{CPCAST "quiet", no_argument, 0, 'q'},
+	{CPCAST "silent", no_argument, 0, 'q'},
+	{CPCAST "verbose", no_argument, 0, 'v'},
+	{CPCAST "dry-run", no_argument, 0, 'n'},
+	{CPCAST "block-read-count", required_argument, 0, 'b'},
+	{CPCAST "retry-block-count", required_argument, 0, 'r'},
 #if ! HAVE_LIBDVDREAD
-	{ELLISON "libdvdr", required_argument, 0, 'L'},
+	{CPCAST "libdvdr", required_argument, 0, 'L'},
 #endif
-	{ELLISON "help", no_argument, 0, 'h'},
-	{ELLISON "version", no_argument, 0, 'V'},
+	{CPCAST "help", no_argument, 0, 'h'},
+	{CPCAST "version", no_argument, 0, 'V'},
 	{NULL, 0, NULL, 0}
 };
-#undef ELLISON
+#undef CPCAST
 
 const char default_program_name[] = "dd-dvd";
 extern "C" { const char* program_name = default_program_name; }

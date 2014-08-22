@@ -138,36 +138,36 @@ struct stat tsb;
  * in the struct option definition.
  */
 #if defined(__sun)
-#define ELLISON (char*)
+#define CPCAST (char*)
 #else
-#define ELLISON
+#define CPCAST
 #endif
 static struct option const long_options[] =
 {
-	{ELLISON "node", required_argument, 0, 'n'},
-	{ELLISON "quiet", no_argument, 0, 'q'},
-	{ELLISON "silent", no_argument, 0, 'q'},
-	{ELLISON "verbose", no_argument, 0, 'v'},
-	{ELLISON "simple-copy", no_argument, 0, 's'},
-	{ELLISON "force", no_argument, 0, 'f'},
-	{ELLISON "preserve", no_argument, 0, 'p'},
+	{CPCAST "node", required_argument, 0, 'n'},
+	{CPCAST "quiet", no_argument, 0, 'q'},
+	{CPCAST "silent", no_argument, 0, 'q'},
+	{CPCAST "verbose", no_argument, 0, 'v'},
+	{CPCAST "simple-copy", no_argument, 0, 's'},
+	{CPCAST "force", no_argument, 0, 'f'},
+	{CPCAST "preserve", no_argument, 0, 'p'},
 /* dry-run is unmaintained; makes segfaults
-	{ELLISON "dry-run", no_argument, 0, DRYRUN_CODE},
+	{CPCAST "dry-run", no_argument, 0, DRYRUN_CODE},
 */
-	{ELLISON "dvdbackup", required_argument, 0, 'd'},
+	{CPCAST "dvdbackup", required_argument, 0, 'd'},
 #if ! HAVE_LIBDVDREAD
-	{ELLISON "libdvdr", required_argument, 0, 'L'},
+	{CPCAST "libdvdr", required_argument, 0, 'L'},
 #endif
-	{ELLISON "ignore-existing", no_argument, 0, 'E'},
-	{ELLISON "ignore-hardlinks", no_argument, 0, 'H'},
-	{ELLISON "ignore-symlinks", no_argument, 0, 'S'},
-	{ELLISON "ignore-specials", no_argument, 0, 'D'},
-	{ELLISON "ignore-nonreadable", no_argument, 0, 'N'},
-	{ELLISON "help", no_argument, 0, 'h'},
-	{ELLISON "version", no_argument, 0, 'V'},
+	{CPCAST "ignore-existing", no_argument, 0, 'E'},
+	{CPCAST "ignore-hardlinks", no_argument, 0, 'H'},
+	{CPCAST "ignore-symlinks", no_argument, 0, 'S'},
+	{CPCAST "ignore-specials", no_argument, 0, 'D'},
+	{CPCAST "ignore-nonreadable", no_argument, 0, 'N'},
+	{CPCAST "help", no_argument, 0, 'h'},
+	{CPCAST "version", no_argument, 0, 'V'},
 	{NULL, 0, NULL, 0}
 };
-#undef ELLISON
+#undef CPCAST
 
 /* The source arg data */
 typedef struct src_arg_st {
