@@ -45,3 +45,6 @@ AM_CPPFLAGS = -I$(srcdir)/lib_misc
 
 #  install the man pages
 man_MANS=cprec.1
+if WITH_DD_DVD
+man_MANS+=dd-dvd.1
+endif
