@@ -10,7 +10,7 @@ endif
 
 if WITH_DD_DVD
 bin_PROGRAMS+= dd-dvd
-dd_dvd_SOURCES=dd-dvd.cc dl_drd.h dl_drd.c
+dd_dvd_SOURCES=dd-dvd.cc dl_drd.h dl_drd.c dd-dvd.1
 dd_dvd_LDADD = lib_misc/lib_misc.a
 if NEED_GETOPT_C
 dd_dvd_SOURCES+=gngetopt.h getopt.c

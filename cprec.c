@@ -817,7 +817,7 @@ usage(int status)
 {
   	printf(_("%s - \
 A recursive directory hierarchy copier; much like 'cp -R'.\n"), program_name);
-  	printf(_("Usage: %s [OPTION] <SOURCE ...> <TARGET>\n"), program_name);
+  	printf(_("Usage: %s [OPTIONS] <SOURCE ...> <TARGET>\n"), program_name);
 
 /* dry-run is unmaintained; makes segfaults */
 /*  --dry-run                  take no real actions\n\ */

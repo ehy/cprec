@@ -29,8 +29,8 @@
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
 .SH NAME
-cprec \- A recursive directory hierarchy copier; much like `cp -R'
-with additional features to facilitate DVD backup.
+cprec \- A recursive directory hierarchy copier (like `cp -R')
+with additional features to backup DVD video.
 .SH SYNOPSIS
 .B cprec
 .RI [ options ]
@@ -49,7 +49,7 @@ using
 is available).
 .PP
 Copying is always recursive for directory source arguments, like `cp -R'.
-Optionally, meta-data (times, ownership and mode) may be
+Optionally, metadata (times, ownership and mode) may be
 preserved in the copy, and operation may be forced to proceed,
 i.e. overwriting existing targets and continuing
 as well as possible after errors.
@@ -153,7 +153,8 @@ Do not make equivalent hard links; copy data to new file.
 .TP
 .BR \-D , " \-\-ignore-specials"
 Do not make equivalent device nodes or pipes. Unix domain sockets
-are always ignored.
+are always ignored. Various systems have other special types
+which are always ignored with a message on standard error.
 .TP
 .BR \-N , " \-\-ignore-nonreadable"
 Do not fail if a source directory is not readable.
@@ -168,19 +169,25 @@ to continue after errors which by default cause an exit with failure.
 .TP
 .BR  \-L , " --libdvdr" " \fINAME\fP"
 Use shared library \fINAME\fP as the DVD reader.
-Only available if configured for dynamic loading of reader.
-This must be
+Only available if configured for runtime loading of the library
+(which is the default).
+The argument must lead to
 .nh
-\fIlibdvdread\fP
+\fIlibdvdread\fP,
 .hy
-version 3 or something compatible.
+(regardless of name)
+and it might be necessary to set the
+.nh
+\fCLD_LIBRARY_PATH\fP
+.hy
+environment variable suitably.
 .TP
 .BR \-h , " \-\-help"
-Show summary of options.
+Show summary of options and exit.
 .TP
 .BR \-V , " \-\-version"
-Show version of program.
-.nh
+Show version information and exit.
+.\" .nh
 .SH ENVIRONMENT
 See the source code.
 .SH EXAMPLES
@@ -191,9 +198,9 @@ and \fIbackup\fP does not exist yet or it is an existing
 directory, and metadata should be preserved, and you would like
 verbosity:
 .IP
-.EX
-% cprec -p -v -d 0 -n /dev/dvd /mnt backup
-.EE
+.nf
+\fC% cprec -p -v -d 0 -n /dev/dvd /mnt backup\fP
+.fi
 .PP
 If \fIbackup\fP did not exist it would have been
 created as a directory, and on completion it
@@ -210,25 +217,26 @@ but instead would have  started at the contents of
 \fI/mnt\fP. This behavior should allow \fIbackup\fP
 to be the argument to a command such as mkisofs(1).
 .PP
-When not making a DVD backup \fIcprec\fP will behave
+When not making a DVD backup (using \fI-d\fP)
+\fIcprec\fP will behave
 like \fIcp\fP, so whether or not \fIbackup\fP exists
 the following commands are equivalent:
 .IP
-.EX
-% cprec -pv /mnt backup
-.EE
+.nf
+\fC% cprec -pv /mnt backup\fP
+.fi
 .IP
-.EX
-% cp -R -p -v /mnt backup
-.EE
+.nf
+\fC% cp -R -p -v /mnt backup\fP
+.fi
 .PP
 If additional materials should be included with the
 backup, give their names as arguments \fBbefore\fP
 the DVD mount point:
 .IP
-.EX
-% cprec -pvd 0 -n /dev/dvd ~/stuff/pages cover.png /mnt backup
-.EE
+.nf
+\fC% cprec -pvd 0 -n /dev/dvd ~/stuff/pages cover.png /mnt backup\fP
+.fi
 .PP
 It is important that the mount point be after other sources
 when \fI-p\fP is given because after \fIcprec\fP copies
@@ -248,9 +256,9 @@ created. The video files will be placed under the target
 directly. Additional materials are optional and will be
 copied recursively. If the desired title set is number 2:
 .IP
-.EX
-% cprec -pvd 2 -n /dev/dvd additional-stuff /mnt backup
-.EE
+.nf
+\fC% cprec -pvd 2 -n /dev/dvd additional-stuff /mnt backup\fP
+.fi
 .PP
 Note that the menu file for the title set is copied too.
 .SH COPYRIGHT

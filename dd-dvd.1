@@ -1,0 +1,204 @@
+.\"                              hey, Emacs:   -*- nroff -*-
+.\" dd-dvd is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; see the file COPYING.  If not, write to
+.\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.\" .TH CPREC 1 "November 22, 2007"
+.\" .TH CPREC 1 "January 17, 2010"
+.TH DD-DVD 1 "September 1, 2014"
+.\" Please update the above date whenever this man page is modified.
+.\"
+.\" Some nroff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins (default)
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+dd-dvd \- A simple backup tool DVD video filesystems images.
+.SH SYNOPSIS
+.B dd-dvd
+.RI [ options ]
+\fIdvd_device_node\fP <\fItarget\fP>
+.SH DESCRIPTION
+\fBdd-dvd\fP will make a backup copy of a DVD image
+using
+.nh
+\fIlibdvdread\fP
+.hy
+(including decryption if
+.nh
+\fIlibdvdcss\fP
+.hy
+is available).
+.PP
+On Unix-like systems the \fIdd\fP tool is often used
+for tasks such as copying a whole filesystem. For DVD
+video disks using \fIdd\fP has two problems. First,
+a naive command that does not specify the filesystem
+block count will copy extra data at the end. Second,
+parts of the image might be scrambled, making the
+output useless without further processing.
+.PP
+The first problem is handled by \fIdd-dvd\fP by
+reading the block count from the disk and using
+that value. The second problem is handled by using
+\fIlibdvdread\fP to read the blocks that might
+be scrambled, because \fIlibdvdread\fP will decode
+the blocks (using \fIlibdvdcss\fP) if it can.
+.PP
+Output is written to the standard output if a
+target filename is not given.
+.PP
+The \fIdd-dvd\fP program is intended for backups.
+It behooves the user to be aware of pertinent laws to which
+he or she is subjected, and to act appropriately.
+.SH OPTIONS
+\fBdd-dvd\fP accepts the following options:
+.TP
+.B  \-\-dry-run
+Take no real actions. Collect and print (with -v)
+filesystem information.
+.TP
+.BR  \-q , " \-\-quiet" , " \-\-silent"
+Inhibit usual output.
+.TP
+.BR  \-v , " \-\-verbose"
+Print more information. Repeat this option for more verbosity.
+.TP
+.BR  \-b , " \-\-block-read-count" " <\fIpositive integer\fP>"
+Specify the the number of 2048 byte blocks to
+request with each read.
+.TP
+.BR  \-r , " \-\-retry-block-count" " <\fIpositive integer\fP>"
+On IO error, \fIdd-dvd\fP will try again, but the block
+read count (-b) is divided into several reads of this size.
+If this smaller read fails, then \fIdd-dvd\fP use zeroes
+(0) for the output blocks and continues (which is probably
+acceptable for DVD video backup because the affect on
+playback might be acceptable to a human viewer; so far
+all playback machines have handled zeroed data well).
+If the possibility of zeroed blocks is unacceptable then
+give `0' for this option and \fIdd-dvd\fP will fail rather
+than retry. The default is non-zero (48 presently).
+.TP
+.BR  \-L , " --libdvdr" " \fINAME\fP"
+Use shared library \fINAME\fP as the DVD reader.
+Only available if configured for runtime loading of the library
+(which is the default).
+The argument must lead to
+.nh
+\fIlibdvdread\fP,
+.hy
+(regardless of name)
+and it might be necessary to set the
+.nh
+\fCLD_LIBRARY_PATH\fP
+.hy
+environment variable suitably.
+.TP
+.BR \-h , " \-\-help"
+Show summary of options and exit.
+.TP
+.BR \-V , " \-\-version"
+Show version information and exit.
+.\" .nh
+.SH ENVIRONMENT
+See the source code.
+.SH EXAMPLES
+.PP
+If the drive device node is \fI/dev/dvd\fP
+and output should be written to \fIbackup\fP,
+and you would like verbosity:
+.IP
+.nf
+\fC% dd-dvd -v /dev/dvd backup\fP
+.fi
+.PP
+Note that if the disc is mounted the mount point
+can given instead of the device node name and
+\fIdd-dvd\fP will try to find and use the device node.
+.PP
+By default \fIdd-dvd\fP will retry reading bad blocks
+in smaller amounts than the first read attempt.
+This retrying will obviously increase stress and wear
+on the drive (and the program will take much longer
+to complete). If the drive is precious and the DVD
+is unimportant, disable retries:
+.IP
+.nf
+\fC% dd-dvd -vv -r 0 /mnt backup\fP
+.fi
+.PP
+If the DVD is precious and the drive unimportant
+(this can take a long time with a poor disc, even days):
+.IP
+.nf
+\fC% dd-dvd -vv -r 1 /mnt backup\fP
+.fi
+.PP
+If the DVD is not too important and the goal is
+to have a mostly watchable backup use a larger
+value, which will make perceptible `skips' longer
+but spare the drive and execution time:
+.IP
+.nf
+\fC% dd-dvd -v -r 256 /mnt backup\fP
+.fi
+.PP
+The author has chosen a default of 48 retry blocks
+based on a number poor discs encountered (and his
+idea of acceptable results). Check the tty output
+occasionally
+\(em if too many errors are reported or the program
+is taking too long, interrupt the program.
+.PP
+It is important that the mount point be after other sources
+when \fI-p\fP is given because after \fIcprec\fP copies
+the DVD contents it will apply metadata to the target,
+and the mount point will probably not include write
+permission for a mounted DVD; subsequent attempts to
+create files under the target fail. This is due to
+the implementation which is effectively separate
+operations for DVD and non-DVD sources. The author
+does not presently feel this problem is worthy of repair;
+simply make the mount point the last argument before
+the target.
+.PP
+Finally, it is possible to backup a selected title set. This is
+a special case in that the \fIVIDEO_TS\fP directory is not
+created. The video files will be placed under the target
+directly. Additional materials are optional and will be
+copied recursively. If the desired title set is number 2:
+.IP
+.nf
+\fC% cprec -pvd 2 -n /dev/dvd additional-stuff /mnt backup\fP
+.fi
+.PP
+Note that the menu file for the title set is copied too.
+.SH COPYRIGHT
+Copyright \(co 2014 Ed Hynan. Source code license is the GNU
+General Public License <http://www.gnu.org/licenses/gpl.html>.
+There is NO WARRANTY.
+.SH AUTHOR
+Ed Hynan <edhynan@gmail.com>.
+.SH "SEE ALSO"
+.BR cp (1), 
+.BR mkisofs (1),
+.BR genisoimage (1),
+.BR growisofs (1),
+.BR cdrecord (1).

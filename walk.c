@@ -35,15 +35,15 @@
 #include "block_hash.h"
 #include "xmalloc.h"
 
-#define GOT_FAIL        -1
-#define GOT_F           1
-#define GOT_D           2
-#define GOT_DNR         3
-#define GOT_SL          4
-#define GOT_HL          5
-#define GOT_NS          6
-#define GOT_ERRS        7
-#define GOT_ERRD        8
+#define GOT_FAIL	-1
+#define GOT_F	   1
+#define GOT_D	   2
+#define GOT_DNR	 3
+#define GOT_SL	  4
+#define GOT_HL	  5
+#define GOT_NS	  6
+#define GOT_ERRS	7
+#define GOT_ERRD	8
 
 
 static int  ftwcb(const char*, const struct stat*, int);
@@ -64,7 +64,7 @@ walk(void)
 {
 	int nofd;
 
-        nofd = get_nofd(nfdresv);
+	nofd = get_nofd(nfdresv);
 	if ( nofd == 0 ) {
 		pfeall(_("%s: no files!\n"), program_name);
 		exit(1);
@@ -76,51 +76,57 @@ walk(void)
 	nofd = MIN(nofd, nfdmax);
 
 	switch ( ftw(mntd, ftwcb, nofd) ) {
-                case GOT_DNR:
-                        pfeall(_("%s: got unreadable directory (FTW_DNR)\n")
+		case GOT_DNR:
+			pfeall(_("%s: got unreadable directory (FTW_DNR)\n")
 				, program_name);
-                        if ( force )
+			if ( force )
 				break;
 			exit(1);
-                case GOT_NS:
-                        pfeall(_("%s: got un-stat()able entry (FTW_NS)\n")
+
+		case GOT_NS:
+			pfeall(_("%s: got un-stat()able entry (FTW_NS)\n")
 				, program_name);
-                        if ( force )
+			if ( force )
 				break;
-                        exit(1);
-                case GOT_SL:
-                        pfeall(_("%s: symbolic link error walking hierarchy\n")
+			exit(1);
+
+		case GOT_SL:
+			pfeall(_("%s: symbolic link error walking hierarchy\n")
 				, program_name);
-                        if ( force )
+			if ( force )
 				break;
-                        exit(1);
-                 case GOT_HL:
-                        pfeall(_("%s: hard link error walking hierarchy\n")
+			exit(1);
+
+		 case GOT_HL:
+			pfeall(_("%s: hard link error walking hierarchy\n")
 				, program_name);
-                        if ( force )
+			if ( force )
 				break;
-                        exit(1);
-                case GOT_ERRS:
-                        pfeall(_("%s: source error walking hierarchy\n")
+			exit(1);
+
+		case GOT_ERRS:
+			pfeall(_("%s: source error walking hierarchy\n")
 				, program_name);
-                        if ( force )
+			if ( force )
 				break;
-                        exit(1);
-                case GOT_ERRD:
-                        pfeall(_("%s: destination error walking hierarchy\n")
+			exit(1);
+
+		case GOT_ERRD:
+			pfeall(_("%s: destination error walking hierarchy\n")
 				, program_name);
-                        if ( force )
+			if ( force )
 				break;
-                        exit(1);
-                case GOT_FAIL:
-                        pfeall(_("%s: failure walking hierarchy\n")
+			exit(1);
+
+		case GOT_FAIL:
+			pfeall(_("%s: failure walking hierarchy\n")
 				, program_name);
-                        if ( force )
+			if ( force )
 				break;
-                        exit(1);
-                default:
-                        break;
-        }
+			exit(1);
+		default:
+			break;
+	}
 }
 
 int
@@ -132,7 +138,7 @@ get_max_videntry(void)
 	for ( pl = tit0; pl != NULL; pl = pl->pnext ) {
 		r = MAX(r, pl->chnum);
 	}
-	
+
 	return r;
 }
 
@@ -216,7 +222,7 @@ setvidentry(const char* nam, const char* path, const struct stat* sb)
 		tit0->has_bup = 0;
 		titlecnt = 1;
 	}
-	
+
 	pl = tit0;
 	plast = NULL;
 
@@ -225,7 +231,7 @@ setvidentry(const char* nam, const char* path, const struct stat* sb)
 			break;
 		plast = pl;
 	} while ( (pl = pl->pnext) != NULL );
-	
+
 	if ( pl == NULL ) { /* not found */		
 		pl = xmalloc(sizeof(titlist_t));
 		pl->pprev = plast;
@@ -238,16 +244,16 @@ setvidentry(const char* nam, const char* path, const struct stat* sb)
 			plast->pnext = pl;
 		titlecnt++;
 	}
-	
+
 	if ( is_ifo && j == 0 ) {
-        	memcpy(&(pl->ifos[0]), sb, sizeof(struct stat));
+		memcpy(&(pl->ifos[0]), sb, sizeof(struct stat));
 		pl->has_ifo = 1;
-        } else if ( is_bup && j == 0 ) {
-        	memcpy(&(pl->bups[0]), sb, sizeof(struct stat));
+	} else if ( is_bup && j == 0 ) {
+		memcpy(&(pl->bups[0]), sb, sizeof(struct stat));
 		pl->has_bup = 1;
-        } else if ( is_vob ) {
-        	memcpy(&(pl->vobs[j]), sb, sizeof(struct stat));
-        }
+	} else if ( is_vob ) {
+		memcpy(&(pl->vobs[j]), sb, sizeof(struct stat));
+	}
 	pl->num = MAX(pl->num, j);
 
 	pf_dbg(_("dbg %s: setvidentry did set %02d,%d %s\n"),
@@ -323,11 +329,11 @@ ftwcb(const char* file, const struct stat* sb, int flag)
 		pf_dbg(_("dbg: unset invid for %s, %s\n"), psrc, file);
 		invid  = 0;
 	}
-	
+
 	if ( !simple_copy && invid && !ign_lc )
 		l2U(pdst);
-	
-        if ( flag == FTW_D ) {
+
+	if ( flag == FTW_D ) {
 		if ( !simple_copy &&
 		     (!strcmp(psrc, "VIDEO_TS") ||
 		     !strcmp(psrc, "video_ts")) ) {
@@ -341,12 +347,12 @@ ftwcb(const char* file, const struct stat* sb, int flag)
 				return 0;
 			}
 		}
-        }
+	}
 
 	/* with a -d selection ignore all but dvd video items */
 	if ( okvid && !simple_copy && !invid && desired_title )
 		return 0;
-	
+
 	pf_dbg(_("dbg: mntd \"%s\" outd \"%s\"\n"), mntd, outd);
 	return handle_file(file, sb, flag);
 }
@@ -387,22 +393,19 @@ handle_file(const char* file, const struct stat* sb, int flag)
 
 			if ( link(p->id_path0, outd) ) {
 				pfeall(_("%s: failed link(%s, %s): %s\n"),
-					program_name,
-					p->id_path0, outd,
-					strerror(errno));
+					program_name, p->id_path0, outd, strerror(errno));
 				if ( !force )
 					return GOT_HL;
 				pfoopt(_("%s: copy %s, failed link to %s\n"),
-					program_name,
-					outd, p->id_path0);
+					program_name, outd, p->id_path0);
 				/* fall through and copy */
 			}
 
 			return 0;
 		} else {
 			/* get_max_hlink(p->id_path0) too few */
-			pfeopt(_("%s %s to %s, %llu %s %lld links\n"),
-				_("cannot hard link"),
+			pfeopt(
+				_("cannot hard link %s to %s, %llu %s %lld links\n"),
 				outd, p->id_path0,
 				CAST_ULL(p->id_count),
 				_("greater than maximum"),
@@ -414,7 +417,7 @@ handle_file(const char* file, const struct stat* sb, int flag)
 	}
 
 	switch ( flag ) {
-        case FTW_D:
+	case FTW_D:
 		pfoopt(_("mkdir %s\n"), outd);
 
 		if ( want_dry_run )
@@ -438,16 +441,18 @@ handle_file(const char* file, const struct stat* sb, int flag)
 
 		set_dire_t(outd, sb);
 		break;
-        case FTW_DNR:
-                if ( ign_dnr )
+
+	case FTW_DNR:
+		if ( ign_dnr )
 			pfeopt(_("%s: unreadable directory %s\n"),
 				program_name, file);
-                else {
+		else {
 			pfeall(_("%s: unreadable directory %s\n"),
 				program_name, file);
-                        return GOT_DNR;
+			return GOT_DNR;
 		}
-                break;
+		break;
+
 	case FTW_F:
 		/* first: handle non-regular files */
 		/* FIXME: needs work to handle various
@@ -477,6 +482,7 @@ handle_file(const char* file, const struct stat* sb, int flag)
 
 			if ( want_dry_run )
 				break;
+
 #if HAVE_MKFIFO
 			if ( S_ISFIFO(sb->st_mode) ) {
 				pfoopt(_("%s: creating fifo %s\n"),
@@ -484,18 +490,19 @@ handle_file(const char* file, const struct stat* sb, int flag)
 
 				if ( mkfifo(outd, sb->st_mode) ) {
 					pfeall(_("%s: failed fifo %s - %s\n"),
-						program_name, outd,
-						strerror(errno));
+						program_name, outd, strerror(errno));
 					if ( !force )
 						return GOT_FAIL;
-				} else
+				} else {
 					/* try preserving metadata --
 					   never fatal on error
 					 */
 					set_f_meta(outd, sb);
+				}
 				break;
 			}
 #endif
+
 			pfoopt(_("%s: creating device node %s\n"),
 				program_name, outd);
 
@@ -510,6 +517,10 @@ handle_file(const char* file, const struct stat* sb, int flag)
 				 */
 				set_f_meta(outd, sb);
 
+			break;
+		} else if ( !S_ISREG(sb->st_mode) ) {
+			pfeall(_("%s: ignoring special file %s\n"),
+				program_name, file);
 			break;
 		}
 
@@ -550,33 +561,37 @@ handle_file(const char* file, const struct stat* sb, int flag)
 				}
 			}
 		}
-		
+
 		pfoopt(_("copy file to %s\n"), outd);
 
 		if ( want_dry_run )
 			break;
 
 		if ( copy_file(mntd, outd) ) {
-			if ( !simple_copy && do_ioerrs )
+			if ( !simple_copy && do_ioerrs ) {
 				if ( !copy_bup_ifo(mntd, outd) )
 					break;
+			}
+
 			pfeall(_("%s: failed copy %s to %s\n"),
 				program_name, mntd, outd);
-                	return GOT_FAIL;
+			return GOT_FAIL;
 		}
 		break;
-        case FTW_NS:
-                if ( ign_ns )
+
+	case FTW_NS:
+		if ( ign_ns ) {
 			pfeopt(_("%s: stat() failed on %s\n"),
 				program_name, file);
-                else {
+		} else {
 			pfeall(_("%s: stat() failed on %s\n"),
 				program_name, file);
-                        return GOT_NS;
+			return GOT_NS;
 		}
-                break;
+		break;
+
 	case FTW_SL:
-                if ( ign_sl ) {
+		if ( ign_sl ) {
 			pfeopt(_("%s: symbolic link %s; copying target\n"),
 				program_name, file);
 
@@ -586,16 +601,16 @@ handle_file(const char* file, const struct stat* sb, int flag)
 			if ( copy_file(mntd, outd) ) {
 				pfeall(_("%s: failed copy %s to %s\n"),
 					program_name, mntd, outd);
-                		return GOT_FAIL;
+				return GOT_FAIL;
 			}
 		}
+
 		#if HAVE_READLINK && HAVE_SYMLINK
 		else {
 			int r = readlink(file, nbuf, nbufbufdlen - 1);
 			if ( r == -1 ) {
 				pfeall(_("%s: failed readlink(%s,,): %s\n"),
-					program_name, file,
-					strerror(errno));
+					program_name, file, strerror(errno));
 				return GOT_SL;
 			}
 			nbuf[r] = '\0';
@@ -608,9 +623,8 @@ handle_file(const char* file, const struct stat* sb, int flag)
 				if ( errno == EEXIST && ign_ex )
 					break;
 				pfeall(_("%s: failed symlink(%s, %s): %s\n"),
-					program_name, nbuf, outd,
- 					strerror(errno));
-               			return GOT_SL;
+					program_name, nbuf, outd, strerror(errno));
+				return GOT_SL;
 			} else {
 				/* try preserving metadata --
 				   never fatal on error
@@ -625,12 +639,12 @@ handle_file(const char* file, const struct stat* sb, int flag)
 			return GOT_SL;
 		}
 		#endif
-                break;
+		break;
 	default:
 		pfeall(_("%s: unknown flag %d for %s\n"),
 			program_name, flag, file);
-                return GOT_FAIL;
+		return GOT_FAIL;
 	}
-	
+
 	return 0;
 }
