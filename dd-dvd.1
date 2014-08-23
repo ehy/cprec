@@ -70,12 +70,12 @@ he or she is subjected, and to act appropriately.
 .SH OPTIONS
 \fBdd-dvd\fP accepts the following options:
 .TP
-.B  \-\-dry-run
+.BR  \-n , " \-\-dry-run"
 Take no real actions. Collect and print (with -v)
 filesystem information.
 .TP
 .BR  \-q , " \-\-quiet" , " \-\-silent"
-Inhibit usual output.
+Inhibit information output.
 .TP
 .BR  \-v , " \-\-verbose"
 Print more information. Repeat this option for more verbosity.
@@ -87,7 +87,7 @@ request with each read.
 .BR  \-r , " \-\-retry-block-count" " <\fIpositive integer\fP>"
 On IO error, \fIdd-dvd\fP will try again, but the block
 read count (-b) is divided into several reads of this size.
-If this smaller read fails, then \fIdd-dvd\fP use zeroes
+If this smaller read fails, then \fIdd-dvd\fP uses zeroes
 (0) for the output blocks and continues (which is probably
 acceptable for DVD video backup because the affect on
 playback might be acceptable to a human viewer; so far
@@ -167,29 +167,6 @@ occasionally
 \(em if too many errors are reported or the program
 is taking too long, interrupt the program.
 .PP
-It is important that the mount point be after other sources
-when \fI-p\fP is given because after \fIcprec\fP copies
-the DVD contents it will apply metadata to the target,
-and the mount point will probably not include write
-permission for a mounted DVD; subsequent attempts to
-create files under the target fail. This is due to
-the implementation which is effectively separate
-operations for DVD and non-DVD sources. The author
-does not presently feel this problem is worthy of repair;
-simply make the mount point the last argument before
-the target.
-.PP
-Finally, it is possible to backup a selected title set. This is
-a special case in that the \fIVIDEO_TS\fP directory is not
-created. The video files will be placed under the target
-directly. Additional materials are optional and will be
-copied recursively. If the desired title set is number 2:
-.IP
-.nf
-\fC% cprec -pvd 2 -n /dev/dvd additional-stuff /mnt backup\fP
-.fi
-.PP
-Note that the menu file for the title set is copied too.
 .SH COPYRIGHT
 Copyright \(co 2014 Ed Hynan. Source code license is the GNU
 General Public License <http://www.gnu.org/licenses/gpl.html>.
@@ -197,8 +174,8 @@ There is NO WARRANTY.
 .SH AUTHOR
 Ed Hynan <edhynan@gmail.com>.
 .SH "SEE ALSO"
-.BR cp (1), 
 .BR mkisofs (1),
 .BR genisoimage (1),
 .BR growisofs (1),
-.BR cdrecord (1).
+.BR cdrecord (1),
+.BR cprec (1).
