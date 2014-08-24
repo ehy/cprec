@@ -632,10 +632,8 @@ copy_vob_badblks(
 	numbadblk += bad;
 	tm2 = time(0);
 	pfeall(
-		"%lu bad blocks zeroed in read of %lu "
-		"(%g good blocks) in %llu seconds\n",
+		"%lu bad blocks zeroed in read of %lu in %llu seconds\n",
 		bad, (unsigned long)blkcnt,
-		(double)good / (double)blkcnt,
 		(unsigned long long)tm2 - tm1);
 	
 	return cnt;
@@ -941,10 +939,8 @@ dd_ops_exec(
 				}
 				ret = copy_vob(0, inp, out, iobuffer, ddbsz, 0);
 				if ( ret != ddbsz ) {
-					pfeall(
-					    "DD failed at block %llu, %zu\n",
-						(unsigned long long)fptr,
-						ddbsz);
+					pfeall(_("%s: read failed at block %llu, %zu\n"),
+						program_name, (unsigned long long)fptr, ddbsz);
 					exit(EXIT_FAILURE);
 				}
 				fptr += off_t(ddbsz);
@@ -1546,11 +1542,10 @@ main(int argc, char* argv[])
 		}
 	}
 
-	if ( numbadblk ) {
+	if ( numbadblk || verbose > 1 ) {
 		pfeall(
-		    "found %zu bad blocks in %s; zeroed in output\n",
-		    numbadblk,
-		    inname.c_str());
+		    "found %zu total bad blocks in %s; zeroed in output\n",
+		    numbadblk, inname.c_str());
 	}
 
 	DVDClose(drd);
