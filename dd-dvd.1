@@ -29,11 +29,11 @@
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
 .SH NAME
-dd-dvd \- A simple backup tool DVD video filesystems images.
+dd-dvd \- A simple DVD video filesystem backup tool.
 .SH SYNOPSIS
 .B dd-dvd
 .RI [ options ]
-\fIdvd_device_node\fP <\fItarget\fP>
+\fIdvd_device_node\fP [\fItarget\fP]
 .SH DESCRIPTION
 \fBdd-dvd\fP will make a backup copy of a DVD image
 using
@@ -157,7 +157,7 @@ value, which will make perceptible `skips' longer
 but spare the drive and execution time:
 .IP
 .nf
-\fC% dd-dvd -v -r 256 /mnt backup\fP
+\fC% dd-dvd -v -r 128 /mnt backup\fP
 .fi
 .PP
 The author has chosen a default of 48 retry blocks

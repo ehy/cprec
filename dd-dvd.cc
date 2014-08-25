@@ -712,8 +712,15 @@ copy_vob(
 			if ( ssz <= 0 ) {
 				nb = ssz;
 			} else {
+				/* it shouldn't happen: e.g. medium/fs won't
+				 * have a size that is not a blocksize multiple,
+				 * but have this little code in place anyway:
+				 */
 				ssize_t rmd = ssz % blk_sz;
 				if ( rmd ) {
+					pfeopt(
+						_("%s: WARN: fractional read remainder %zd\n"),
+						program_name, rmd);
 					lseek(inp, off_t(0) - rmd, SEEK_CUR);
 				}
 				nb = ssz / blk_sz;

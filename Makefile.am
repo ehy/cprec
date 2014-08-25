@@ -24,7 +24,8 @@ endif
 #cprec_LDADD=-lm
 cprec_LDADD = lib_misc/lib_misc.a
 
-EXTRA_DIST=cprec.lsm.in cprec.spec.in cprec.texinfo
+# commented see below
+#EXTRA_DIST=cprec.lsm.in cprec.spec.in cprec.texinfo
 
 SUBDIRS = lib_misc
 
