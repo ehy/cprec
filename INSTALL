@@ -1,3 +1,50 @@
+If using the common configure script is unfamiliar, read the standard
+instructions beginning at "Basic Installation" below.
+
+Peculiarities of this package:
+
+- The two included programs, cprec and dd-dvd, both depend on a library
+  called 'libdvdread' but do not depend on libdvdread to be configured,
+  built,  and installed.  That is because the library is, by default,
+  loaded at runtime.  If dd-dvd is used when libdvdread is not present
+  or cannot be found, it will print a message and fail.  Likewise with
+  cprec if given a -d <number> argument, which specifies DVD backup.
+  Without -d, cprec will work like cp -R (even though the the system
+  cp probably doesn't need an alternative).
+
+  If wanted, the programs can be configured to implicitely link
+  libdvdread at build-time by giving the configure script the
+  --with-libdvdread option, and a specific installation of the library
+  can be specified with --with-libdvdread=/path/to/libdvdread. In the
+  latter case you are expected to provide necessary compiler and link
+  editor options.  A specific installation of the library may be
+  specified with runtime loading too; see the manual page.
+
+- As of version 2.60 autoconf (which makes the configure script) uses
+  defaults for installation paths as preferred by the GNU project. These
+  defaults might or might not be what is wanted on non-GNU systems. In
+  particular, the manual pages cprec(1) and dd-dvd(1) might seem to
+  be missing on BSD systems, Open{Solaris,Indiana}, and so on.  That
+  is because the autoconf manpage install path is /usr/local/share/man.
+  Non GNU systems probably do not include that path in the default
+  man-system configuration.  For installation on GNU/Linux or similar
+  the default will probably suit you.  On {Open,Net,Free}BSD and
+  Open{Solaris,Indiana} --mandir=/usr/local/man will work (if you use
+  the default --prefix).
+
+- The programs use symbols (of functions) in libdvdread that some
+  versions of tha library attempt to keep private in the shared build.
+  ``Attempt'' because on most systems these programs have been tested
+  on the symbols are not actually rendered private and can be used.
+  One excpetion is OpenIndiana using the SunStudio tools, and surely
+  there are others.  If the configure script notes 'UDFFindFile' and
+  fails, make sure the build of libdvdread includes a static version
+  and configure with --with-libdvdread=/path/to/libdvdread.a, or hack
+  the libdvdread package to make the private symbols visible.  (Note
+  that the 'private' functions seem stable.)
+
+The standard autoconf instructions follow:
+
 Basic Installation
 ==================
 

@@ -72,7 +72,7 @@ get_drd_defflags(void)
 const char drd_defname[] = "libdvdread.so.3";
 const char drd_altname[] = "libdvdread.so";
 const int  drd_defflags  = RTLD_LAZY;
-void* handle;
+void* drd_handle;
 
 DVDOpen_t drd_DVDOpen;
 DVDClose_t drd_DVDClose;
@@ -101,7 +101,7 @@ load_drd_syms(void)
 /* dlsym() null return is not strictly an error, but not OK here */
 #undef  SYMLOAD
 #define SYMLOAD(S, E) \
-if ( (drd_##S = (S##_t)dlsym(handle, #S)) == 0 ) { \
+if ( (drd_##S = (S##_t)dlsym(drd_handle, #S)) == 0 ) { \
   const char* p = dlerror(); \
   nerr += E; \
   pfeall(_("%s: failed on symbol %s: %s\n"), \
@@ -134,9 +134,9 @@ if ( (drd_##S = (S##_t)dlsym(handle, #S)) == 0 ) { \
 int
 close_drd(void)
 {
-	if ( !handle || dlclose(handle) )
+	if ( !drd_handle || dlclose(drd_handle) )
 		return -1;
-	handle = 0;
+	drd_handle = 0;
 	return 0;
 }
 
@@ -144,8 +144,8 @@ int
 open_drd(const char* drd_soname, int drd_flags)
 {
 	close_drd();
-	handle = dlopen(drd_soname, drd_flags);
-	if ( handle == 0 ) {
+	drd_handle = dlopen(drd_soname, drd_flags);
+	if ( drd_handle == 0 ) {
 		const char* p = dlerror();
 		pfeall(_("%s: failed loading %s: %s\n"),
 			program_name, drd_soname, p?p:_("unknown error"));

@@ -1,22 +1,3 @@
-NOTE:
-This small library can be built with either:
-
-	make -f Makefile.posix all
-
-or
-
-	./configure [opts] && make
-
-as appropriate.  The former, just using make, has a fair chance of
-succeeding, and has been tested on {Open,Net,Free}BSD, OpenIndiana,
-and GNU/Linux.  Any failure will likely be easy to fix.
-
-The point of this approach is that it should be easy to drop this small
-library into an existing project using either Makefiles or the GNU
-configure-related utilities.  See the README file for more details.
-
-The remainder of this file is INSTALL from a GNU automake installation.
-
 Installation Instructions
 *************************
 

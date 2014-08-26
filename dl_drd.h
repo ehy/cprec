@@ -122,7 +122,7 @@ extern UDFFindFile_t drd_UDFFindFile;
 extern const char drd_defname[];
 extern const char drd_altname[];
 extern const int  drd_defflags;
-extern void* handle;
+extern void* drd_handle;
 
 #endif /* HAVE_LIBDVDREAD */
 

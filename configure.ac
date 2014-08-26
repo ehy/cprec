@@ -43,30 +43,16 @@ AC_ARG_WITH([libdvdread], AS_HELP_STRING([--with-libdvdread],
   [link with -ldvdread (or ARG) (the better default is to use runtime loading)]),,
   [with_libdvdread=no])
 
-dnl dd-dvd only if requested
+dnl dd-dvd made optional
 AC_ARG_ENABLE([dd-dvd],
-	AS_HELP_STRING([--enable-dd-dvd],
-		 [to build the dd-dvd simple dvd filesystem backup program (C++)]),
+	AS_HELP_STRING([--disable-dd-dvd],
+		 [do not build dd-dvd, the simple dvd filesystem backup program (C++)]),
 	[case "${enableval}" in
 	yes) enable_dd_dvd=true ;;
 	no)  enable_dd_dvd=false ;;
 	*) AC_MSG_ERROR([bad value ${enableval} for --enable-dd-dvd]) ;;
-	esac],[enable_dd_dvd=false])
+	esac],[enable_dd_dvd=true])
 AM_CONDITIONAL([WITH_DD_DVD], [test x$enable_dd_dvd = xtrue])
-
-dnl dnl dd-dvd only if requested
-dnl AC_ARG_ENABLE([dd-dvd], AS_HELP_STRING([--enable-dd-dvd],
-dnl   [try to build the dd-dvd program which requires C++ and uses libdvdread functions that might not be public in the shared library]),,
-dnl   [enable_dd_dvd=no])
-dnl 
-dnl dnl dd-dvd only if requested
-dnl AS_IF([test x"$enable_dd_dvd" != xno],
-dnl [
-dnl AM_CONDITIONAL(WITH_DD_DVD, true)
-dnl AC_DEFINE(WITH_DD_DVD,[],[Enabled dd-dvd])
-dnl ], [
-dnl AM_CONDITIONAL(WITH_DD_DVD, false)
-dnl ])
 
 dnl Checks for programs.
 AC_PROG_INSTALL
@@ -125,7 +111,11 @@ do
 done
 
 AC_CHECK_LIB(dvdread, DVDVersion, AC_DEFINE([HAVE_DVDVERSION], [1], ["Got DVDVersion"]))
-AC_CHECK_LIB(dvdread, DVDReadBlocks,, AC_CHECK_LIB(dl, dlsym))
+AC_CHECK_LIB(dvdread, DVDReadBlocks,
+  AC_CHECK_LIB(dvdread, UDFFindFile,,
+	AC_MSG_ERROR([libdvdread function UDFFindFile not found -- try a static library build])),
+AC_MSG_ERROR([libdvdread function DVDReadBlocks not found -- not good at all]))
+
 else
 # libdvdread not enabled
 if test x"$with_libdvdread" = x || test x"$with_libdvdread" = xno; then
