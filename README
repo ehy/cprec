@@ -1,7 +1,7 @@
 This source package will build two tool programs: the namesake
-'cprec' and, by configuration option, 'dd-dvd' (the option is
-"--enable-dd-dvd").  These tools are helpers for making a backup
-of DVD video.
+'cprec' and dd-dvd (the latter can be disbabled by configure
+option --disable-dd-dvd).  These tools are helpers for making
+a backup of DVD video.
 
 Both programs depend on a library called libdvdread, but libdvdread
 is not a prerequisite to build and install the programs, because
