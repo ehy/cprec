@@ -313,7 +313,7 @@ public:
 		file_list::const_iterator e = lst.end();
 		for ( ; i != e; i++ ) {
 			const vt_file& vf = *i;
-			pfeall("%s%s %u: %s\n",
+			pfeopt("%s%s %u: %s\n",
 				pfx,
 				vtfext[vf.type],
 				vf.nfile,
@@ -412,13 +412,13 @@ setmap_build(const file_list& flst, setnum_list& slst, vt_set_map& smap)
 void
 setmap_print(const setnum_list& slst, const vt_set_map& smap)
 {
-	pfeall("\nVideo file groups:\n");
+	pfeopt("\nVideo file groups:\n");
 
 	vt_set_map::const_iterator es = smap.end();
 	for ( size_t n = 0; n < slst.size(); n++ ) {
 		vtf_set_index ix(slst[n]);
 
-		pfeall("  VT set %02u (%s) containing:\n",
+		pfeopt("  VT set %02u (%s) containing:\n",
 			ix.nset,
 			vtfext[ix.type]);
 
@@ -450,7 +450,7 @@ list_add_file(file_list& lst, const vt_file& fil)
 	}
 }
 
-void
+inline void
 list_sort(file_list& lst)
 {
 	lst.sort();
@@ -459,18 +459,16 @@ list_sort(file_list& lst)
 void
 list_print(file_list& lst)
 {
-	fputs("The following VTS files have been found:\n",
-		stderr);
-	fputs("####       block        size                    name\n",
-		stderr);
-	fputs("====================================================\n",
-		stderr);
+	eoputs(
+		"The following VTS files have been found:\n"
+		"####       block        size                    name\n"
+		"====================================================\n");
 
 	file_list::iterator i = lst.begin();
 	file_list::iterator e = lst.end();
 
 	for ( unsigned n = 0; i != e; i++, n++ ) {
-		pfeall("%03u)  %10llu  %10llu  %s\n"
+		pfeopt("%03u)  %10llu  %10llu  %s\n"
 		    , n
 		    , (unsigned long long)(*i).block
 		    , (unsigned long long)(*i).size
@@ -780,8 +778,7 @@ copy_vob(
 off_t
 dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 {
-	pfeall("\nDD operations on %zu blocks:\n",
-		tot_blks);
+	pfeopt("\nDD operations on %zu blocks:\n", tot_blks);
 
 	off_t fptr = 0;
 
@@ -789,17 +786,17 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 		vtf_set_index ix(slst[n]);
 		const vtf_set& vs = smap.find(ix)->second;
 
-		pfeall("file group %02u:%s, %zu files:\n",
+		pfeopt("file group %02u:%s, %zu files:\n",
 			vs.nset, vtfext[vs.type], vs.count());
 
 		for ( size_t nvf = 0; nvf < vs.count(); nvf++ ) {
 			const vt_file& vf = vs[nvf];
 
-                        // basic error checks
+			// basic error checks
 			if ( off_t(vf.block) < fptr ) {
 				pfeall(
 				    "internal error: wanted block %llu"
-                                    ", had %llu (new offset < current)\n",
+				    ", had %llu (new offset < current)\n",
 					(unsigned long long)fptr,
 					(unsigned long long)vf.block);
 				exit(EXIT_FAILURE);
@@ -807,8 +804,8 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			if ( vf.size % blk_sz ) {
 				pfeall(
 				    "input error: vob(%u,%u) size %%"
-                                    " blocks size == %llu (file size"
-                                    " not multiple of blocks)\n",
+				    " blocks size == %llu (file size"
+				    " not multiple of blocks)\n",
 					vf.nset, vf.nfile,
 					(unsigned long long)(vf.size % blk_sz));
 				exit(EXIT_FAILURE);
@@ -817,7 +814,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			// if space between vts files, do DD copy
 			size_t ddbsz = size_t(vf.block) - fptr;
 			if ( ddbsz ) {
-				pfeall(
+				pfeopt(
 				    "DD at %llu to %llu:"
 				    " %zu blocks, %zu bytes\n",
 					(unsigned long long)fptr,
@@ -828,7 +825,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			}
 
 			// copy DVD type data:
-                        // setup libdvdread 'domain'
+			// setup libdvdread 'domain'
 			vtf_type ftype = vf.type;
 			const char* sdom;
 			if ( ftype == vtf_vob ) {
@@ -842,7 +839,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			}
 			
 			size_t rsz = vf.size / blk_sz;
-			pfeall(
+			pfeopt(
 			    "%s(%u, %u) at %llu to %llu:"
 			    " %llu blocks, %llu bytes"
 			    " in domain %s\n",
@@ -859,7 +856,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 	// final dd of remaining data
 	if ( size_t(fptr) < tot_blks ) {
 		size_t ddbsz = off_t(tot_blks) - fptr;
-		pfeall(
+		pfeopt(
 		    "DD remainder at %llu to %llu: %zu blocks, %zu bytes\n",
 			(unsigned long long)fptr,
 			(unsigned long long)fptr + ddbsz,
@@ -867,6 +864,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 			ddbsz * blk_sz);
 		fptr += off_t(ddbsz);
 	}
+
 	if ( size_t(fptr) > tot_blks ) {
 		pfeall(
 		    "ERROR: write offset > total blocks: %llu > %zu\n",
@@ -874,7 +872,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 		exit(EXIT_FAILURE);
 	}
 
-	pfeall("DD operations: %llu blocks, %llu bytes to write\n",
+	pfeopt("DD operations: %llu blocks, %llu bytes to write\n",
 		(unsigned long long)fptr,
 		(unsigned long long)fptr * blk_sz);
 
@@ -890,8 +888,7 @@ dd_ops_exec(
 	dvd_reader_p dvd, int inp, int out
 	)
 {
-	pfeall("\nDD of %zu block filesystem:\n",
-		tot_blks);
+	pfeopt("\nDD of %zu block filesystem:\n", tot_blks);
 
 	off_t fptr = 0;
 
@@ -899,18 +896,18 @@ dd_ops_exec(
 		vtf_set_index ix(slst[n]);
 		const vtf_set& vs = smap.find(ix)->second;
 
-		pfeall("file group %02u:%s, %zu files:\n",
+		pfeopt("file group %02u:%s, %zu files:\n",
 			vs.nset, vtfext[vs.type], vs.count());
 
 		int setoff = 0;
 		for ( size_t nvf = 0; nvf < vs.count(); nvf++ ) {
 			const vt_file& vf = vs[nvf];
 			
-                        // basic error checks
-                        if ( off_t(vf.block) < fptr ) {
+			// basic error checks
+			if ( off_t(vf.block) < fptr ) {
 				pfeall(
 				    "internal error: wanted block %llu"
-                                    ", had %llu (new offset < current)\n",
+				    ", had %llu (new offset < current)\n",
 					(unsigned long long)fptr,
 					(unsigned long long)vf.block);
 				exit(EXIT_FAILURE);
@@ -918,8 +915,8 @@ dd_ops_exec(
 			if ( vf.size % blk_sz ) {
 				pfeall(
 				    "input error: vob(%u,%u) size %%"
-                                    " blocks size == %llu (file size"
-                                    " not multiple of blocks)\n",
+				    " blocks size == %llu (file size"
+				    " not multiple of blocks)\n",
 					vf.nset, vf.nfile,
 					(unsigned long long)(vf.size % blk_sz));
 				exit(EXIT_FAILURE);
@@ -928,7 +925,7 @@ dd_ops_exec(
 			// if space between vts files, do DD copy
 			size_t ddbsz = size_t(vf.block) - fptr;
 			if ( ddbsz ) {
-				pfeall(
+				pfeopt(
 				    "DD at %llu to %llu:"
 				    " %zu blocks, %zu bytes\n",
 					(unsigned long long)fptr,
@@ -988,7 +985,7 @@ dd_ops_exec(
 			// use libdvdread API (within copy*()) per file type
 			size_t szr;
 			size_t rsz = vf.size / blk_sz;
-			pfeall(
+			pfeopt(
 			    "%s(%u, %u) at %llu to %llu:"
 			    " %llu blocks, %llu bytes"
 			    " in domain %s\n",
@@ -1028,7 +1025,7 @@ dd_ops_exec(
 	// final dd of remaining data
 	if ( size_t(fptr) < tot_blks ) {
 		size_t ddbsz = off_t(tot_blks) - fptr;
-		pfeall(
+		pfeopt(
 		    "DD remainder at %llu to %llu: %zu blocks, %zu bytes\n",
 			(unsigned long long)fptr,
 			(unsigned long long)fptr + ddbsz,
@@ -1061,7 +1058,7 @@ dd_ops_exec(
 		exit(EXIT_FAILURE);
 	}
 
-	pfeall("DONE: %llu blocks, %llu bytes written\n",
+	pfeopt("DONE: %llu blocks, %llu bytes written\n",
 		(unsigned long long)fptr,
 		(unsigned long long)fptr * blk_sz);
 
@@ -1103,9 +1100,10 @@ get_vol_blocks(int fd)
 	uint32_t bblk = (uint32_t(pd[0]) << 24) | (uint32_t(pd[1]) << 16) |
 		(uint32_t(pd[2]) <<  8) | (uint32_t(pd[3]) <<  0);
 
-	// optional sanity check:
+	// sanity check:
 	if ( lblk != bblk ) {
-		pfeall("failed to get volume block count\n");
+		pfeall("failed to get volume block count (le %lu, be %lu)\n",
+			(unsigned long)lblk, (unsigned long)bblk);
 		exit(EXIT_FAILURE);
 	}
 
@@ -1222,7 +1220,6 @@ check_node(string nname)
 		return nname;
 	}
 	if ( nname[pos] != 'r' ) {
-		string tmp(nname);
 		nname.insert(pos, "r");
 	}
 #	endif
@@ -1266,10 +1263,10 @@ _("-L, --libdvdr NAME         use NAME as dvdread library\n  "),
 }
 
 /* Set all the option flags according to the switches specified.
-   Return the index of the first non-option argument.  */
-
+ * Return the index of the first non-option argument.
+ */
 static int
-decode_switches(int argc, char* argv[])
+get_options(int argc, char* argv[])
 {
 	int c;
 
@@ -1296,6 +1293,7 @@ decode_switches(int argc, char* argv[])
 				bequiet = true;
 				break;
 			case 'v':		/* --verbose */
+				bequiet = false;
 				verbose += 1;
 				break;
 			case 'b':		/* --block-read-count */
@@ -1339,11 +1337,13 @@ main(int argc, char* argv[])
 
 	/* get envireonment vars 1st so options override */
 	env_checkvars();
+
 	/* options handling */
-	int nopt = decode_switches(argc, argv);
+	int nopt = get_options(argc, argv);
 	if ( argv[nopt] == 0 ) {
 		usage(EXIT_FAILURE);
 	}
+
 	string inname(argv[nopt++]);
 	string outname(argv[nopt] == 0 ? "" : argv[nopt++]);
 	if ( argv[nopt] != 0 ) {
@@ -1514,14 +1514,14 @@ main(int argc, char* argv[])
 
 	file_list filelist;
 	list_build(filelist, drd);
-	if ( dryrun || verbose >= 1 ) {
+	if ( dryrun || verbose >= 2 ) {
 		list_print(filelist);
 	}
 
 	setnum_list setlist;
 	vt_set_map setmap;
 	setmap_build(filelist, setlist, setmap);
-	if ( dryrun || verbose >= 2 ) {
+	if ( dryrun || verbose >= 3 ) {
 		setmap_print(setlist, setmap);
 	}
 
@@ -1558,7 +1558,7 @@ main(int argc, char* argv[])
 	DVDClose(drd);
 	close(inp);
 	if ( close(out) ) {
-		perror("close output");
+		perror("closing output");
 		return EXIT_FAILURE;
 	}
 
