@@ -65,13 +65,18 @@ extern "C" {
 #	include "gngetopt.h"
 #endif
 
-#if defined(__sun) && ! defined(__linux)
+#if HAVE_SETMNTENT && HAVE_GETMNTENT && HAVE_ENDMNTENT
+#   include <mntent.h>
+#   define GET_MNT_T1
+#elif defined(__sun) && HAVE_GETMNTENT
 #   include <sys/mnttab.h>
 #   ifndef MNTTAB
 #      error "on sun MNTTAB macro is expected in sys/mnttab.h: FIXME"
 #   endif
-#elif ! NEED_GETFSFILE
+#   define GET_MNT_SUN
+#elif HAVE_GETFSFILE && HAVE_ENDFSENT
 #   include <fstab.h>
+#   define GET_FS_FILE
 #endif
 
 #ifndef STDOUT_FILENO
@@ -1121,7 +1126,25 @@ get_vol_blocks(int fd)
 bool
 get_mount_dev(const char* mtpt, string& name)
 {
-#   if defined(__sun) && ! defined(__linux)
+/* these test macros are defined near top of file */
+#if defined(GET_MNT_T1)
+	FILE* fp = setmntent("/etc/mtab", "r");
+
+	if ( fp == 0 ) {
+		return false;
+	}
+
+	while ( struct mntent* pme = getmntent(fp) ) {
+		if ( string(pme->mnt_dir) == mtpt ) {
+			name = pme->mnt_fsname;
+			endmntent(fp);
+			return true;
+		}
+	}
+
+	endmntent(fp);
+	return false;
+#elif defined(GET_MNT_SUN)
 	FILE* fp = fopen(MNTTAB, "r");
 	if ( fp == 0 ) {
 		perror(MNTTAB);
@@ -1147,7 +1170,7 @@ get_mount_dev(const char* mtpt, string& name)
 	fclose(fp);
 	pfeall("cannot find device for %s\n", mtpt);
 	return false;
-#   elif ! NEED_GETFSFILE
+#elif defined(GET_FS_FILE)
 	struct fstab* stp = getfsfile(mtpt);
 	if ( stp == 0 ) {
 		pfeall(
@@ -1162,9 +1185,9 @@ get_mount_dev(const char* mtpt, string& name)
 		stp->fs_spec, mtpt);
 	endfsent();
 	return true;
-#   else
+#else
 	return false;
-#   endif
+#endif
 }
 
 void
@@ -1328,9 +1351,15 @@ get_options(int argc, char* argv[])
 inline void
 set_program_name(const char* p)
 {
-	if ( ! p || ! *p ) return;
-	const char* q = strrchr(p, '/');
-	program_name = (q && *++q) ? q : p;
+	if ( ! p || ! *p ) {
+		return;
+	}
+
+	if ( const char* q = strrchr(p, '/') ) {
+		program_name = ++q;
+	} else {
+		program_name = p;
+	}
 }
 
 int
