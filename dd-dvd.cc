@@ -1126,6 +1126,17 @@ get_vol_blocks(int fd)
 bool
 get_mount_dev(const char* mtpt, string& name)
 {
+/* realpath() is in POSIX 2008 (earlier?) */
+#if HAVE_REALPATH
+	auto_array<char> buf(PATH_MAX);
+
+	// It is said Solaris might return relative path
+	// for some relative args . . . oh well, fail
+	if ( realpath(mtpt, buf) ) {
+		mtpt = buf;
+	}
+#endif
+
 /* these test macros are defined near top of file */
 #if defined(GET_MNT_T1)
 	FILE* fp = setmntent("/etc/mtab", "r");
