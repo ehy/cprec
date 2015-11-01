@@ -147,7 +147,7 @@ AC_STRUCT_ST_BLOCKS
 AC_FUNC_ALLOCA
 AC_FUNC_FSEEKO
 AC_FUNC_CLOSEDIR_VOID
-AC_CHECK_FUNCS(mkfifo vprintf doprnt seekdir telldir getrlimit pathconf getpagesize sysconf strlcpy mmap lstat readlink realpath symlink lchown lchmod lutimes utimes error dlsym posix_memalign getfsfile endfsent setmntent getmntent endmntent mknod getopt getopt_long)
+AC_CHECK_FUNCS(mkfifo vprintf doprnt seekdir telldir getrlimit pathconf getpagesize sysconf strlcpy mmap lstat readlink realpath symlink lchown lchmod lutimes utimes error dlsym posix_memalign getfsfile endfsent getmntinfo setmntent getmntent endmntent mknod getopt getopt_long)
 
 dnl getopt{,_long}
 AM_CONDITIONAL([NEED_GETOPT_C], [test x$ac_cv_func_getopt != xyes && test x$ac_cv_func_getopt != xtrue])
