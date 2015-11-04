@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 dnl Every other copy of the package version number gets its value from here
-AC_INIT([cprec], [0.9.0])
+AC_INIT([cprec], [0.1.3])
 
 dnl EH: some [ ... deleted ... ] decided that autoconf should preach
 dnl and fail rather than just work, so this shell parameter is
@@ -27,8 +27,8 @@ AC_SUBST(ISODATE)
 
 dnl We want these before the checks, so the checks can modify their values.
 dnl (found in fetchmail configure.in)
-test x"$CFLAGS" = x && CFLAGS="-O"; AC_SUBST(CFLAGS)
-test x"$CXXFLAGS" = x && CXXFLAGS="-O"; AC_SUBST(CXXFLAGS)
+test x"$CFLAGS" = x && CFLAGS="-O2"; AC_SUBST(CFLAGS)
+test x"$CXXFLAGS" = x && CXXFLAGS="-O2"; AC_SUBST(CXXFLAGS)
 dnl test x"$LDFLAGS" = x && LDFLAGS=-s; AC_SUBST(LDFLAGS)
 
 AC_CANONICAL_HOST

@@ -18,16 +18,6 @@
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
-#if (__cplusplus < 201100L)
-// If not compiling for C++11 or greater -- probably common
-// for some years after the time of this writing -- then let
-// this translation unit have the older C++98 code, which
-// might not be maintained beyond bugs.
-#    warning "Using old C++98 code: compiler is old, or try '-std=c++11'"
-#    include "dd-dvd.cc98"
-#else // (__cplusplus < 201100L)
-// Else, go ahead with newer C++ sugar.
-
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE_SOURCE
 
@@ -35,10 +25,7 @@
 #include <sstream>
 #include <vector>
 #include <list>
-#include <array>
-#include <initializer_list>
 #include <map>
-#include <memory>
 #include <algorithm>
 #include <functional>
 #include <utility>
@@ -106,7 +93,7 @@ extern "C" {
 #define EXIT_FAILURE 1
 #endif
 
-const auto version = PACKAGE_VERSION;
+const char version[] = PACKAGE_VERSION;
 
 /* NOTE: the ridiculous (char*) casts are to quieten
  * the compiler on Sun/Oracle (OpenIndiana) because
@@ -135,27 +122,20 @@ static struct option const long_options[] =
 };
 #undef CPCAST
 
-const auto default_program_name = "dd-dvd";
+const char default_program_name[] = "dd-dvd";
 extern "C" { const char* program_name = default_program_name; }
 
 using namespace std;
 using namespace rel_ops;
 
-// Much like previous C++98 version which used T*, and
-// delete[]ed it in dtor -- for C++11 add a template
-// param for a smart pointer, and of course don't
-// delete[].
-template <class T, class P = unique_ptr<T[]> >
-class auto_array {
-    P p;
+template <class T> class auto_array {
+    T* p;
 public:
     auto_array(T* parray = 0) : p(parray) {}
     auto_array(size_t sz) : p(new T[sz]) {}
-    ~auto_array() { /* not w/ <smart>_ptr: delete[] p; */ }
-    operator T* () { return p.get(); }
-    operator const T* () const { return p.get(); }
-    T& operator [] (size_t sz) { return p[sz]; }
-    const T& operator [] (size_t sz) const { return p[sz]; }
+    ~auto_array() { delete[] p; }
+    operator T* () { return p; }
+    operator const T* () const { return p; }
 };
 
 const size_t blk_sz = drd_VIDEO_LB_LEN; // this is 2048
@@ -181,7 +161,7 @@ const char vtfdir[] = "/VIDEO_TS/";
 const char vtftpl[] = "/VIDEO_TS/VTS_01_1.VOB";
 const char vtfmnu[] = "/VIDEO_TS/VIDEO_TS.%s";
 const char vtffmt[] = "VTS_%02u_%u.%s";
-array<const char*, 3> vtfext { "IFO", "VOB", "BUP" };
+const char* vtfext[3] = { "IFO", "VOB", "BUP" };
 
 char vtfbuf[sizeof(vtftpl)];
 
@@ -227,8 +207,6 @@ page_size()
 
 // not just VOB actually; ifo/bup too
 class vt_file {
-private:
-    vt_file() = delete;
 public:
     uint32_t block, size;
     unsigned nset, nfile;
@@ -315,34 +293,33 @@ public:
         block_1st = lst.front().block;
     }
 
-    vt_file& operator [](size_t ix) throw(invalid_argument)
+    vt_file& operator [](int ix) throw(invalid_argument)
     {
-        return this->at(ix);
-    }
-
-    vt_file& at(size_t ix) throw(invalid_argument)
-    {
-        // Sucks: const_cast to reuse code in c_at() const;
-        // else code is duplicated but for const spec..
-        // TODO: find a better way.
-        return const_cast<vt_file&>(this->c_at(ix));
-    }
-
-    const vt_file& operator [](size_t ix) const throw(invalid_argument)
-    {
-        return this->c_at(ix);
-    }
-
-    const vt_file& c_at(size_t ix) const throw(invalid_argument)
-    {
-        if ( ix >= count() ) {
+        if ( ix < 0 || ix >= count() ) {
             throw invalid_argument(
                 "VT set index out of range");
         }
-        size_t n = 0;
-        for ( const auto& el: lst ) {
-            if ( n++ == ix ) {
-                return el;
+        file_list::iterator i = lst.begin();
+        file_list::iterator e = lst.end();
+        for ( unsigned n = 0; i != e; n++, i++ ) {
+            if ( n == unsigned(ix) ) {
+                return *i;
+            }
+        }
+        throw invalid_argument("VT set index invalid");
+    }
+
+    const vt_file& operator [](int ix) const throw(invalid_argument)
+    {
+        if ( ix < 0 || ix >= count() ) {
+            throw invalid_argument(
+                "VT set index out of range");
+        }
+        file_list::const_iterator i = lst.begin();
+        file_list::const_iterator e = lst.end();
+        for ( unsigned n = 0; i != e; n++, i++ ) {
+            if ( n == unsigned(ix) ) {
+                return *i;
             }
         }
         throw invalid_argument("VT set index invalid");
@@ -352,7 +329,10 @@ public:
 
     void print(const char* pfx = "") const
     {
-        for ( auto& vf: lst ) {
+        file_list::const_iterator i = lst.begin();
+        file_list::const_iterator e = lst.end();
+        for ( ; i != e; i++ ) {
+            const vt_file& vf = *i;
             pfeopt("%s%s %u: %s\n",
                 pfx,
                 vtfext[vf.type],
@@ -431,9 +411,11 @@ typedef map<vtf_set_index, vtf_set> vt_set_map;
 void
 setmap_build(const file_list& flst, setnum_list& slst, vt_set_map& smap)
 {
-    for ( auto& el: flst ) {
-        auto ns = el.nset;
-        auto ty = el.type;
+    file_list::const_iterator i = flst.begin();
+    file_list::const_iterator e = flst.end();
+    for ( ; i != e; i++ ) {
+        unsigned ns = (*i).nset;
+        vtf_type ty = (*i).type;
 
         vtf_set_index ix(ns, ty);
 
@@ -443,7 +425,7 @@ setmap_build(const file_list& flst, setnum_list& slst, vt_set_map& smap)
             smap[ix] = set;
         }
 
-        smap.find(ix)->second.addfile(el);
+        smap.find(ix)->second.addfile(*i);
     }
 }
 
@@ -452,15 +434,16 @@ setmap_print(const setnum_list& slst, const vt_set_map& smap)
 {
     pfeopt("\nVideo file groups:\n");
 
-    for ( auto& el: slst ) {
-        vtf_set_index ix(el);
+    vt_set_map::const_iterator es = smap.end();
+    for ( size_t n = 0; n < slst.size(); n++ ) {
+        vtf_set_index ix(slst[n]);
 
         pfeopt("  VT set %02u (%s) containing:\n",
             ix.nset,
             vtfext[ix.type]);
 
         vt_set_map::const_iterator vs = smap.find(ix);
-        if ( vs != smap.cend() ) {
+        if ( vs != es ) {
             vs->second.print("    ");
         }
     }
@@ -469,17 +452,28 @@ setmap_print(const setnum_list& slst, const vt_set_map& smap)
 void
 list_add_file(file_list& lst, const vt_file& fil)
 {
-    for ( auto& el: lst ) {
-        if ( el != fil ) {
+    file_list::iterator i = lst.begin();
+    file_list::iterator e = lst.end();
+
+    for ( ; i != e; i++ ) {
+        if ( *i != fil ) {
             continue;
         }
-        if ( el.size < fil.size ) {
-            el = fil;
+        if ( (*i).size < fil.size ) {
+            *i = fil;
         }
-        return;
+        break;
     }
 
-    lst.push_back(fil);
+    if ( i == e ) {
+        lst.push_back(fil);
+    }
+}
+
+inline void
+list_sort(file_list& lst)
+{
+    lst.sort();
 }
 
 void
@@ -490,13 +484,15 @@ list_print(file_list& lst)
         "####       block        size                    name\n"
         "====================================================\n");
 
-    unsigned int n = 0;
-    for ( const auto& el: lst ) {
+    file_list::iterator i = lst.begin();
+    file_list::iterator e = lst.end();
+
+    for ( unsigned n = 0; i != e; i++, n++ ) {
         pfeopt("%03u)  %10llu  %10llu  %s\n"
-            , n++
-            , (unsigned long long)el.block
-            , (unsigned long long)el.size
-            , el.name.c_str()
+            , n
+            , (unsigned long long)(*i).block
+            , (unsigned long long)(*i).size
+            , (*i).name.c_str()
             );
     }
 }
@@ -504,11 +500,13 @@ list_print(file_list& lst)
 void
 list_build(file_list& lst, dvd_reader_p drd)
 {
+    char* pnm;
+    uint32_t blk, sz;
+    
     for ( unsigned setn = 0; setn < 100; setn++ ) {
         // IFO
-        auto pnm = mk_vtf_path(setn, 0, vtf_ifo);
-        uint32_t sz;
-        auto blk = ::UDFFindFile(drd, pnm, &sz);
+        pnm = mk_vtf_path(setn, 0, vtf_ifo);
+        blk = ::UDFFindFile(drd, pnm, &sz);
         if ( blk != 0 ) {
             string nm(pnm);
             vt_file vf(nm, blk, sz, setn, 0, vtf_ifo);
@@ -530,18 +528,18 @@ list_build(file_list& lst, dvd_reader_p drd)
                 break;
             }
             pnm = mk_vtf_path(setn, fn);
+            string nm(pnm);
             blk = ::UDFFindFile(drd, pnm, &sz);
             if ( blk == 0 ) {
                 continue;
             }
 
-            string nm(pnm);
             vt_file vf(nm, blk, sz, setn, fn);
             list_add_file(lst, vf);
         }
     }
 
-    lst.sort();
+    list_sort(lst);
 }
 
 /* if poff==0 do fd copy else do vob copy */
@@ -804,8 +802,8 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 
     off_t fptr = 0;
 
-    for ( const auto& el: slst ) {
-        vtf_set_index ix(el);
+    for ( unsigned n = 0; n < slst.size(); n++ ) {
+        vtf_set_index ix(slst[n]);
         const vtf_set& vs = smap.find(ix)->second;
 
         pfeopt("file group %02u:%s, %zu files:\n",
@@ -914,8 +912,8 @@ dd_ops_exec(
 
     off_t fptr = 0;
 
-    for ( const auto& el: slst ) {
-        vtf_set_index ix(el);
+    for ( unsigned n = 0; n < slst.size(); n++ ) {
+        vtf_set_index ix(slst[n]);
         const vtf_set& vs = smap.find(ix)->second;
 
         pfeopt("file group %02u:%s, %zu files:\n",
@@ -1144,12 +1142,7 @@ get_mount_dev(const char* mtpt, string& name)
 {
     const char* want_mtpt = mtpt;
 /* realpath() is in POSIX 2008 (earlier?) */
-#if HAVE_REALPATH
-#   if defined(PATH_MAX)
-    int bufsize = PATH_MAX;
-#   else
     int bufsize = get_max_path(); // from lib misc
-#   endif
 
     if ( bufsize <= 0 ) {
         pfeall("cannot get fs path maximum for %s\n", mtpt);
@@ -1367,6 +1360,7 @@ get_options(int argc, char* argv[])
                 dryrun = true;
                 break;
             case 'q':        /* --quiet, --silent */
+                verbose = 0;
                 bequiet = true;
                 break;
             case 'v':        /* --verbose */
@@ -1395,25 +1389,15 @@ get_options(int argc, char* argv[])
         }
     }
 
-    if ( bequiet ) {
-        verbose = 0;
-    }
-
     return optind;
 }
 
 inline void
 set_program_name(const char* p)
 {
-    if ( ! p || ! *p ) {
-        return;
-    }
-
-    if ( const char* q = strrchr(p, '/') ) {
-        program_name = ++q;
-    } else {
-        program_name = p;
-    }
+    if ( ! p || ! *p ) return;
+    const char* q = strrchr(p, '/');
+    program_name = (q && *++q) ? q : p;
 }
 
 int
@@ -1650,6 +1634,4 @@ main(int argc, char* argv[])
 
     return EXIT_SUCCESS;
 }
-
-#endif // (__cplusplus < 201100L)
 
