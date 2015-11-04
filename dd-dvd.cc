@@ -53,35 +53,6 @@ extern "C" {
 #    include "gngetopt.h"
 #endif
 
-#if HAVE_SETMNTENT && HAVE_GETMNTENT && HAVE_ENDMNTENT
-#   include <mntent.h>
-    /* a Linux sys will define MNTTAB but as /etc/fstab,
-     * not /etc/mtab, which is what is wanted . . .
-     * so use new macro
-     */
-#   ifndef MNT_TABLE
-#      define MNT_TABLE "/etc/mtab"
-#   endif
-#   define GET_MNT_T1
-#elif defined(__sun) && HAVE_GETMNTENT
-#   include <sys/mnttab.h>
-    /* a OpenSolaris sys will define MNTTAB
-     * as /etc/mnttab, which is what is wanted . . .
-     */
-#   ifndef MNTTAB
-#      warning "on sun MNTTAB macro is expected in sys/mnttab.h: FIXME"
-#      define MNTTAB "/etc/mnttab"
-#   endif
-#   define GET_MNT_SUN
-#elif HAVE_GETMNTINFO
-#   include <sys/param.h>
-#   include <sys/mount.h>
-#   define GET_MNT_44BSD
-#elif HAVE_GETFSFILE && HAVE_ENDFSENT
-#   include <fstab.h>
-#   define GET_FS_FILE
-#endif
-
 #ifndef STDOUT_FILENO
 #   define STDOUT_FILENO 1
 #endif
