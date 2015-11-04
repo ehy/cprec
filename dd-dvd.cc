@@ -134,6 +134,8 @@ public:
     auto_array(T* parray = 0) : p(parray) {}
     auto_array(size_t sz) : p(new T[sz]) {}
     ~auto_array() { delete[] p; }
+    T* getp() { return p; }
+    const T* getp() const { return p; }
     operator T* () { return p; }
     operator const T* () const { return p; }
 };
@@ -1140,8 +1142,6 @@ get_vol_blocks(int fd)
 bool
 get_mount_dev(const char* mtpt, string& name)
 {
-    const char* want_mtpt = mtpt;
-/* realpath() is in POSIX 2008 (earlier?) */
     int bufsize = get_max_path(); // from lib misc
 
     if ( bufsize <= 0 ) {
@@ -1149,92 +1149,25 @@ get_mount_dev(const char* mtpt, string& name)
         return false;
     }
 
-    auto_array<char> buf(static_cast<size_t>(bufsize));
+    size_t sz = static_cast<size_t>(bufsize);
+    auto_array<char> buf(sz);
 
-    // It is said Solaris might return relative path
-    // for some relative args . . . oh well, fail
-    if ( realpath(mtpt, buf) ) {
-        want_mtpt = buf;
-    }
-#endif
+    errno = 0;
+    if ( get_mnt_dev(mtpt, buf, sz) ) {
+        if ( errno ) {
+            pfeall("cannot find device for %s -- %s\n",
+                mtpt, strerror(errno));
+        } else {
+            pfeall("cannot find device for %s\n", mtpt);
+        }
 
-/* these test macros are defined near top of file */
-#if defined(GET_MNT_T1)
-    FILE* fp = setmntent(MNT_TABLE, "r");
-
-    if ( fp == 0 ) {
         return false;
     }
 
-    while ( struct mntent* pme = getmntent(fp) ) {
-        if ( string(pme->mnt_dir) == want_mtpt ) {
-            pfeall("using device %s for argument %s\n",
-                pme->mnt_fsname, mtpt);
-            name = pme->mnt_fsname;
-            endmntent(fp);
-            return true;
-        }
-    }
+    pfeall("using device %s for argument %s\n", buf.getp(), mtpt);
 
-    endmntent(fp);
-    pfeall("cannot find device for %s\n", mtpt);
-    return false;
-#elif defined(GET_MNT_SUN)
-    FILE* fp = fopen(MNTTAB, "r");
-    if ( fp == 0 ) {
-        perror(MNTTAB);
-        pfeall("cannot open %s\n", MNTTAB);
-        return false;
-    }
-    struct mnttab sm;
-    int gr;
-    while ( (gr = getmntent(fp, &sm)) == 0 ) {
-        if ( strcmp(want_mtpt, sm.mnt_mountp) ) {
-            continue;
-        }
-        name = sm.mnt_special;
-        pfeall(
-            "using device %s for argument %s\n",
-            sm.mnt_special, mtpt);
-        fclose(fp);
-        return true;
-    }
-    if ( gr > 0 ) {
-        perror("getmntent");
-    }
-    fclose(fp);
-    pfeall("cannot find device for %s\n", mtpt);
-    return false;
-#elif defined(GET_MNT_44BSD)
-    struct statfs* stp;
-    int stsz = getmntinfo(&stp, MNT_NOWAIT);
-
-    for ( int i = 0; i < stsz; i++ ) {
-        if ( string(stp[i].f_mntonname) == want_mtpt ) {
-            pfeall("using device %s for argument %s\n",
-                stp[i].f_mntfromname, mtpt);
-            name = stp[i].f_mntfromname;
-            return true;
-        }
-    }
-    pfeall("cannot find device for %s\n", mtpt);
-    return false;
-#elif defined(GET_FS_FILE)
-    struct fstab* stp = getfsfile(want_mtpt);
-    if ( stp == 0 ) {
-        pfeall("cannot find device for %s\n", mtpt);
-        endfsent();
-        return false;
-    }
-    name = stp->fs_spec;
-    pfeall(
-        "using device %s for argument %s\n",
-        stp->fs_spec, mtpt);
-    endfsent();
+    name = buf;
     return true;
-#else
-    return false;
-#endif
 }
 
 void

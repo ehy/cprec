@@ -14,6 +14,7 @@ OBJS = \
 	lmsc_get_max_path.o \
 	lmsc_get_nofd.o \
 	lmsc_get_page_size.o \
+	lmsc_get_mnt_dev.o \
 	lmsc_mk_aligned_ptr.o \
 	lmsc_pfio.o \
 	lmsc_s_tol.o \

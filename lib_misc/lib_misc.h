@@ -34,49 +34,50 @@
  * 'HAVE_' macros must be hand-edited.
  */
 #ifdef HAVE_CONFIG_H
-	/*
-	 * test PACKAGE: this library might be configured
-	 * as a subdir of a package that uses config.h --
-	 * sadly, configure does not put re-inclusion
-	 * guards around config.h contents, and so this
-	 * header might be reinc'ing a different config.h;
-	 * configure tools probably have some hack for this
-	 * problem, but this will have to do for now.
-	 * NOTE that the upper configure must have tested
-	 * for what this lib needs, and the config.h
-	 * be appropriate.
-	 * Also, it's only an assumption that config.h
-	 * will invariably define PACKAGE; there might
-	 * be better choices.
-	 */
-#	ifndef PACKAGE
-#		include "config.h"
-#	endif
+    /*
+     * test PACKAGE: this library might be configured
+     * as a subdir of a package that uses config.h --
+     * sadly, configure does not put re-inclusion
+     * guards around config.h contents, and so this
+     * header might be reinc'ing a different config.h;
+     * configure tools probably have some hack for this
+     * problem, but this will have to do for now.
+     * NOTE that the upper configure must have tested
+     * for what this lib needs, and the config.h
+     * be appropriate.
+     * Also, it's only an assumption that config.h
+     * will invariably define PACKAGE; there might
+     * be better choices.
+     */
+#    ifndef PACKAGE
+#        include "config.h"
+#    endif
 #else
-#	if defined(__GLIBC__)
-#		define	HAVE_STRLCPY	0
-#	else  /* __GLIBC__ */
-#		define	HAVE_STRLCPY	1
-#	endif /* __GLIBC__ */
-#	define	HAVE_PATHCONF	1
-#	define	HAVE_SYSCONF	1
-#	define	HAVE_GETRLIMIT	1
-#	define	HAVE_GETPAGESIZE	1
-#	define	HAVE_VPRINTF	1
-#	define	HAVE_STDARG_H	1
-#	define	HAVE_VARARGS_H	0
-#	define	HAVE_ERROR	0
+#    if defined(__GLIBC__)
+#        define    HAVE_STRLCPY    0
+#    else  /* __GLIBC__ */
+#        define    HAVE_STRLCPY    1
+#    endif /* __GLIBC__ */
+#    define    HAVE_PATHCONF    1
+#    define    HAVE_REALPATH    1
+#    define    HAVE_SYSCONF    1
+#    define    HAVE_GETRLIMIT    1
+#    define    HAVE_GETPAGESIZE    1
+#    define    HAVE_VPRINTF    1
+#    define    HAVE_STDARG_H    1
+#    define    HAVE_VARARGS_H    0
+#    define    HAVE_ERROR    0
 #endif
 
 /* needed things */
 #ifndef _
-#	if ENABLE_NLS
-#		include <libintl.h>
-#		define _(Text) gettext (Text)
-#	else
-#		define textdomain(Domain)
-#		define _(Text) Text
-#	endif
+#    if ENABLE_NLS
+#        include <libintl.h>
+#        define _(Text) gettext (Text)
+#    else
+#        define textdomain(Domain)
+#        define _(Text) Text
+#    endif
 #endif
 
 /* helpful things */
@@ -89,10 +90,10 @@
 #define CAST_ULL(a) ((unsigned long long)(a))
 
 #ifndef MIN
-#define MIN(a, b)	((a) < (b) ? (a) : (b))
+#define MIN(a, b)    ((a) < (b) ? (a) : (b))
 #endif
 #ifndef MAX
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MAX(a, b)    ((a) > (b) ? (a) : (b))
 #endif
 
 /* C code, but useful in C++ */
@@ -101,19 +102,42 @@ extern "C" {
 #endif
 
 /* procedure prototypes */
-int	    lmsc_get_nofd(int);
-int	    lmsc_get_max_path(void);
-int	    lmsc_get_max_per_path(const char* pth);
-int	    lmsc_get_page_size(void);
-int	    lmsc_xget_page_size(void);
-nlink_t	    lmsc_get_max_hlink(const char* path);
-ssize_t	    lmsc_write_all(int fd, void* buf, size_t count);
-ssize_t	    lmsc_read_all(int fd, void* buf, size_t count);
+/* get number of available descriptors at time of call */
+int        lmsc_get_nofd(int);
+/* get path maximum, e.g. pathconf(), PATH_MAX, etc. */
+int        lmsc_get_max_path(void);
+/* as above, but per arg pth if pathconf() is available */
+int        lmsc_get_max_per_path(const char* pth);
+/**
+ * pass name of a mount point, and get name of mounted device node
+ *
+ * mtpt:      const char* mount point name
+ * outbuf:    char buffer *must* have space for PATH_MAX chars,
+ *            if PATH_MAX is defined, else return from
+ *            lmsc_get_max_path() (get_max_path()) from this lib,
+ *            receives device node name
+ * path_max:  size_t pass actual size of outbuf in this parameter
+ *
+ * returns integer 0 on success, -1 on failure -- errno might be set
+ *            by sys/library calls, but is not set herein
+ */
+int lmsc_get_mnt_dev(const char* mtpt, char* outbuf, size_t path_max);
+/* get system's RAM page size */
+int        lmsc_get_page_size(void);
+/* as above, but exit(1) if above fails */
+int        lmsc_xget_page_size(void);
+/* get hardlink LINK_MAX per pathconf() or macro */
+nlink_t        lmsc_get_max_hlink(const char* path);
+/* read or write all of count arg in face of potential interruption */
+ssize_t        lmsc_write_all(int fd, void* buf, size_t count);
+ssize_t        lmsc_read_all(int fd, void* buf, size_t count);
 #if ! HAVE_STRLCPY
 #define strlcpy lmsc_strcntcpy
 #endif
-size_t	    lmsc_strcntcpy(char* dst, const char* src, size_t cnt);
-int	    lmsc_statihack(const char* fn, char* n, struct stat* sb);
+/* a workalike for BSD strlcpy; just use strlcpy, not this by name */
+size_t        lmsc_strcntcpy(char* dst, const char* src, size_t cnt);
+/* ignore this -- appears in this lib in error */
+int        lmsc_statihack(const char* fn, char* n, struct stat* sb);
 
 /* formerly inline procedures */
 char* lmsc_l2U(char* p); /* convert case lower -> upper */
@@ -174,48 +198,49 @@ void lmsc_pf_init_files(void);
  * defined w/o the lmsc_ prefix
  */
 
-/* procedure prototypes */
-#define	get_nofd	lmsc_get_nofd
-#define	get_max_path	lmsc_get_max_path
-#define	get_max_per_path	lmsc_get_max_per_path
-#define	get_page_size	lmsc_get_page_size
-#define	xget_page_size	lmsc_xget_page_size
-#define	get_max_hlink	lmsc_get_max_hlink
-#define	read_all	lmsc_read_all
-#define	write_all	lmsc_write_all
-#define	strcntcpy	lmsc_strcntcpy
-#define	statihack	lmsc_statihack
+/* define handier names for procedure */
+#define    get_nofd    lmsc_get_nofd
+#define    get_max_path    lmsc_get_max_path
+#define    get_max_per_path    lmsc_get_max_per_path
+#define    get_mnt_dev      lmsc_get_mnt_dev
+#define    get_page_size    lmsc_get_page_size
+#define    xget_page_size    lmsc_xget_page_size
+#define    get_max_hlink    lmsc_get_max_hlink
+#define    read_all    lmsc_read_all
+#define    write_all    lmsc_write_all
+#define    strcntcpy    lmsc_strcntcpy
+#define    statihack    lmsc_statihack
 
 /* formerly inline procedures */
-#define	l2U	lmsc_l2U
-#define	U2l	lmsc_U2l
+#define    l2U    lmsc_l2U
+#define    U2l    lmsc_U2l
 /*
  * return base pointer 'up' aligned to address that is a multiple
  * of 'alnmnt' (aligment), which must be a power of 2
  */
-#define	mk_aligned_ptr	lmsc_mk_aligned_ptr
+#define    mk_aligned_ptr    lmsc_mk_aligned_ptr
 /* wrap strtol(): returns nonzero on error */
-#define	s_tol	lmsc_s_tol
+#define    s_tol    lmsc_s_tol
 
-#define x_strdup_failmsg	lmsc_x_strdup_failmsg
-#define x_strdup			lmsc_x_strdup
+#define x_strdup_failmsg    lmsc_x_strdup_failmsg
+#define x_strdup            lmsc_x_strdup
 
 /*
  * print format to out or err streams optionally or unconditionally.
  */
-#define	pfoopt	lmsc_pfoopt
-#define	pfoall	lmsc_pfoall
-#define	pfeopt	lmsc_pfeopt
-#define	pfeall	lmsc_pfeall
-#define	pf_dbg	lmsc_pf_dbg
+#define    pfoopt    lmsc_pfoopt
+#define    pfoall    lmsc_pfoall
+#define    pfeopt    lmsc_pfeopt
+#define    pfeall    lmsc_pfeall
+#define    pf_dbg    lmsc_pf_dbg
 #if ! HAVE_ERROR
-#define error	lmsc_error
+#define error    lmsc_error
 #endif
 #if NO_PUTS_MACROS
-#define	oputs	lmsc_oputs
-#define	aputs	lmsc_aputs
-#define	eoputs	lmsc_eoputs
-#define	eputs	lmsc_eputs
+#define    oputs    lmsc_oputs
+#define    aputs    lmsc_aputs
+#define    eoputs   lmsc_eoputs
+#define    eputs    lmsc_eputs
 #else
 #define oputs(str)   lmsc_pfoopt("%s", (str))
 #define aputs(str)   lmsc_pfoall("%s", (str))
@@ -226,13 +251,13 @@ void lmsc_pf_init_files(void);
  * print format setup.
  */
 /* assign the option flags (pf[oe]opt) */
-#define	pfo_setopt	lmsc_pfo_setopt
-#define	pfe_setopt	lmsc_pfe_setopt
-#define	pf_setup	lmsc_pf_setup
+#define    pfo_setopt    lmsc_pfo_setopt
+#define    pfe_setopt    lmsc_pfe_setopt
+#define    pf_setup      lmsc_pf_setup
 /* assign the FILE*s for output */
-#define	pf_assign_files	lmsc_pf_assign_files
-#define	pf_assign_files_default	lmsc_pf_assign_files_default
-#define	pf_init_files	lmsc_pf_init_files
+#define    pf_assign_files         lmsc_pf_assign_files
+#define    pf_assign_files_default lmsc_pf_assign_files_default
+#define    pf_init_files           lmsc_pf_init_files
 
 #endif /* ! NO_LIB_MISC_DEF_SYMS */
 
