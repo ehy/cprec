@@ -19,8 +19,7 @@
 */
 
 /*
- * hdr_cfg.h includes "system.h" which includes
- * "config.h" (#ifdef HAVE_CONFIG_H, and
+ * hdr_cfg.h includes "config.h" (#ifdef HAVE_CONFIG_H, and
  * configure script arranges -DHAVE_CONFIG_H in $(CC));
  * also, hdr_cfg.h includes <sys/types.h> before "system.h"
  * which "system.h" wants previously included
@@ -111,16 +110,16 @@ const char* dvdname =    DEFAULT_DVD_NODE; /* set by --node */
 const char* dvdnamedef = DEFAULT_DVD_NODE; /* not to be set */
 char* dvdnamebuf = NULL; /* used if dvdname is assigned an allocation */
 #if ! HAVE_LIBDVDREAD
-const char* drd_libname;    /* --libdvdr */
+const char* drd_libname;        /* --libdvdr */
 #endif
 const char* desired_title_s;    /* --dvdbackup */
-int desired_title;        /* --dvdbackup (converted) */
-int want_quiet;            /* --quiet, --silent */
-int want_verbose;        /* --verbose */
+int desired_title;              /* --dvdbackup (converted) */
+int want_quiet;                 /* --quiet, --silent */
+int want_verbose;               /* --verbose */
 /* dry-run is unmaintained; makes segfaults */
 /* it is still tested, so it must remain 0 */
-int want_dry_run = 0;        /* --dry-run */
-int simple_copy = 1;        /* --simple-copy */
+int want_dry_run = 0;           /* --dry-run */
+int simple_copy = 1;            /* --simple-copy */
 int force = 0;     /* -f; ignore read()/open() errors + overwrite */
 int preserve = 0;  /* -p; preserve metadata if permitted */
 
@@ -172,21 +171,21 @@ static struct option const long_options[] =
 
 /* The source arg data */
 typedef struct src_arg_st {
-    const char*    s;
+    const char*   s;
     time_t        a, m;
     mode_t        t;
-    uid_t        u;
-    gid_t        g;
-    dev_t        d, r;
-    ino_t        i;
-    nlink_t        n;
-    int        e;
+    uid_t         u;
+    gid_t         g;
+    dev_t         d, r;
+    ino_t         i;
+    nlink_t       n;
+    int           e;
 } SARG;
 /* The source arg */
-const char*    source_name;
-SARG*        source_args;
-int        source_count;
-int        source_index;
+const char* source_name;
+SARG*       source_args;
+int         source_count;
+int         source_index;
 /* the last arument, the target */
 const char*    target;
 #define SARG2STAT(sa, st) (st).st_atime=(sa).a; \
@@ -252,8 +251,9 @@ init_lib_drd(void)
     setenv("DVDCSS_CACHE", "off", 1);
 
 #if ! HAVE_LIBDVDREAD
-    if ( drd_libname == NULL )
+    if ( drd_libname == NULL ) {
         drd_libname = drd_altname;
+    }
     
     rdrd = open_drd(drd_libname, get_drd_defflags());
 
@@ -356,8 +356,9 @@ get_env_vars(int* doregmask, int* regmask)
         }
     }
 
-    /* desperate measures in response to I/O errors? */
-    /* do not try $CPREC_DESPERATE > 1 -- bad code */
+    /* desperate measures in response to I/O errors?
+     * do not try $CPREC_DESPERATE > 1 -- bad code
+     */
     if ( (penv = getenv("CPREC_DESPERATE")) != NULL ) {
         switch ( *penv ) {
             case '2':
@@ -473,6 +474,7 @@ resolve_dvd_dev()
     }
     dvdnamebuf = xmalloc(sz);
 
+#if HAVE_LSTAT
     /* this readlink loop is not really needed because if
      * link ultimately points to a mount pount then
      * get_mnt_dev() uses realpath() which handles symlinks,
@@ -484,10 +486,37 @@ resolve_dvd_dev()
         pfeopt(_("%s: reading symbolic link '%s'\n"),
           program_name, buf);
         
-        rll = readlink(buf, buf, sz);
+        strlcpy(dvdnamebuf, buf, sz);
+        rll = readlink(dvdnamebuf, buf, sz);
 
         if ( rll < 0 ) {
             perror("readlink()");
+            exit(1);
+        }
+
+        if ( rll == sz ) {
+#           define TRUNC_INDICATE "[...]"
+            char* p;
+
+            buf[rll - 1] = '\0';
+
+            while ( (p = strrchr(buf, '/')) != NULL && p != buf ) {
+                if ( (sz - ((p+1) - buf)) >= sizeof(TRUNC_INDICATE) ) {
+                    ++p;
+                    break;
+                }
+
+                *p = '\0';
+            }
+
+            if ( p == NULL ) {
+                p = buf;
+            }
+
+            strlcpy(p, TRUNC_INDICATE, sizeof(TRUNC_INDICATE));
+
+            pfeall(_("%s: readlink(%s) - target '%s' too long\n"),
+              program_name, dvdnamebuf, buf);
             exit(1);
         }
 
@@ -497,13 +526,14 @@ resolve_dvd_dev()
           program_name, buf);
         
         if ( lstat(buf, &sb) ) {
-            pfeall(_("%s: failed stat(%s) - %s\n"),
-              program_name, dvdname, strerror(errno));
+            pfeall(_("%s: failed stat(%s -> %s) - %s\n"),
+              program_name, dvdname, buf, strerror(errno));
             exit(1);
         }
     }
+#endif // HAVE_LSTAT
 
-    /* allowing either block or char dev is OK on some systems,
+    /* allowing either block or char dev is OK on some systems;
      * on those where it's not (e.g., OpenBSD) rely on user
      * to do the right thing, for now
      */
