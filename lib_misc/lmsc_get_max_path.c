@@ -38,9 +38,6 @@ lmsc_get_max_path(void)
 
     if ( !pm || pm == -1 ) {
         pm = lmsc_get_max_per_path("/");
-        if ( pm != -1 ) {
-            pm += 1;
-        }
     }
 
     return pm;

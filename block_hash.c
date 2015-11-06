@@ -37,26 +37,28 @@
 #undef NHASH
 
 #ifdef BLOCK_HASH_NHASH
-#	define NHASH BLOCK_HASH_NHASH
+#    define NHASH BLOCK_HASH_NHASH
 #else
-#	define NHASH 8
+#    define NHASH 8
 #endif
 #ifdef BLOCK_HASH_MULTIPLIER
-#	define MULTIPLIER BLOCK_HASH_MULTIPLIER
+#    define MULTIPLIER BLOCK_HASH_MULTIPLIER
 #else
-#	define MULTIPLIER 31
+#    define MULTIPLIER 31
 #endif
 
 typedef struct _block_hash_listitem {
-	struct _block_hash_item		bh_item;  /* see block_hash.h */
-	struct _block_hash_listitem*	bh_next;
+    struct _block_hash_item         bh_item;  /* see block_hash.h */
+    struct _block_hash_listitem*    bh_next;
 } BHLI;
 
-#define FREE_BHLI(li) do { \
-         if ( (li)->bh_item.bh_name ) \
-                 free((li)->bh_item.bh_name); \
-         free(li); \
-        } while ( 0 )
+#define FREE_BHLI(li) \
+    do { \
+        if ( (li)->bh_item.bh_name ) { \
+            free((li)->bh_item.bh_name); \
+        } \
+        free(li); \
+    } while ( 0 )
 
 static BHLI* bh_tbl[NHASH];
 
@@ -70,19 +72,19 @@ static unsigned int bhp_index(blkhash_t blk);
 void
 blk_free_storage(void)
 {
-	unsigned  i;
+    unsigned  i;
 
-	for ( i = 0; i < NHASH; i++ ) {
-		BHLI* p = bh_tbl[i];
+    for ( i = 0; i < NHASH; i++ ) {
+        BHLI* p = bh_tbl[i];
 
-		while ( p != NULL ) {
-			BHLI* tp = p;
-			p = p->bh_next;
-			FREE_BHLI(tp);
-		}
+        while ( p != NULL ) {
+            BHLI* tp = p;
+            p = p->bh_next;
+            FREE_BHLI(tp);
+        }
 
-		bh_tbl[i] = NULL;
-	}
+        bh_tbl[i] = NULL;
+    }
 }
 
 /**
@@ -99,26 +101,27 @@ blk_free_storage(void)
 const BHI*
 blk_check(blkhash_t addr, const char* name, filesize_t sz)
 {
-	BHI* bhi;
+    BHI* bhi;
 
-	bhi = bhp_find(addr, sz);
-	if ( bhi == NULL ) {
-		pfeall(_("%s: internal error in block hash %llu, %s\n"),
-			program_name, (unsigned long long)addr, name);
-		return NULL;
-	}
+    bhi = bhp_find(addr, sz);
+    if ( bhi == NULL ) {
+        pfeall(_("%s: internal error in block hash %llu, %s\n"),
+            program_name, (unsigned long long)addr, name);
+        return NULL;
+    }
 
-	if ( bhi->bh_count == 0 ) { /* just created: initialize */
-		bhi->bh_name = x_strdup(name);
-		bhi->bh_block = addr;
-		bhi->bh_size = sz;
-	}
-	bhi->bh_count++;
+    if ( bhi->bh_count == 0 ) { /* just created: initialize */
+        bhi->bh_name = x_strdup(name);
+        bhi->bh_block = addr;
+        bhi->bh_size = sz;
+    }
 
-	return bhi;
+    bhi->bh_count++;
+
+    return bhi;
 }
 
-/*
+/**
  * scan for entries with same "addr", placing up to
  * "num" pointers in output array "pbhi"
  * return count put in output array (between 0 and "num")
@@ -128,61 +131,62 @@ blk_check(blkhash_t addr, const char* name, filesize_t sz)
 unsigned
 blk_scan(blkhash_t addr, const BHI* pbhi[], unsigned num)
 {
-	unsigned nr = 0;
-	BHLI* p = bh_tbl[bhp_index(addr)];
+    unsigned nr = 0;
+    BHLI* p = bh_tbl[bhp_index(addr)];
 
-	if ( num == 0 ) {
-		return 0;
-	}
+    if ( num == 0 ) {
+        return 0;
+    }
 
-	while ( p != NULL ) {
-		BHI* pi = &p->bh_item;
-		if ( pi->bh_block == addr ) {
-			pbhi[nr++] = pi;
-		}
-		if ( nr == num ) {
-			break;
-		}
-		p = p->bh_next;
-	}
-	
-	return nr;
+    while ( p != NULL ) {
+        BHI* pi = &p->bh_item;
+        if ( pi->bh_block == addr ) {
+            pbhi[nr++] = pi;
+        }
+        if ( nr == num ) {
+            break;
+        }
+        p = p->bh_next;
+    }
+    
+    return nr;
 }
 
 static BHI*
 bhp_find(blkhash_t blk, filesize_t sz)
 {
-	BHLI* p;
-	BHLI** si = &bh_tbl[bhp_index(blk)];
-	
-	while ( (p = *si) != NULL ) {
-		BHI* pi = &p->bh_item;
-		if ( pi->bh_block == blk && pi->bh_size == sz )
-			break;
-		si = &(p->bh_next);
-	}
-	
-	/* not found: new item in bucket */
-	if ( p == NULL ) {
-		/* use of calloc initializes bh_count, tested in caller
-                 */
-                *si = p = xcalloc(1, sizeof(BHLI));
-	}
+    BHLI* p;
+    BHLI** si = &bh_tbl[bhp_index(blk)];
+    
+    while ( (p = *si) != NULL ) {
+        BHI* pi = &p->bh_item;
+        if ( pi->bh_block == blk && pi->bh_size == sz ) {
+            break;
+        }
+        si = &(p->bh_next);
+    }
+    
+    /* not found: new item in bucket */
+    if ( p == NULL ) {
+        /* use of calloc initializes bh_count, tested in caller
+         */
+        *si = p = xcalloc(1, sizeof(BHLI));
+    }
 
-	return &(p->bh_item);
+    return &(p->bh_item);
 }
 
 static unsigned int
 bhp_index(blkhash_t blk)
 {
-	unsigned int r, i, sz;
+    unsigned int r, i, sz;
 
-	r = 0;
-	sz = sizeof(blk);
+    r = 0;
+    sz = sizeof(blk);
 
-	for ( i = 0; i < sz; i++ ) {
-		r = r * MULTIPLIER + ((blk >> (i << 3)) & 0xFFllu);
-	}
+    for ( i = 0; i < sz; i++ ) {
+        r = r * MULTIPLIER + ((blk >> (i << 3)) & 0xFFllu);
+    }
 
-	return r % NHASH;
+    return r % NHASH;
 }

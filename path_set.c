@@ -66,134 +66,140 @@ size_t  nbufbufdlen = A_SIZE(nbuf);
 
 void
 unset_paths(void)
-{	
+{    
 #if DYNALLOC_BUFFERS
-	if ( mntd )
-		free(mntd);
-	mntd = NULL;
-	if ( outd )
-		free(outd);
-	outd = NULL;
-	if ( vidd )
-		free(vidd);
-	vidd = NULL;
-	if ( nbuf )
-		free(nbuf);
-	nbuf = NULL;
-	viddlen = outdlen = mntdlen = 0;
+    if ( mntd )
+        free(mntd);
+    mntd = NULL;
+    if ( outd )
+        free(outd);
+    outd = NULL;
+    if ( vidd )
+        free(vidd);
+    vidd = NULL;
+    if ( nbuf )
+        free(nbuf);
+    nbuf = NULL;
 #else
-	mntd[mntdlen = 0] = '\0';
-	outd[outdlen = 0] = '\0';
-	vidd[viddlen = 0] = '\0';
-	nbuf[0] = '\0';
+    mntd[0] = '\0';
+    outd[0] = '\0';
+    vidd[0] = '\0';
+    nbuf[0] = '\0';
 #endif
-	expaths = fnlower = 0;
+    viddlen = outdlen = mntdlen = 0;
+    expaths = fnlower = 0;
 }
 
 /* string safety return checks; fatal err */
 #define SCPYCHK(d, s, c) \
-	{ \
-		size_t n = c; \
-		if ( n <= strlcpy(d, s, n) ) { \
-			pfeall( \
-				_("%s: internal string error in pointer or size\n"), \
-				program_name); \
-			exit(60); \
-		} \
-	}
+    { \
+        size_t n, sz = (size_t)(c); \
+        if ( (n = strlcpy(d, s, sz)) >= sz ) { \
+            pfeall( \
+              _("%s: string size (&zu) error: exceeds space (%zu)\n"), \
+              program_name, n, sz); \
+            exit(60); \
+        } \
+    }
 
 void
 set_paths(const char* mountp, const char* outname)
 {
-	size_t sz;
-	unset_paths();
+    size_t sz;
+
+    unset_paths();
 
 #if DYNALLOC_BUFFERS
-	if ( (mntdlen = get_max_path()) < 0 ) {
-		pfeall(_("%: failed to get path maximum - %s\n"),
-			program_name, strerror(errno));
-		exit(1);
-	}
-	mntdlen *= sizeof(char); /* ha ha ha */
-	viddbufdlen = nbufbufdlen = outdbufdlen = mntdbufdlen = mntdlen;
-	mntd = xmalloc(mntdbufdlen);
-	outd = xmalloc(outdbufdlen);
-	vidd = xmalloc(viddbufdlen);
-	nbuf = xmalloc(nbufbufdlen);
+    if ( (mntdlen = get_max_path()) < 0 ) {
+        pfeall(_("%: failed to get path maximum - %s\n"),
+            program_name, strerror(errno));
+        exit(1);
+    }
+
+    mntdlen *= sizeof(char); /* ha ha ha for form only */
+    viddbufdlen = nbufbufdlen = outdbufdlen = mntdbufdlen = mntdlen;
+    mntd = xmalloc(mntdbufdlen);
+    outd = xmalloc(outdbufdlen);
+    vidd = xmalloc(viddbufdlen);
+    nbuf = xmalloc(nbufbufdlen);
 #endif
 
-	outdlen = strlcpy(outd, outname, outdbufdlen);
-	if ( outdlen >= outdbufdlen ) {
-		pfeall(_("%s: destination arg too long %s\n"),
-			program_name, outname);
-		exit(1);
-	}
+    outdlen = strlcpy(outd, outname, outdbufdlen);
+    if ( outdlen >= outdbufdlen ) {
+        pfeall(_("%s: destination arg too long %s\n"),
+            program_name, outname);
+        exit(1);
+    }
 
-	/* clear trailing seperator */
-	if ( strcmp(outd, "/") )
-		while ( outdlen && outd[outdlen - 1] == '/' ) {
-			outd[--outdlen] = '\0';
-		}
-	if ( !outdlen ) {
-		pfeall(_("%s: bad target argument: %s\n"),
-			program_name, outname);
-		exit(1);
-	}
+    /* clear trailing seperator */
+    if ( strcmp(outd, "/") ) {
+        while ( outdlen && outd[outdlen - 1] == '/' ) {
+            outd[--outdlen] = '\0';
+        }
+    }
 
-	mntdlen = strlcpy(mntd, mountp, mntdbufdlen);
-	if ( mntdlen >= mntdbufdlen ) {
-		pfeall(_("%s: source arg too long %s\n"),
-			program_name, mountp);
-		exit(1);
-	}
-	viddlen = strlcpy(vidd, outd, viddbufdlen);
-	
-	/* return if buffers don't have reasonable space */
-	if ( (outdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > outdbufdlen ) {
-		expaths = 1;
-		pfeopt(_("%s: WARNING - target argument very long: %d\n"),
-			program_name, outdlen);
-		return;
-	}
-	if ( (mntdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > mntdbufdlen ) {
-		expaths = 1;
-		pfeopt(_("%s: WARNING - source argument very long: %d\n"),
-			program_name, mntdlen);
-		return;
-	}
+    if ( !outdlen ) {
+        pfeall(_("%s: bad target argument: %s\n"),
+            program_name, outname);
+        exit(1);
+    }
 
-	/* add trailing seperator . . . */
-	if ( mntdlen && mntd[mntdlen - 1] != '/' ) {
-		mntd[mntdlen++] = '/';
-	}
-	vidd[viddlen++] = '/';
-	/* . . . and name to check */
-	SCPYCHK(&mntd[mntdlen], "VIDEO_TS", mntdbufdlen - mntdlen)
-	if ( !access(mntd, F_OK) ) {
-		okvid = 1;
-		viddlen +=
-			strlcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
-	} else {
-		SCPYCHK(&mntd[mntdlen], "video_ts", mntdbufdlen - mntdlen)
-		if ( !access(mntd, F_OK) ) {
-			okvid = 1;
-			viddlen +=
-			strlcpy(&vidd[viddlen],
-				ign_lc ? "video_ts" : "VIDEO_TS",
-				A_SIZE(vidd) - viddlen);
-		}
-	}
-	mntd[mntdlen] = '\0';
+    mntdlen = strlcpy(mntd, mountp, mntdbufdlen);
+    if ( mntdlen >= mntdbufdlen ) {
+        pfeall(_("%s: source arg too long %s\n"),
+            program_name, mountp);
+        exit(1);
+    }
 
-	/* clear trailing seperator */
-	if ( strcmp(mntd, "/") )
-		while ( mntdlen && mntd[mntdlen - 1] == '/' ) {
-			mntd[--mntdlen] = '\0';
-		}
-	if ( !mntdlen ) {
-		pfeall(_("%s: bad argument: %s\n"),
-			program_name, mountp);
-		exit(1);
-	}
+    viddlen = strlcpy(vidd, outd, viddbufdlen);
+    
+    /* return if buffers don't have reasonable space */
+    if ( (outdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > outdbufdlen ) {
+        expaths = 1;
+        pfeopt(_("%s: WARNING - target argument very long: %d\n"),
+            program_name, outdlen);
+        return;
+    }
+    if ( (mntdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > mntdbufdlen ) {
+        expaths = 1;
+        pfeopt(_("%s: WARNING - source argument very long: %d\n"),
+            program_name, mntdlen);
+        return;
+    }
+
+    /* add trailing seperator . . . */
+    if ( mntdlen && mntd[mntdlen - 1] != '/' ) {
+        mntd[mntdlen++] = '/';
+    }
+    vidd[viddlen++] = '/';
+
+    /* . . . and name to check */
+    SCPYCHK(&mntd[mntdlen], "VIDEO_TS", mntdbufdlen - mntdlen)
+    if ( !access(mntd, F_OK) ) {
+        okvid = 1;
+        viddlen +=
+            strlcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
+    } else {
+        SCPYCHK(&mntd[mntdlen], "video_ts", mntdbufdlen - mntdlen)
+        if ( !access(mntd, F_OK) ) {
+            okvid = 1;
+            viddlen += strlcpy(&vidd[viddlen],
+                         ign_lc ? "video_ts" : "VIDEO_TS",
+                         A_SIZE(vidd) - viddlen);
+        }
+    }
+    mntd[mntdlen] = '\0';
+
+    /* clear trailing seperator */
+    if ( strcmp(mntd, "/") ) {
+        while ( mntdlen && mntd[mntdlen - 1] == '/' ) {
+            mntd[--mntdlen] = '\0';
+        }
+    }
+    if ( !mntdlen ) {
+        pfeall(_("%s: bad argument: %s\n"),
+            program_name, mountp);
+        exit(1);
+    }
 }
 
