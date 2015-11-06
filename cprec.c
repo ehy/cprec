@@ -466,11 +466,21 @@ resolve_dvd_dev()
 
     buf = xmalloc(sz);
     if ( strlcpy(buf, dvdname, sz) >= sz ) {
-        pfeall("%s: name too long: '%s'\n",
+        pfeall(_("%s: dvd device name too long: '%s'\n"),
           program_name, dvdname);
         exit(1);
     }
 
+    if ( dvdnamebuf != NULL ) {
+        free(dvdnamebuf);
+    }
+    dvdnamebuf = xmalloc(sz);
+
+    /* this readlink loop is not really needed because if
+     * link ultimately points to a mount pount then
+     * get_mnt_dev() uses realpath() which handles symlinks,
+     * but this loop allows more verbosity
+     */
     while ( S_ISLNK(sb.st_mode) ) {
         int rll;
 
@@ -496,42 +506,42 @@ resolve_dvd_dev()
         }
     }
 
-    if ( S_ISBLK(sb.st_mode) ) {
-        return;
-    }
-    if ( S_ISCHR(sb.st_mode) ) {
-        return;
-    }
-
-    if ( ! S_ISDIR(sb.st_mode) ) {
-        pfeopt(_("%s: '%s' is not a directory, failure is likely\n"),
-          program_name, buf);
-    }
-
-    dvdnamebuf = xmalloc(sz);
-    strlcpy(dvdnamebuf, buf, sz);
-
-    errno = 0;
-    if ( get_mnt_dev(dvdnamebuf, buf, sz) ) {
-        if ( errno ) {
-            pfeall(_("%s: cannot find device for %s -- %s\n"),
-                program_name, dvdnamebuf, strerror(errno));
-        } else {
-            pfeall(_("%s: cannot find device for %s\n"),
-                program_name, dvdnamebuf);
+    /* allowing either block or char dev is OK on some systems,
+     * on those where it's not (e.g., OpenBSD) rely on user
+     * to do the right thing, for now
+     */
+    if ( ! (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) ) {
+        if ( ! S_ISDIR(sb.st_mode) ) {
+            pfeopt(
+              _("%s: '%s' is not a directory, failure is likely\n"),
+              program_name, buf);
         }
 
-        exit(1);
-    }
+        strlcpy(dvdnamebuf, buf, sz);
 
-    pfeopt(_("%s: using device %s for argument %s\n"),
-	  program_name, buf, dvdname);
+        errno = 0;
+        if ( get_mnt_dev(dvdnamebuf, buf, sz) ) {
+            if ( errno ) {
+                pfeall(_("%s: cannot find device for %s -- %s\n"),
+                    program_name, dvdnamebuf, strerror(errno));
+            } else {
+                pfeall(_("%s: cannot find device for %s\n"),
+                    program_name, dvdnamebuf);
+            }
+
+            exit(1);
+        }
+
+        pfeopt(_("%s: using device %s for argument %s\n"),
+          program_name, buf, dvdname);
+    }
 
     sz = strlen(buf) + 1;
     free(dvdnamebuf);
     dvdnamebuf = xmalloc(sz);
     strlcpy(dvdnamebuf, buf, sz);
     dvdname = dvdnamebuf;
+    free(buf);
 }
 
 /* main for recursive copy of fs hierarchy */
