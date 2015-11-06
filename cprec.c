@@ -18,9 +18,6 @@
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
-#define _FILE_OFFSET_BITS 64
-#define _LARGEFILE_SOURCE
-
 /*
  * hdr_cfg.h includes "system.h" which includes
  * "config.h" (#ifdef HAVE_CONFIG_H, and

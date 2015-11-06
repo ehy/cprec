@@ -59,11 +59,6 @@
 # define NLENGTH(dirent) strlen((dirent)->d_name)
 #endif
 
-#if ! HAVE_LSTAT
-#undef  lstat
-#define lstat stat
-#endif
-
 /*
  * The *BSD* manual for telldir(3) states that the telldir() return
  * is valid only for the currently open DIR*, and is invalid after

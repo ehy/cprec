@@ -21,6 +21,15 @@
 #ifndef _HDR_CFG_H_
 #define _HDR_CFG_H_ 1
 
+/* autoconf generated config.h does not have reinclusion guards,
+ * but the project *should* define a version, so test for it
+ */
+#if HAVE_CONFIG_H
+#ifndef VERSION
+#include "config.h"
+#endif
+#endif /* HAVE_CONFIG_H */
+
 /* ensure LFS : probably done by autoconf, but paranoia . . . */
 #ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
@@ -41,6 +50,16 @@
 
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#else
+#error "configure did not find sys/stat.h on this system!"
+#endif
+
+#if ! HAVE_LSTAT
+#undef  lstat
+#define lstat stat
+#ifndef S_ISLNK
+#define S_ISLNK(a) 0
+#endif
 #endif
 
 #if HAVE_SYS_PARAM_H

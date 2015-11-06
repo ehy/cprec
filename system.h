@@ -20,7 +20,9 @@
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #if HAVE_CONFIG_H
+#ifndef VERSION
 #include "config.h"
+#endif
 #endif /* HAVE_CONFIG_H */
 
 /* Include sys/types.h before this file.  */
