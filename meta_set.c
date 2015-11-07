@@ -44,97 +44,107 @@
 void
 set_d_meta(const char* nbuf, const struct stat* psb)
 {
-	if ( !preserve )
-		return;
-	set_f_meta(nbuf, psb);
+    if ( !preserve ) {
+        return;
+    }
+    set_f_meta(nbuf, psb);
 }
 
 void
 set_f_meta(const char* nbuf, const struct stat* psb)
 {
 #if _DOUTIME_
-	struct utimbuf	tb;
+    struct utimbuf    tb;
 #else
-	struct timeval	tv[2];
+    struct timeval    tv[2];
 #endif
-	int isl;
+    int isl;
 
-	if ( !preserve )
-		return;
+    if ( !preserve ) {
+        return;
+    }
 
-	isl = S_ISLNK(psb->st_mode);
+    isl = S_ISLNK(psb->st_mode);
 
 #if _DOUTIME_
-	tb.actime = psb->st_atime;
-	tb.modtime = psb->st_mtime;
+    tb.actime = psb->st_atime;
+    tb.modtime = psb->st_mtime;
 
-	if ( !isl && utime(nbuf, &tb) ) {
-		perror(nbuf);
-	}
+    if ( !isl && utime(nbuf, &tb) ) {
+        perror(nbuf);
+    }
 #else
-	tv[0].tv_sec = psb->st_atime;
-	tv[0].tv_usec = 0;
-	tv[1].tv_sec = psb->st_mtime;
-	tv[1].tv_usec = 0;
+    tv[0].tv_sec = psb->st_atime;
+    tv[0].tv_usec = 0;
+    tv[1].tv_sec = psb->st_mtime;
+    tv[1].tv_usec = 0;
 
-	if ( !isl ) {
-		if ( utimes(nbuf, tv) )
-			perror(nbuf);
-	}
-#	if HAVE_LUTIMES
-	else if ( lutimes(nbuf, tv) )
-		perror(nbuf);
-#	endif
+    if ( !isl ) {
+        if ( utimes(nbuf, tv) ) {
+            perror(nbuf);
+        }
+    }
+#   if HAVE_LUTIMES
+    else if ( lutimes(nbuf, tv) ) {
+        perror(nbuf);
+    }
+#   endif
 #endif
-	/* Stevens in APUE describes 4.3BSD behavior of chown(2)
-	 * treating a symbolic link and not the target, but not
-	 * SYSV.  {Net,Open,Free}BSD now have lchown(), and NetBSD
-	 * manual does not describe the behavior mentioned by Stevens.
-	 * Here simply do not treat symlinks if lchown is not available.
-	 */
-	if ( !isl ) {
-		/* 1st use temp uid to set gid . . . */
-		if ( chown(nbuf, TEMPUID, psb->st_gid) ) {
-			if ( errno != EPERM )
-				perror(nbuf);
-		}
-		/* . . . because this will likely fail */
-		if ( chown(nbuf, psb->st_uid, psb->st_gid) ) {
-			if ( errno != EPERM )
-				perror(nbuf);
-		}
-	}
-#	if HAVE_LCHOWN
-	else {
-		/* 1st use temp uid to set gid . . . */
-		if ( lchown(nbuf, TEMPUID, psb->st_gid) ) {
-			if ( errno != EPERM )
-				perror(nbuf);
-		}
-		/* . . . because this will likely fail */
-		if ( lchown(nbuf, psb->st_uid, psb->st_gid) ) {
-			if ( errno != EPERM )
-				perror(nbuf);
-		}
-	}
-#	endif
-	/*
-	 * Here simply do not treat symlinks if lchmod is not available.
-	 */
-	if ( !isl ) {
-		if ( chmod(nbuf, psb->st_mode) ) {
-			if ( errno != EPERM )
-				perror(nbuf);
-		}
-	}
-#	if HAVE_LCHMOD
-	else {
-		if ( lchmod(nbuf, psb->st_mode) ) {
-			if ( errno != EPERM )
-				perror(nbuf);
-		}
-	}
-#	endif
+    /* Stevens in APUE describes 4.3BSD behavior of chown(2)
+     * treating a symbolic link and not the target, but not
+     * SYSV.  {Net,Open,Free}BSD now have lchown(), and NetBSD
+     * manual does not describe the behavior mentioned by Stevens.
+     * Here simply do not treat symlinks if lchown is not available.
+     */
+    if ( !isl ) {
+        /* 1st use temp uid to set gid . . . */
+        if ( chown(nbuf, TEMPUID, psb->st_gid) ) {
+            if ( errno != EPERM ) {
+                perror(nbuf);
+            }
+        }
+        /* . . . because this will likely fail */
+        if ( chown(nbuf, psb->st_uid, psb->st_gid) ) {
+            if ( errno != EPERM ) {
+                perror(nbuf);
+            }
+        }
+    }
+#   if HAVE_LCHOWN
+    else {
+        /* 1st use temp uid to set gid . . . */
+        if ( lchown(nbuf, TEMPUID, psb->st_gid) ) {
+            if ( errno != EPERM ) {
+                perror(nbuf);
+            }
+        }
+        /* . . . because this will likely fail */
+        if ( lchown(nbuf, psb->st_uid, psb->st_gid) ) {
+            if ( errno != EPERM ) {
+                perror(nbuf);
+            }
+        }
+    }
+#   endif
+    /*
+     * Here simply do not treat symlinks if lchmod is not available.
+     */
+    if ( !isl ) {
+        if ( chmod(nbuf, psb->st_mode) ) {
+            if ( errno != EPERM ) {
+                perror(nbuf);
+            }
+        }
+    }
+#   if HAVE_LCHMOD
+    else {
+        if ( lchmod(nbuf, psb->st_mode) ) {
+            if ( errno != EPERM ) {
+                perror(nbuf);
+            }
+        }
+    }
+#   endif
 }
 
 static dire_p last;
@@ -142,82 +152,87 @@ static dire_p last;
 void
 rec_d_meta(dire_p pd)
 {
-	unsigned long nd;
-	
-	for ( nd = 0; nd < pd->ndirs; nd++ )
-		rec_d_meta(&pd->pdirs[nd]);
+    unsigned long nd;
 
-	if ( pd->ndirs ) {
-		if ( pd->pdirs )
-			free(pd->pdirs);
-		pd->ndirs = pd->alloc = 0;
-		pd->pdirs = NULL;
-	}
+    for ( nd = 0; nd < pd->ndirs; nd++ ) {
+        rec_d_meta(&pd->pdirs[nd]);
+    }
 
-	set_d_meta(pd->path, pd->sb);
+    if ( pd->ndirs ) {
+        if ( pd->pdirs ) {
+            free(pd->pdirs);
+        }
+        pd->ndirs = pd->alloc = 0;
+        pd->pdirs = NULL;
+    }
 
-	free(pd->sb);
-	last = NULL;
+    set_d_meta(pd->path, pd->sb);
+
+    free(pd->sb);
+    last = NULL;
 }
 
 void
 set_dire_t(const char* path, const struct stat* sb)
 {
-	const char* ptmp;
-	
-	if ( last == NULL )
-		last = topdir;
+    const char* ptmp;
 
-	/* last->path is substr at front of path we are downlevel */
-	if ( (ptmp = strstr(path, last->path)) && ptmp == path ) {
-		size_t sz;
-		dire_p pnew;
+    if ( last == NULL ) {
+        last = topdir;
+    }
 
-		if ( !strcmp(path, last->path) )
-			return;
+    /* last->path is substr at front of path we are downlevel */
+    if ( (ptmp = strstr(path, last->path)) && ptmp == path ) {
+        size_t sz;
+        dire_p pnew;
 
-		pf_dbg(_("dbg: down %s -> %s\n"), last->path, path);
+        if ( !strcmp(path, last->path) ) {
+            return;
+        }
 
-		if ( last->ndirs >= last->alloc ) {
-			last->alloc += REALLOC_dire_t;
-			last->pdirs = xrealloc(last->pdirs
-				, sizeof(dire_t) * last->alloc);
-		}
-		
-		pnew = &last->pdirs[last->ndirs++];
-		sz = strlen(path) + 1 + sizeof(*pnew->sb);
-		pnew->sb = xmalloc(sz);
-		pnew->path = (char*)pnew->sb + sizeof(*pnew->sb);
-		sz = sz + 1 - sizeof(*pnew->sb);
-		if ( strlcpy(pnew->path, path, sz) >= sz ) {
-			pfeall(_("%s: path part too long (%zu: %s) (%s:%u)\n"),
-				program_name, sz, path, __FILE__, (unsigned)__LINE__);
-			exit(EXIT_FAILURE);
-		}
-		pnew->ppare = last;
-		pnew->ndirs = 0;
-		pnew->pdirs = NULL;
-		pnew->alloc = 0;
-		/* safe: see above */
-		memcpy(pnew->sb, sb, sizeof(*sb));
-		last = pnew;
-		
-		return;
-	}
-	
-	/* up some level: */
-	do {
-		last = last->ppare;
-	} while ( last
-		&& !((ptmp = strstr(path, last->path)) && ptmp == path) );
-	
-	#ifdef DEBUG
-	if ( last )
-		pf_dbg(_("dbg: uplevel %s -> %s\n"), last->path, path);
-	else
-		pf_dbg(_("dbg: final %s\n"), path);
-	#endif
+        pf_dbg(_("dbg: down %s -> %s\n"), last->path, path);
 
-	set_dire_t(path, sb);
+        if ( last->ndirs >= last->alloc ) {
+            last->alloc += REALLOC_dire_t;
+            last->pdirs = xrealloc(last->pdirs
+                , sizeof(dire_t) * last->alloc);
+        }
+
+        pnew = &last->pdirs[last->ndirs++];
+        sz = strlen(path) + 1 + sizeof(*pnew->sb);
+        pnew->sb = xmalloc(sz);
+        pnew->path = (char*)pnew->sb + sizeof(*pnew->sb);
+        sz = sz + 1 - sizeof(*pnew->sb);
+        if ( strlcpy(pnew->path, path, sz) >= sz ) {
+            pfeall(_("%s: path part too long (%zu: %s) (%s:%u)\n"),
+                program_name, sz, path, __FILE__, (unsigned)__LINE__);
+            exit(EXIT_FAILURE);
+        }
+        pnew->ppare = last;
+        pnew->ndirs = 0;
+        pnew->pdirs = NULL;
+        pnew->alloc = 0;
+        /* safe: see above */
+        memcpy(pnew->sb, sb, sizeof(*sb));
+        last = pnew;
+
+        return;
+    }
+
+    /* up some level: */
+    do {
+        last = last->ppare;
+    } while ( last
+        && !((ptmp = strstr(path, last->path)) && ptmp == path) );
+
+    #ifdef DEBUG
+    if ( last ) {
+        pf_dbg(_("dbg: uplevel %s -> %s\n"), last->path, path);
+    } else {
+        pf_dbg(_("dbg: final %s\n"), path);
+    }
+    #endif
+
+    set_dire_t(path, sb);
 }
 

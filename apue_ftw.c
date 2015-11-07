@@ -1,17 +1,17 @@
 /**********************************************************************\
-	apue_ftw --	like ftw(), but	differing in symlink handling.
-			
-			The name acknowledges, by its prefix, that
-			the ftw() example in Stevens' APUE was the
-			starting point, however different it might
-			appear now.
-			
-			Ack too to GNU, which was looked to for
-			descriptor limiting (and license).
+    apue_ftw --    like ftw(), but    differing in symlink handling.
 
-	Copyright (C) Edward V. Hynan Jr., Nov 11 2006
+            The name acknowledges, by its prefix, that
+            the ftw() example in Stevens' APUE was the
+            starting point, however different it might
+            appear now.
 
-	The GNU GPL v2 or greater is your licence to use this code.
+            Ack too to GNU, which was looked to for
+            descriptor limiting (and license).
+
+    Copyright (C) Edward V. Hynan Jr., Nov 11 2006
+
+    The GNU GPL v2 or greater is your licence to use this code.
 \**********************************************************************/
 
 #include "config.h"
@@ -79,26 +79,26 @@
 
 /* moot -- see above */
 #if ! HAVE_SEEKDIR
-#	define seekdir Xseekdir
+#   define seekdir Xseekdir
 static void Xseekdir(DIR* p, off_t c);
 #endif
 
 #if CLOSEDIR_VOID
 static int iclosedir(DIR* p);
 #else
-#define iclosedir closedir
+#   define iclosedir closedir
 #endif
 
-typedef	int	cbf_t(const char*, const struct stat*, int);
+typedef    int    cbf_t(const char*, const struct stat*, int);
 
 typedef struct _invariant_args {
-	char*		path;
-	size_t		pathlen;
-	size_t		pathstrlen;
-	int		nfd;
-	DIR**		dpv;
-	cbf_t*		func;
-	struct stat	sb;
+    char*          path;
+    size_t         pathlen;
+    size_t         pathstrlen;
+    int            nfd;
+    DIR**          dpv;
+    cbf_t*         func;
+    struct stat    sb;
 } SIVA;
 
 static int dopath(SIVA* S, int lvl);
@@ -106,79 +106,81 @@ static int dopath(SIVA* S, int lvl);
 int
 apue_ftw(const char* pathname, cbf_t* func, int nopenfd)
 {
-	int 	ret;
-	SIVA	S;
+    int     ret;
+    SIVA    S;
 
-	/* lstat: see comment below */
-	if ( lstat(pathname, &S.sb) < 0 ) {
-		return errno == EACCES ?
-			func(S.path, &S.sb, FTW_NS) : -1;
-	}
+    /* lstat: see comment below */
+    if ( lstat(pathname, &S.sb) < 0 ) {
+        return errno == EACCES ?
+            func(S.path, &S.sb, FTW_NS) : -1;
+    }
 
-	if ( S_ISDIR(S.sb.st_mode) ) {
-		/* func from lib_misc: calls patchconf(PATH_MAX) */
-		int pm = get_max_per_path(pathname);
+    if ( S_ISDIR(S.sb.st_mode) ) {
+        /* func from lib_misc: calls patchconf(PATH_MAX) */
+        int pm = get_max_per_path(pathname);
 
-		if ( pm <= 0 ) {
-			if ( ! errno )
-				errno = EINVAL;
-			return -1;
-		}
+        if ( pm <= 0 ) {
+            if ( ! errno ) {
+                errno = EINVAL;
+            }
+            return -1;
+        }
 
-		S.pathstrlen = strlen(pathname);
-		S.pathlen = (size_t)pm + S.pathstrlen + 1;
-	} else {
-		S.pathstrlen = strlen(pathname);
-		S.pathlen = S.pathstrlen + 1;
-	}
+        S.pathstrlen = strlen(pathname);
+        S.pathlen = (size_t)pm + S.pathstrlen + 1;
+    } else {
+        S.pathstrlen = strlen(pathname);
+        S.pathlen = S.pathstrlen + 1;
+    }
 
-	S.path = malloc(S.pathlen);
-	if ( S.path == NULL ) {
-		return -1;
-	}
-	
-	if ( strlcpy(S.path, pathname, S.pathlen) >= S.pathlen ) {
-		errno = EINVAL;
-		return -1;
-	}
+    S.path = malloc(S.pathlen);
+    if ( S.path == NULL ) {
+        return -1;
+    }
 
-	do {
-		/* A symbolic link.  Not followed in this implementation:
-		** if a dvd's udf or iso9660 filesystem has RR extension
-		** and symlinks, then the link either points to
-		** something on the disk, or they point outside the disk
-		** and we don't want a target outside the disk fs.
-		*/
-		if ( S_ISLNK(S.sb.st_mode) ) {
-			ret = func(S.path, &S.sb, FTW_SL);
-			break;
-		}
+    if ( strlcpy(S.path, pathname, S.pathlen) >= S.pathlen ) {
+        errno = EINVAL;
+        return -1;
+    }
 
-		/* not a directory */
-		if ( S_ISDIR(S.sb.st_mode) == 0 ) {
-			ret = func(S.path, &S.sb, FTW_F);
-			break;
-		}
+    do {
+        /* A symbolic link.  Not followed in this implementation:
+        ** if a dvd's udf or iso9660 filesystem has RR extension
+        ** and symlinks, then the link either points to
+        ** something on the disk, or they point outside the disk
+        ** and we don't want a target outside the disk fs.
+        */
+        if ( S_ISLNK(S.sb.st_mode) ) {
+            ret = func(S.path, &S.sb, FTW_SL);
+            break;
+        }
 
-		if ( nopenfd < 1 )
-			nopenfd = 1;
+        /* not a directory */
+        if ( S_ISDIR(S.sb.st_mode) == 0 ) {
+            ret = func(S.path, &S.sb, FTW_F);
+            break;
+        }
 
-		S.dpv = calloc(nopenfd, sizeof(DIR*));
-		if ( S.dpv == NULL ) {
-			ret = -1;
-			break;
-		}
+        if ( nopenfd < 1 ) {
+            nopenfd = 1;
+        }
 
-		S.nfd = nopenfd;
-		S.func = func;
-		ret = dopath(&S, 0);
-		
-		free(S.dpv);
-	} while ( 0 );
-	
-	free(S.path);
-	
-	return ret;
+        S.dpv = calloc(nopenfd, sizeof(DIR*));
+        if ( S.dpv == NULL ) {
+            ret = -1;
+            break;
+        }
+
+        S.nfd = nopenfd;
+        S.func = func;
+        ret = dopath(&S, 0);
+
+        free(S.dpv);
+    } while ( 0 );
+
+    free(S.path);
+
+    return ret;
 }
 
 /*
@@ -191,160 +193,171 @@ apue_ftw(const char* pathname, cbf_t* func, int nopenfd)
 static int
 dopath(SIVA* S, int lvl)
 {
-	struct dirent*	dirp;
-	int		ret, dind;
-	size_t		plen;
-	off_t		doff;
-	char*		ptr;
+    struct dirent*    dirp;
+    int          ret, dind;
+    size_t       plen;
+    off_t        doff;
+    char*        ptr;
 
-	/*
-	** this is called with a directory.  First call S->func() for the
-	** directory, then process each filename in the directory.
-	*/
-	if ( (ret = S->func(S->path, &S->sb, FTW_D)) != 0 )
-		return ret;
+    /*
+    ** this is called with a directory.  First call S->func() for the
+    ** directory, then process each filename in the directory.
+    */
+    if ( (ret = S->func(S->path, &S->sb, FTW_D)) != 0 ) {
+        return ret;
+    }
 
-	dind = lvl % S->nfd;
-	if ( S->dpv[dind] != NULL ) {
-		int e = errno;
-		if ( iclosedir(S->dpv[dind]) )
-			perror(S->path); /* leaked & confused */
-		errno = e;
-	}
-	if ( (S->dpv[dind] = opendir(S->path)) == NULL )
-		return errno == EACCES ?
-			S->func(S->path, &S->sb, FTW_DNR) : -1;
+    dind = lvl % S->nfd;
+    if ( S->dpv[dind] != NULL ) {
+        int e = errno;
+        if ( iclosedir(S->dpv[dind]) ) {
+            perror(S->path); /* leaked & confused */
+        }
+        errno = e;
+    }
 
-	/* point to end of S->path */
-	plen = strlen(S->path);
-	ptr = S->path + plen;
-	if ( ptr[-1] != '/' ) {
-		*ptr++ = '/';
-		*ptr = '\0';
-		plen++;
-	}
+    if ( (S->dpv[dind] = opendir(S->path)) == NULL ) {
+        return errno == EACCES ?
+            S->func(S->path, &S->sb, FTW_DNR) : -1;
+    }
 
-	/* read directory */
-	doff = 0;
-	while ( (dirp = readdir(S->dpv[dind])) != NULL ) {
-		size_t nlen;
-		ssize_t ptr_sz = (ssize_t)S->pathlen - (ssize_t)(ptr - S->path);
-		
-		#ifndef HAVE_SEEKDIR
-		doff++;
-		#endif
+    /* point to end of S->path */
+    plen = strlen(S->path);
+    ptr = S->path + plen;
+    if ( ptr[-1] != '/' ) {
+        *ptr++ = '/';
+        *ptr = '\0';
+        plen++;
+    }
 
-		/* ignore dot and dot-dot */
-		if ( dirp->d_name[0] == '.' && (dirp->d_name[1] == '\0' ||
-			(dirp->d_name[1] == '.' && dirp->d_name[2] == '\0')) )
-			continue;
+    /* read directory */
+    doff = 0;
+    while ( (dirp = readdir(S->dpv[dind])) != NULL ) {
+        size_t nlen;
+        ssize_t ptr_sz = (ssize_t)S->pathlen - (ssize_t)(ptr - S->path);
 
-		/* append name */
-		nlen = NLENGTH(dirp);
-		if ( ptr_sz < 0
-			|| (plen + nlen) >= S->pathlen
-			|| ptr_sz <= strlcpy(ptr, dirp->d_name, ptr_sz) ) {
-			#ifdef ENAMETOOLONG
-	  		errno = ENAMETOOLONG;
-			#else
-	  		errno = ENOMEM;
-			#endif
-			ret = -1;
-			break;
-		}
+#       ifndef HAVE_SEEKDIR
+        doff++;
+#       endif
 
-		/* lstat: see next comment */
-		if ( lstat(S->path, &S->sb) < 0 ) {
-			ret = errno == EACCES ?
-				S->func(S->path, &S->sb, FTW_NS) : -1;
-			if ( ret ) {
-				break;
-			}
-			continue;
-		}
+        /* ignore dot and dot-dot */
+        if ( dirp->d_name[0] == '.' && (dirp->d_name[1] == '\0' ||
+            (dirp->d_name[1] == '.' && dirp->d_name[2] == '\0')) ) {
+            continue;
+        }
 
-		/* A symbolic link.  Not followed in this implementation:
-		** if a dvd's udf or iso9660 filesystem has RR extension
-		** and symlinks, then the link either points relatively to
-		** something on the disk, or they point outside the disk
-		** and we don't care about a target outside the disk fs.
-		*/
-		if ( S_ISLNK(S->sb.st_mode) ) {
-			if ( (ret = S->func(S->path, &S->sb, FTW_SL)) != 0 ) {
-				break;
-			}
-			continue;
-		}
+        /* append name */
+        nlen = NLENGTH(dirp);
+        if ( ptr_sz < 0
+            || (plen + nlen) >= S->pathlen
+            || ptr_sz <= strlcpy(ptr, dirp->d_name, ptr_sz) ) {
+#           ifdef ENAMETOOLONG
+            errno = ENAMETOOLONG;
+#           else
+            errno = ENOMEM;
+#           endif
+            ret = -1;
+            break;
+        }
 
-		/* not a directory */
-		if ( S_ISDIR(S->sb.st_mode) == 0 ) {
-			if ( (ret = S->func(S->path, &S->sb, FTW_F)) != 0 ) {
-				break;
-			}
-			continue;
-		}
+        /* lstat: see next comment */
+        if ( lstat(S->path, &S->sb) < 0 ) {
+            ret = errno == EACCES ?
+                S->func(S->path, &S->sb, FTW_NS) : -1;
+            if ( ret ) {
+                break;
+            }
+            continue;
+        }
 
-		/* directory, go recursive */
-		#if HAVE_TELLDIR
-		doff = telldir(S->dpv[dind]);
-		#endif
-		if ( doff == -1 ) {
-			perror(S->path);
-			ret = -1;
-			break;
-		}
-		ret = dopath(S, lvl + 1);
-		if ( ret != 0 )
-			break;	/* cancelled by S->func() */
-		if ( S->dpv[dind] == NULL ) {
-			int e;
-			ptr[-1] = '\0';
-			if ( (S->dpv[dind] = opendir(S->path)) == NULL ) {
-				perror(S->path);
-				return -1;
-			}
-			e = errno;
-			errno = 0;
-			seekdir(S->dpv[dind], doff);
-			if ( errno ) {
-				perror(S->path);
-				ret = -1;
-				break;
-			}
-			errno = e;
-			ptr[-1] = '/';
-		}
-	}
-	
-	/* erase current change of string */
-	ptr[-1] = '\0';
+        /* A symbolic link.  Not followed in this implementation:
+        ** if a dvd's udf or iso9660 filesystem has RR extension
+        ** and symlinks, then the link either points relatively to
+        ** something on the disk, or they point outside the disk
+        ** and we don't care about a target outside the disk fs.
+        */
+        if ( S_ISLNK(S->sb.st_mode) ) {
+            if ( (ret = S->func(S->path, &S->sb, FTW_SL)) != 0 ) {
+                break;
+            }
+            continue;
+        }
 
-	if ( S->dpv[dind] != NULL && iclosedir(S->dpv[dind]) < 0 ) {
-		perror(S->path);
-		ret = -1;
-	}
-	S->dpv[dind] = NULL;
+        /* not a directory */
+        if ( S_ISDIR(S->sb.st_mode) == 0 ) {
+            if ( (ret = S->func(S->path, &S->sb, FTW_F)) != 0 ) {
+                break;
+            }
+            continue;
+        }
 
-	return ret;
+        /* directory, go recursive */
+        #if HAVE_TELLDIR
+        doff = telldir(S->dpv[dind]);
+        #endif
+        if ( doff == -1 ) {
+            perror(S->path);
+            ret = -1;
+            break;
+        }
+
+        ret = dopath(S, lvl + 1);
+        if ( ret != 0 ) {
+            break;    /* cancelled by S->func() */
+        }
+
+        if ( S->dpv[dind] == NULL ) {
+            int e;
+            ptr[-1] = '\0';
+            if ( (S->dpv[dind] = opendir(S->path)) == NULL ) {
+                perror(S->path);
+                return -1;
+            }
+            e = errno;
+            errno = 0;
+            seekdir(S->dpv[dind], doff);
+            if ( errno ) {
+                perror(S->path);
+                ret = -1;
+                break;
+            }
+            errno = e;
+            ptr[-1] = '/';
+        }
+    }
+
+    /* erase current change of string */
+    ptr[-1] = '\0';
+
+    if ( S->dpv[dind] != NULL && iclosedir(S->dpv[dind]) < 0 ) {
+        perror(S->path);
+        ret = -1;
+    }
+
+    S->dpv[dind] = NULL;
+
+    return ret;
 }
 
 #if ! HAVE_SEEKDIR
 static void Xseekdir(DIR* p, off_t c)
 {
-	if ( c < 0 )
-		return;
+    if ( c < 0 ) {
+        return;
+    }
 
-	while ( c-- ) {
-		if ( readdir(p) == NULL )
-			break;
-	}
+    while ( c-- ) {
+        if ( readdir(p) == NULL ) {
+            break;
+        }
+    }
 }
 #endif
 
 #if CLOSEDIR_VOID
 static int iclosedir(DIR* p)
 {
-	closedir(p);
-	return 0;
+    closedir(p);
+    return 0;
 }
 #endif

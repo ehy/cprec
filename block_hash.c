@@ -2,7 +2,7 @@
    block_hash.[hc] - for handling files pointed to by more
    than one name under the VIDEO_TS directory - seen on a March 2010
    Disney film DVD.
-   
+
    libdvdread provides 'UDFFindFile' function which returns first
    block address of a file, and this can be used to identify
    additional names of one file.
@@ -37,14 +37,14 @@
 #undef NHASH
 
 #ifdef BLOCK_HASH_NHASH
-#    define NHASH BLOCK_HASH_NHASH
+#   define NHASH BLOCK_HASH_NHASH
 #else
-#    define NHASH 8
+#   define NHASH 8
 #endif
 #ifdef BLOCK_HASH_MULTIPLIER
-#    define MULTIPLIER BLOCK_HASH_MULTIPLIER
+#   define MULTIPLIER BLOCK_HASH_MULTIPLIER
 #else
-#    define MULTIPLIER 31
+#   define MULTIPLIER 31
 #endif
 
 typedef struct _block_hash_listitem {
@@ -148,7 +148,7 @@ blk_scan(blkhash_t addr, const BHI* pbhi[], unsigned num)
         }
         p = p->bh_next;
     }
-    
+
     return nr;
 }
 
@@ -157,7 +157,7 @@ bhp_find(blkhash_t blk, filesize_t sz)
 {
     BHLI* p;
     BHLI** si = &bh_tbl[bhp_index(blk)];
-    
+
     while ( (p = *si) != NULL ) {
         BHI* pi = &p->bh_item;
         if ( pi->bh_block == blk && pi->bh_size == sz ) {
@@ -165,7 +165,7 @@ bhp_find(blkhash_t blk, filesize_t sz)
         }
         si = &(p->bh_next);
     }
-    
+
     /* not found: new item in bucket */
     if ( p == NULL ) {
         /* use of calloc initializes bh_count, tested in caller

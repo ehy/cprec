@@ -29,55 +29,65 @@
 #include <errno.h>
 #include <unistd.h>
 
+#ifndef FALLBACK_FDMAX
+#   if OPEN_MAX
+#      define FALLBACK_FDMAX OPEN_MAX
+#   elif NOFILE
+#      define FALLBACK_FDMAX NOFILE
+#   elif _NFILE
+#      define FALLBACK_FDMAX _NFILE
+#   elif _POSIX_OPEN_MAX
+#      define FALLBACK_FDMAX _POSIX_OPEN_MAX
+#   else
+#      define FALLBACK_FDMAX 512
+#   endif
+#endif /* FALLBACK_FDMAX */
 
 int
 lmsc_get_nofd(int resv)
 {
-	int		nofd, i, n;
+    int        nofd, i, n;
 #if HAVE_SYSCONF
-	long l;
-	
-	i = errno;
-	errno = 0;
-	l = sysconf(_SC_OPEN_MAX);
-        if ( l < 0 ) {
-                if ( errno ) {
-#       if LIB_MISC_VERBOSE
-			perror("sysconf(_SC_OPEN_MAX)");
-#       endif /* LIB_MISC_VERBOSE */
-			return 0;
-		}
-		l = 20;
+    long l;
+
+    i = errno;
+    errno = 0;
+    l = sysconf(_SC_OPEN_MAX);
+
+    if ( l < 0 ) {
+        if ( errno ) {
+#           if LIB_MISC_VERBOSE
+            perror("sysconf(_SC_OPEN_MAX)");
+#           endif /* LIB_MISC_VERBOSE */
+            return 0;
         }
-	errno = i;
-        n = nofd = (int)l;
+        l = FALLBACK_FDMAX;
+    }
+
+    errno = i;
+    n = nofd = (int)l;
+
 #elif HAVE_GETRLIMIT
-	struct rlimit	rl;
+    struct rlimit    rl;
 
-        if ( getrlimit(RLIMIT_NOFILE, &rl) ) {
+    if ( getrlimit(RLIMIT_NOFILE, &rl) ) {
 #       if LIB_MISC_VERBOSE
-                perror("getrlimit(RLIMIT_NOFILE, )");
+        perror("getrlimit(RLIMIT_NOFILE, )");
 #       endif /* LIB_MISC_VERBOSE */
-		return 0;
-        }
-        n = nofd = (int)rl.rlim_cur;
-#elif OPEN_MAX
-        n = nofd = OPEN_MAX;
-#elif NOFILE
-        n = nofd = NOFILE;
-#elif _NFILE
-        n = nofd = _NFILE;
-#elif _POSIX_OPEN_MAX
-        n = nofd = _POSIX_OPEN_MAX;
-#else
-        n = nofd = 20;
-#endif
-        for ( i = 0; i < n; i++ ) {
-                if ( fcntl(i, F_GETFL) >= 0 )
-                        --nofd;
-        }
+        return 0;
+    }
 
-        return nofd - resv;
+    n = nofd = (int)rl.rlim_cur;
+#else
+    n = nofd = FALLBACK_FDMAX;
+#endif
+    for ( i = 0; i < n; i++ ) {
+        if ( fcntl(i, F_GETFL) >= 0 ) {
+            --nofd;
+        }
+    }
+
+    return nofd - resv;
 }
 
 

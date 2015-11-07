@@ -254,7 +254,7 @@ init_lib_drd(void)
     if ( drd_libname == NULL ) {
         drd_libname = drd_altname;
     }
-    
+
     rdrd = open_drd(drd_libname, get_drd_defflags());
 
     if ( rdrd ) {
@@ -266,14 +266,14 @@ init_lib_drd(void)
 
         pfoopt(_("%s: using %s for dvdread library\n"),
             program_name, drd_libname);
-        
+
         nf = load_drd_syms();
         if ( nf ) {
             pfeall(_("%s: failed loading %d symbols from %s\n"),
                 program_name, nf, drd_libname);
             return NULL;
         }
-        
+
         if ( DVDVersion == NULL ) {
             pfoopt(_("%s: dvdread library has no DVDVersion()\n")
                 _("\tnote version < %s API unknown\n"),
@@ -379,7 +379,7 @@ get_env_vars(int* doregmask, int* regmask)
 
                 errno = 0;
                 lv = strtol(penv, 0, 0);
-                
+
                 if ( errno || lv < 1 || lv > block_read_count ) {
                     pfeall(
                     _("\"%s\"==\"%s\" - using default %zu\n")
@@ -485,7 +485,7 @@ resolve_dvd_dev()
 
         pfeopt(_("%s: reading symbolic link '%s'\n"),
           program_name, buf);
-        
+
         strlcpy(dvdnamebuf, buf, sz);
         rll = readlink(dvdnamebuf, buf, sz);
 
@@ -524,7 +524,7 @@ resolve_dvd_dev()
 
         pfeopt(_("%s: symbolic link read got '%s'\n"),
           program_name, buf);
-        
+
         if ( lstat(buf, &sb) ) {
             pfeall(_("%s: failed stat(%s -> %s) - %s\n"),
               program_name, dvdname, buf, strerror(errno));
@@ -599,7 +599,7 @@ cprec(int texist, int tisdir)
     source_index = 0;
     for ( ; source_index < source_count; source_index++ ) {
         source_name = source_args[source_index].s;
-        
+
         if ( source_args[source_index].e ) {
             pfeall(_("%s: source argument \"%s\" error - %s\n"),
                 program_name, source_name,
@@ -623,7 +623,7 @@ cprec(int texist, int tisdir)
 
             return EXIT_FAILURE;
         }
-        
+
         if ( 0 && desired_title ) {
             if ( source_count > 1 ) {
                 pfeall(_("%s: too many source arguments (%d)\n"),
@@ -720,7 +720,7 @@ cprec(int texist, int tisdir)
             walk();
         } else {
             int e, flag = (S_ISLNK(top.sb->st_mode)) ? FTW_SL : FTW_F;
-            
+
             e = handle_file(mntd, top.sb, flag);
             if ( e ) {
                 pfeall(_("%s: error on %s\n"), program_name, mntd);
@@ -737,7 +737,7 @@ cprec(int texist, int tisdir)
                 wr_regmask(vidd, viddlen, regmask);
             }
         }
-        
+
         if ( !want_dry_run && preserve ) {
             pf_dbg(_("dbg: 2: rec_d_meta(&top) -> %s\n"), top.path);
             rec_d_meta(&top); /* also frees allocations */

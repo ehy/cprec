@@ -22,8 +22,8 @@
 #define _PATH_SET_H_ 1
 
 /* procedure prototypes */
-void	    set_paths(const char* mountp, const char* outname);
-void	    unset_paths(void);
+void        set_paths(const char* mountp, const char* outname);
+void        unset_paths(void);
 
 /* flage to set if dvd has lower case names */
 extern int  fnlower;
@@ -62,7 +62,7 @@ extern size_t  outdbufdlen;
 extern size_t  mntdbufdlen;
 extern size_t  viddbufdlen;
 extern size_t  nbufbufdlen;
- 
+
 /* some helpful snprintf macros for these buffers */
 /* for snprintf into outd, mntd, vidd, nbuf */
 #define OBPRINTF(ret, ARGS, nxit) CHECKSNPRINTF(outd, ret, ARGS, nxit)
@@ -72,14 +72,14 @@ extern size_t  nbufbufdlen;
 
 #define CHECKSNPRINTF(BUF, R, ARGS, NXIT) \
 { \
-	int n = snprintf ARGS ; \
-	if ( n >= (BUF##bufdlen) || n < 0 ) { \
-		pfeall( \
-		_("%s: internal error in pointer or size (using %s, %s:%u)\n") \
-		, program_name, #BUF, __FILE__, (unsigned)__LINE__); \
-		exit(NXIT); \
-	} \
-	R = n; \
+    int n = snprintf ARGS ; \
+    if ( n >= (BUF##bufdlen) || n < 0 ) { \
+        pfeall( \
+        _("%s: internal error in pointer or size (using %s, %s:%u)\n") \
+        , program_name, #BUF, __FILE__, (unsigned)__LINE__); \
+        exit(NXIT); \
+    } \
+    R = n; \
 }
 
 #endif /* _PATH_SET_H_ */

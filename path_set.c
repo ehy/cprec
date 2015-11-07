@@ -60,7 +60,7 @@ size_t  mntdbufdlen = A_SIZE(mntd);
 size_t  viddbufdlen = A_SIZE(vidd);
 size_t  nbufbufdlen = A_SIZE(nbuf);
 #endif
- 
+
 
 void
 unset_paths(void)
@@ -150,7 +150,7 @@ set_paths(const char* mountp, const char* outname)
     }
 
     viddlen = strlcpy(vidd, outd, viddbufdlen);
-    
+
     /* return if buffers don't have reasonable space */
     if ( (outdlen + 1 + A_SIZE("VIDEO_TS/VIDEO_TS.VOB")) > outdbufdlen ) {
         expaths = 1;

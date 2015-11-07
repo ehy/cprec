@@ -2,7 +2,7 @@
    block_hash.[hc] - for handling files pointed to by more
    than one name under the VIDEO_TS directory - seen on a March 2010
    Disney film DVD.
-   
+
    libdvdread provides 'UDFFindFile' function which returns first
    block address of a file, and this can be used to identify
    additional names of one file.
@@ -42,10 +42,10 @@ typedef uint32_t filesize_t;
  *  structure used in storage
  */
 typedef struct _block_hash_item {
-        unsigned long	bh_count; /* additional links; 1 based */
-        char*		bh_name;
-	blkhash_t	bh_block;
-        filesize_t	bh_size;
+    unsigned long    bh_count; /* additional links; 1 based */
+    char*            bh_name;
+    blkhash_t        bh_block;
+    filesize_t       bh_size;
 } BHI;
 
 /**

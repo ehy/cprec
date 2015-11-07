@@ -475,7 +475,7 @@ list_build(file_list& lst, dvd_reader_p drd)
 {
     char* pnm;
     uint32_t blk, sz;
-    
+
     for ( unsigned setn = 0; setn < 100; setn++ ) {
         // IFO
         pnm = mk_vtf_path(setn, 0, vtf_ifo);
@@ -552,7 +552,7 @@ copy_vob_badblks(
     while ( cnt ) {
         ssize_t nb;
         nbr = min(nbr, cnt);
-        
+
         if ( poff ) {
             nb = DVDReadBlocks(dvdfile, *poff, nbr, prd);
         } else if ( inp >= 0 ) {
@@ -575,7 +575,7 @@ copy_vob_badblks(
             errno = EINVAL;
             return -1;
         }
-        
+
         if ( nb == 0 ) {
             break;
         } else if ( nb < 0 ) {
@@ -594,7 +594,7 @@ copy_vob_badblks(
         } else {
             good += nb;
         }
-        
+
         if ( poff ) {
             *poff += (int)nb;
         }
@@ -619,14 +619,14 @@ copy_vob_badblks(
         perror("write in copy_badblks");                
         return -1;
     }
-    
+
     numbadblk += bad;
     tm2 = time(0);
     pfeall(
         "%lu bad blocks zeroed in read of %lu in %llu seconds\n",
         bad, (unsigned long)blkcnt,
         (unsigned long long)tm2 - tm1);
-    
+
     return cnt;
 }
 
@@ -652,7 +652,7 @@ copy_ifo(
         //ssize_t nb;
         size_t  nbr = min(cnt, block_read_count);
         size_t bcnt = nbr * blk_sz;
-        
+
         while ( bcnt ) {
             ssize_t bret = DVDReadBytes(
                 dvdfile, buf, bcnt);
@@ -671,7 +671,7 @@ copy_ifo(
                 bret -= wret;
             }
         }
-        
+
         cnt -= nbr;
     }
 
@@ -695,7 +695,7 @@ copy_vob(
     while ( cnt ) {
         ssize_t nb;
         size_t  nbr = min(cnt, block_read_count);
-        
+
         if ( poff ) {
             nb = DVDReadBlocks(dvdfile, *poff, nbr, buf);
         } else {
@@ -717,7 +717,7 @@ copy_vob(
                 nb = ssz / blk_sz;
             }
         }
-        
+
         if ( nb <= 0 ) {
             perror("DVD read");
 
@@ -757,7 +757,7 @@ copy_vob(
 
         if ( write_all(out, buf, nb) != nb ) {
             perror("write DVD data");
-    
+
             return -1;
         }
     }
@@ -830,7 +830,7 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
             } else {
                 sdom = "DVD_READ_INFO_BACKUP_FILE";
             }
-            
+
             size_t rsz = vf.size / blk_sz;
             pfeopt(
                 "%s(%u, %u) at %llu to %llu:"
@@ -895,7 +895,7 @@ dd_ops_exec(
         int setoff = 0;
         for ( size_t nvf = 0; nvf < vs.count(); nvf++ ) {
             const vt_file& vf = vs[nvf];
-            
+
             // basic error checks
             if ( off_t(vf.block) < fptr ) {
                 pfeall(
@@ -962,7 +962,7 @@ dd_ops_exec(
                 dom = drd_READ_INFO_BACKUP_FILE;
                 sdom = "DVD_READ_INFO_BACKUP_FILE";
             }
-            
+
             // copy DVD type data:
             // open libdvdread 'domain'
             drd_file_t* df = DVDOpenFile(dvd, int(vf.nset), dom);
@@ -1172,7 +1172,7 @@ env_checkvars()
     if ( (ep = getenv("DDD_RETRYBLOCKS")) != 0 ) {
         errno = 0;
         long lv = strtol(ep, 0, 0);
-        
+
         if ( errno || lv < 1 || lv > def_block_read_count ) {
             perror("bad \"DDD_RETRYBLOCKS\" value");
         } else {

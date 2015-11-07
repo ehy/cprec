@@ -269,14 +269,14 @@ idp_find(dit_t_t dev, dit_t_t ino)
 {
     IDLI* p;
     IDLI** si = &id_tbl[idp_index(dev, ino)];
-    
+
     while ( (p = *si) != NULL ) {
         if ( p->il_item.id_dev == dev && p->il_item.id_ino == ino ) {
             break;
         }
         si = &(p->il_next);
     }
-    
+
     /* not found: new item in bucket */
     if ( p == NULL ) {
         *si = p = xcalloc(1, sizeof(IDLI));
