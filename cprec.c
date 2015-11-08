@@ -57,6 +57,8 @@
 
 /* Prototypes for functions defined herein. */
 static void resolve_dvd_dev();
+/* call get_max_path(); on failure exit fail_statux */
+static size_t fatal_max_path(int fail_status);
 static unsigned char* setup_global_buffer(void);
 static void get_env_vars(int* doregmask, int* regmask);
 static void usage(int status);
@@ -112,7 +114,8 @@ char* dvdnamebuf = NULL; /* used if dvdname is assigned an allocation */
 #if ! HAVE_LIBDVDREAD
 const char* drd_libname;        /* --libdvdr */
 #endif
-const char* desired_title_s;    /* --dvdbackup */
+const char* desired_title_s     /* --dvdbackup */
+    = NULL;
 int desired_title;              /* --dvdbackup (converted) */
 int want_quiet;                 /* --quiet, --silent */
 int want_verbose;               /* --verbose */
@@ -439,28 +442,35 @@ setup_global_buffer(void)
     return buf;
 }
 
+static size_t
+fatal_max_path(int fail_status)
+{
+    int bufsize;
+
+    bufsize = get_max_path(); /* from lib misc */
+    if ( bufsize <= 0 ) {
+        pfeall(_("%s: cannot get filesystempath maximum\n"),
+          program_name);
+        exit(fail_status);
+    }
+
+    return (size_t)bufsize;
+}
+
 static void
 resolve_dvd_dev()
 {
     char* buf;
-    int bufsize;
     size_t sz;
     struct stat sb;
 
     if ( lstat(dvdname, &sb) ) {
-        pfeall(_("%s: failed stat(%s) - %s\n"),
+        pfeall(_("%s: failed device name stat(%s) - %s\n"),
           program_name, dvdname, strerror(errno));
         exit(1);
     }
 
-    bufsize = get_max_path(); /* from lib misc */
-    if ( bufsize <= 0 ) {
-        pfeall(_("%s: cannot get fs path maximum for %s\n"),
-          program_name, dvdname);
-        exit(1);
-    }
-
-    sz = (size_t)bufsize;
+    sz = fatal_max_path(1);
 
     buf = xmalloc(sz);
     if ( strlcpy(buf, dvdname, sz) >= sz ) {
@@ -476,14 +486,14 @@ resolve_dvd_dev()
 
 #if HAVE_LSTAT
     /* this readlink loop is not really needed because if
-     * link ultimately points to a mount pount then
+     * the link ultimately points to a mount pount then
      * get_mnt_dev() uses realpath() which handles symlinks,
      * but this loop allows more verbosity
      */
     while ( S_ISLNK(sb.st_mode) ) {
         int rll;
 
-        pfeopt(_("%s: reading symbolic link '%s'\n"),
+        pfeopt(_("%s: reading device symbolic link '%s'\n"),
           program_name, buf);
 
         strlcpy(dvdnamebuf, buf, sz);
@@ -522,11 +532,11 @@ resolve_dvd_dev()
 
         buf[rll] = '\0';
 
-        pfeopt(_("%s: symbolic link read got '%s'\n"),
+        pfeopt(_("%s: device symbolic link read got '%s'\n"),
           program_name, buf);
 
         if ( lstat(buf, &sb) ) {
-            pfeall(_("%s: failed stat(%s -> %s) - %s\n"),
+            pfeall(_("%s: failed device name stat(%s -> %s) - %s\n"),
               program_name, dvdname, buf, strerror(errno));
             exit(1);
         }
@@ -789,6 +799,8 @@ main(int argc, char* argv[])
 
     i = get_options(argc, argv);
 
+    pf_setup(want_verbose > want_quiet, want_quiet == 0);
+
     if ( desired_title_s != NULL ) {
         long n;
         char* ep;
@@ -815,10 +827,45 @@ main(int argc, char* argv[])
             program_name);
         usage(EXIT_FAILURE);
     }
+
     if ( i == (argc - 1) ) {
-        pfeall(_("%s: target argument required\n"),
-            program_name);
-        usage(EXIT_FAILURE);
+        /* special case: if only one arg, but -dN given was,
+         * then check if dev node arg (-n) is a directory,
+         * and if so take it as mounted disc source arg
+         * and use the single arg as target
+         */
+        do {
+#           if HAVE_REALPATH
+            struct stat sb;
+
+            /* desired_title_s != NULL implies -d N was given */
+            if ( desired_title_s != NULL &&
+                 stat(dvdname, &sb) == 0 && S_ISDIR(sb.st_mode) ) {
+                char* buf = realpath(dvdname, NULL);
+
+                if ( buf != NULL ) {
+                    size_t sz = strlen(buf) + 1;
+                    /* adjust index and assign to argv for following
+                     * code to find -- also, use a new allocation just
+                     * large enough, since we don't know the size at buf
+                     */
+                    argv[--i] = xmalloc(sz);
+                    strlcpy(argv[i], buf, sz);
+                    free(buf);
+                    pfeopt(
+                        _("%s: using '%s' (%s) as source argument\n"),
+                        program_name, argv[i], dvdname);
+                    /* leave do loop, refraining from usage() */
+                    break;
+                }
+            }
+#           endif /* HAVE_REALPATH */
+
+            /* Nope, exit */
+            pfeall(_("%s: target argument required\n"),
+                program_name);
+            usage(EXIT_FAILURE);
+        } while ( 0 );
     }
 
     source_args = xmalloc(sizeof(SARG) * (argc-i));
@@ -885,7 +932,6 @@ main(int argc, char* argv[])
     }
 
     /* do the work */
-    pf_setup(want_verbose > want_quiet, want_quiet == 0);
     return cprec(texist, tisdir);
 }
 
