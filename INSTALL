@@ -33,7 +33,7 @@ Peculiarities of this package:
   the default --prefix).
 
 - The programs use symbols (of functions) in libdvdread that some
-  versions of tha library attempt to keep private in the shared build.
+  versions of that library attempt to keep private in the shared build.
   ``Attempt'' because on most systems these programs have been tested
   on the symbols are not actually rendered private and can be used.
   One excpetion is OpenIndiana using the SunStudio tools, and surely
@@ -42,6 +42,21 @@ Peculiarities of this package:
   and configure with --with-libdvdread=/path/to/libdvdread.a, or hack
   the libdvdread package to make the private symbols visible.  (Note
   that the 'private' functions seem stable.)
+
+- The included program `cprec; is compiled with a default for the dvd
+  device node.  This is '/dev/dvd' unless something else is set.  The
+  configure script does not include an option to set this value, but
+  it can be set with a CFLAGS argument.  For example:
+
+    % ./configure CFLAGS="$CFLAGS -DDEFAULT_DVD_NODE=\\\"/dev/<your  node  here>\\\""
+
+  The example above assumes CFLAGS is already present in your working
+  environment.  Since it probably is not, you might prefer this:
+
+    % ./configure CFLAGS="-O -DDEFAULT_DVD_NODE=\\\"/dev/<your  node  here>\\\""
+
+  See ./configure --help for the usual build variables that can be set
+  as arguments on the configure command line.
 
 The standard autoconf instructions follow:
 
