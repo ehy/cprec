@@ -396,7 +396,7 @@ get_env_vars(int* doregmask, int* regmask)
                 }
             }
             pfoopt(
-          _("Will desperately try to continue with I/O errors, %d\n")
+            _("Will desperately try to continue with I/O errors, %d\n")
             , do_ioerrs);
         }
     } else {    
@@ -449,7 +449,7 @@ fatal_max_path(int fail_status)
 
     bufsize = get_max_path(); /* from lib misc */
     if ( bufsize <= 0 ) {
-        pfeall(_("%s: cannot get filesystempath maximum\n"),
+        pfeall(_("%s: cannot get filesystem path maximum\n"),
           program_name);
         exit(fail_status);
     }
@@ -829,7 +829,7 @@ main(int argc, char* argv[])
     }
 
     if ( i == (argc - 1) ) {
-        /* special case: if only one arg, but -dN given was,
+        /* special case: if given only one arg, but -dN given was,
          * then check if dev node arg (-n) is a directory,
          * and if so take it as mounted disc source arg
          * and use the single arg as target
@@ -844,11 +844,11 @@ main(int argc, char* argv[])
                 char* buf = realpath(dvdname, NULL);
 
                 if ( buf != NULL ) {
-                    size_t sz = strlen(buf) + 1;
                     /* adjust index and assign to argv for following
                      * code to find -- also, use a new allocation just
                      * large enough, since we don't know the size at buf
                      */
+                    size_t sz = strlen(buf) + 1;
                     argv[--i] = xmalloc(sz);
                     strlcpy(argv[i], buf, sz);
                     free(buf);

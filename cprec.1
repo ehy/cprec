@@ -15,7 +15,8 @@
 .\"
 .\" .TH CPREC 1 "November 22, 2007"
 .\" .TH CPREC 1 "January 17, 2010"
-.TH CPREC 1 "September 1, 2014"
+.\" .TH CPREC 1 "September 1, 2014"
+.TH CPREC 1 "November 9, 2015"
 .\" Please update the above date whenever this man page is modified.
 .\"
 .\" Some nroff macros, for reference:
@@ -73,7 +74,7 @@ the backup.
 There is one important difference from the behavior of \fIcp\fP
 that a user should be aware of. When making a DVD backup, if
 the output target is an existing directory, the DVD mount point
-is will not be copied under the target, only the source contents.
+will not be copied under the target, only the source contents.
 See the examples section.
 .PP
 The \fIcprec\fP program is intended for backups.
@@ -126,13 +127,17 @@ directory is a child of that argument).
 .TP
 .BR  \-n , " \-\-node" " <\fIdevice_node\fP>"
 The raw device node associated with the DVD reader.
-For example, on \fIGNU/Linux\fP it might be \fB/dev/hdc\fP,
+For example, on \fIGNU/Linux\fP it might be \fB/dev/sr0\fP,
 on \fINetBSD\fP on an i386 it might be \fB/dev/rcd0d\fP.
 The default is
 .nh
 `\fB/dev/dvd\fP'
 .hy
-(unless changed before compilation).
+(unless changed before configuration; try
+CFLAGS="$CFLAGS -DDEFAULT_DVD_NODE=\\"/dev/<your node here>\\"").
+As of \fIcprec\fP version 0.1.3 the mount point for a mounted
+device may be given and \fIcprec\fP will try to find the device
+node.
 .TP
 .BR \-s , " \-\-simple\-copy"
 Simply copy files and do nothing special for video DVD entries;
@@ -215,7 +220,30 @@ as if it hadn't existed; that is, \fIcprec\fP would not
 have created \fIbackup/mnt\fP as \fIcp\fP would have,
 but instead would have  started at the contents of
 \fI/mnt\fP. This behavior should allow \fIbackup\fP
-to be the argument to a command such as mkisofs(1).
+to be given as the argument to a command such as mkisofs(1).
+.PP
+As of version 0.1.3, the example above may be shortened,
+such as:
+.IP
+.nf
+\fC% cprec -p -v -d 0 -n /mnt backup\fP
+.fi
+.PP
+Note that the argument to -n is now \fI/mnt\fP and its
+former argument \fI/dev/dvd\fP is absent, leaving only
+one target argument after the options. This form of
+command is recognized only if a -dN option is given.
+In this command form, \fIcprec\fP will try to
+determine if \fI/mnt\fP is a directory. If it is,
+it will be used as the source argument, resolving
+symbolic links and relative path.
+.PP
+The simple shortened command above also shows new
+behavior introduced with \fIcprec\fP version
+0.1.3: the -n (--node) option may be given an
+argument that is a mount point for a mounted
+device, and \fIcprec\fP will try to find the
+associated device node.
 .PP
 When not making a DVD backup (using \fI-d\fP)
 \fIcprec\fP will behave
