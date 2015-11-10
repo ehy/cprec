@@ -23,20 +23,20 @@
 
 /* for final utime setting of dirs tree */
 typedef struct _directory {
-	unsigned long		ndirs;  /* count of dirs in this dir */
-	struct _directory*	pdirs;  /* (re)alloc'd array */
-	unsigned long		alloc;  /* count of dirs mem mallocated */
-	struct _directory*	ppare;  /* parent */
-	struct stat*		sb;     /* status of this dir */
-	char*			path;   /* full path name */
+    unsigned long        ndirs;  /* count of dirs in this dir */
+    struct _directory*   pdirs;  /* (re)alloc'd array */
+    unsigned long        alloc;  /* count of dirs mem mallocated */
+    struct _directory*   ppare;  /* parent */
+    struct stat*         sb;     /* status of this dir */
+    char*                path;   /* full path name */
 } dire_t, * dire_p;
-#define REALLOC_dire_t	8
+#define REALLOC_dire_t    8
 extern dire_p topdir;
 
 /* procedure prototypes */
-void	    set_f_meta(const char*, const struct stat*);
-void	    set_d_meta(const char*, const struct stat*);
-void	    rec_d_meta(dire_p);
-void	    set_dire_t(const char*, const struct stat*);
+void        set_f_meta(const char*, const struct stat*);
+void        set_d_meta(const char*, const struct stat*);
+void        rec_d_meta(dire_p);
+void        set_dire_t(const char*, const struct stat*);
 
 #endif /* _META_SET_H_ */

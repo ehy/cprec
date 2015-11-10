@@ -31,18 +31,18 @@ extern int ino_store_paths;
 
 /* structure used in storage */
 typedef struct _ino_dev_paths {
-	dit_t_t		id_dev;
-	dit_t_t		id_ino;
-	nlink_t		id_nlink;
-	/* count of paths presently seen for dev,ino */
-	nlink_t		id_count;
+    dit_t_t        id_dev;
+    dit_t_t        id_ino;
+    nlink_t        id_nlink;
+    /* count of paths presently seen for dev,ino */
+    nlink_t        id_count;
 #if HARDLINK_STORE_PATHS
-	/* path pointers to be allocated per id_nlink, above, */
-	/* if global flag ino_store_paths is not zero */
-	char**		id_paths;
+    /* path pointers to be allocated per id_nlink, above, */
+    /* if global flag ino_store_paths is not zero */
+    char**         id_paths;
 #endif
-	/* first path found for dev,ino */
-	char*		id_path0;
+    /* first path found for dev,ino */
+    char*          id_path0;
 } IDP;
 
 /**
@@ -55,27 +55,27 @@ typedef struct _ino_dev_paths {
  */
 const IDP* ino_check(const struct stat* pss, const char* path);
 const IDP* ino_check_args(dit_t_t dev, dit_t_t ino, nlink_t nlink,
-				const char* path);
+                          const char* path);
 
 /**
  *  what has been found so far?
  *
  *  pointer arguments, if not NULL, are written as follows:
  *
- *  ntbl:	number of buckets (entries in table)
- *  minentlen:	minimum length of any bucket list
- *  maxentlen:	maximum length of any bucket list
- *  nnotfull:	number of entries with count < nlinks
- *  nitems:	total distinct dev,ino stored
+ *  ntbl:    number of buckets (entries in table)
+ *  minentlen:    minimum length of any bucket list
+ *  maxentlen:    maximum length of any bucket list
+ *  nnotfull:    number of entries with count < nlinks
+ *  nitems:    total distinct dev,ino stored
  *
  *  returns number of non-NULL table entries
  */
 unsigned ino_status(
-	unsigned* ntbl,
-	unsigned* minentlen,
-	unsigned* maxentlen,
-	unsigned* nnotfull,
-	unsigned* nitems
+    unsigned* ntbl,
+    unsigned* minentlen,
+    unsigned* maxentlen,
+    unsigned* nnotfull,
+    unsigned* nitems
 );
 
 /**

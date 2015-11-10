@@ -34,13 +34,13 @@ extern const unsigned regm2;
 /* found bad blocks? */
 extern unsigned long numbadblk;
 
-void	    copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf);
-ssize_t	    copy_vob(drd_file_t* dvdfile
-		, const char* out, unsigned char* buf
-		, size_t blkcnt, long* poff);
-int	    copy_file(const char* src, const char* dest);
-int	    copy_file_force(const char* src, const char* dest);
-int	    copy_bup_ifo(char* src, const char* dest);
-void	    wr_regmask(char* d, int dlen, unsigned val);
+void       copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf);
+ssize_t    copy_vob(drd_file_t* dvdfile
+           , const char* out, unsigned char* buf
+           , size_t blkcnt, long* poff);
+int        copy_file(const char* src, const char* dest);
+int        copy_file_force(const char* src, const char* dest);
+int        copy_bup_ifo(char* src, const char* dest);
+void       wr_regmask(char* d, int dlen, unsigned val);
 
 #endif /* _CPF_H_ */

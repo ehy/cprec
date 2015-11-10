@@ -25,12 +25,12 @@
 extern int titlecnt;
 typedef struct stat vobf_t;
 typedef struct titlist {
-	struct titlist* pnext, * pprev;
-	short  num, chnum;
-	short  has_ifo, has_bup;
-	vobf_t vobs[10];
-	vobf_t ifos[1];
-	vobf_t bups[1];
+    struct titlist* pnext, * pprev;
+    short  num, chnum;
+    short  has_ifo, has_bup;
+    vobf_t vobs[10];
+    vobf_t ifos[1];
+    vobf_t bups[1];
 } titlist_t, * titlist_p;
 
 extern titlist_p tit0;

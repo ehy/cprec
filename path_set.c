@@ -66,17 +66,21 @@ void
 unset_paths(void)
 {    
 #if DYNALLOC_BUFFERS
-    if ( mntd )
+    if ( mntd ) { /* fix-missing-block.sh */
         free(mntd);
+    }
     mntd = NULL;
-    if ( outd )
+    if ( outd ) { /* fix-missing-block.sh */
         free(outd);
+    }
     outd = NULL;
-    if ( vidd )
+    if ( vidd ) { /* fix-missing-block.sh */
         free(vidd);
+    }
     vidd = NULL;
-    if ( nbuf )
+    if ( nbuf ) { /* fix-missing-block.sh */
         free(nbuf);
+    }
     nbuf = NULL;
 #else
     mntd[0] = '\0';

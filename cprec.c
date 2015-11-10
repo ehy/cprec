@@ -665,11 +665,13 @@ cprec(int texist, int tisdir)
 
                 p = strrchr(mntd, '/');
 
-                if ( p == NULL )
+                if ( p == NULL ) {
                     p = mntd;
-                else
+                } else {
                     p++;
+                }
                 len = strlen(p);
+
                 buflen = outdbufdlen - outdlen - 1;
                 if ( buflen <= len ) {
                     pfeall(
@@ -734,8 +736,9 @@ cprec(int texist, int tisdir)
             e = handle_file(mntd, top.sb, flag);
             if ( e ) {
                 pfeall(_("%s: error on %s\n"), program_name, mntd);
-                if ( !force )
+                if ( !force ) {
                     return EXIT_FAILURE;
+                }
             }
             free(top.sb);
             continue;

@@ -166,11 +166,21 @@ ino_status(
         min = 0;
     }
 
-    if ( ntbl != NULL ) *ntbl = (unsigned)NHASH;
-    if ( minentlen != NULL ) *minentlen = min;
-    if ( maxentlen != NULL ) *maxentlen = max;
-    if ( nnotfull != NULL ) *nnotfull = nno;
-    if ( nitems != NULL ) *nitems = nit;
+    if ( ntbl != NULL ) {
+        *ntbl = (unsigned)NHASH;
+    }
+    if ( minentlen != NULL ) {
+        *minentlen = min;
+    }
+    if ( maxentlen != NULL ) {
+        *maxentlen = max;
+    }
+    if ( nnotfull != NULL ) {
+        *nnotfull = nno;
+    }
+    if ( nitems != NULL ) {
+        *nitems = nit;
+    }
 
     return num;
 }
@@ -199,8 +209,9 @@ ino_check_args(dit_t_t dev, dit_t_t ino, nlink_t nlink, const char* path)
     int        i;
     IDP*        id;
 
-    if ( nlink < 2 )
+    if ( nlink < 2 ) {
         return NULL;
+    }
 
     id = idp_find(dev, ino);
     if ( id == NULL ) {
@@ -212,11 +223,12 @@ ino_check_args(dit_t_t dev, dit_t_t ino, nlink_t nlink, const char* path)
     if ( id->id_count == 0 ) { /* just created: initialize */
         id->id_nlink = nlink;
 #if HARDLINK_STORE_PATHS
-        if ( ino_store_paths ) 
+        if ( ino_store_paths ) {
             id->id_paths =
                 xcalloc((size_t)id->id_nlink, sizeof(char*));
-        else
+        } else {
             id->id_paths = xmalloc(sizeof(char*));
+        }
 #endif
     }
 
@@ -227,10 +239,13 @@ ino_check_args(dit_t_t dev, dit_t_t ino, nlink_t nlink, const char* path)
             pfeall(_("%s: i,%llu d,%llu has bogus nlink %lld\n"),
                 program_name, ino, dev,
                 CAST_LL(id->id_nlink));
-            for ( i = 0; i < id->id_count; i++ )
+
+            for ( i = 0; i < id->id_count; i++ ) {
                 pfeall(_("%s: i,%llu d,%llu has path %s\n"),
                     program_name, ino, dev,
                     id->id_paths[i]);
+            }
+
             pfeall(_("%s: i,%llu d,%llu has extra path: %s\n"),
                 program_name, ino, dev, path);
             return NULL;

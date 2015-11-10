@@ -207,8 +207,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         if ( blk ) {
             int r = disc_block_check(blk, nbuf, fsz);
             if ( r > 0 ) {
-                if ( !force || r >= 10 )
+                if ( !force || r >= 10 ) {
                     exit(r);
+                }
                 pfeall(_(
                   "%s: continuing due to force option, "
                   "but output might be very large, and "
@@ -226,8 +227,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             /* hoping errno is relevant */
             pfeall(_("%s: failed opening %s - %s\n"),
               program_name, fnstr[i], strerror(errno));
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(5);
         }
@@ -236,8 +238,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed getting block size of %s\n"),
                 program_name, nbuf);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(6);
         }
@@ -249,8 +252,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
               _("%s: failed \"%s\" copy (%ld blocks)\n"),
               program_name, fnstr[i], (long)nblk);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(7);
         }
@@ -278,12 +282,14 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         do0 = 1;
 
         for ( pt = tit0; pt != NULL; pt = pt->pnext ) {
-            if ( pt->chnum == i )
+            if ( pt->chnum == i ) {
                 break;
+            }
         }
 
-        if ( pt == NULL ) /* done */
+        if ( pt == NULL ) /* done */ {
             continue;
+        }
 
         /* do IFO */
         while ( do0 && pt->has_ifo ) {
@@ -297,17 +303,19 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 perror(mntd);
                 pfeall(_("%s: failed stat(%s) - %s\n"),
                     program_name, mntd, strerror(errno));
-                if ( force )
+                if ( force ) {
                     do0 = 0;
-                else
+                } else {
                     exit(1);
+                }
             }
         }
 
-        if ( fnlower && ign_lc )
+        if ( fnlower && ign_lc ) {
             NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.ifo", vidd, i, 0))
-        else
+        } else {
             NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.IFO", vidd, i, 0))
+        }
 
         pfoopt(_("X %s size %zu\n"), nbuf, pt->ifos[0].st_size);
 
@@ -316,8 +324,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         if ( blk ) {
             int r = disc_block_check(blk, nbuf, fsz);
             if ( r > 0 ) {
-                if ( !force || r >= 10 )
+                if ( !force || r >= 10 ) {
                     exit(r);
+                }
                 pfeall(_(
                   "%s: continuing due to force option, "
                   "but output might be very large, and "
@@ -333,8 +342,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         if ( dvdfile == 0 ) {
             pfeall(_("%s: failed opening IFO of title %d\n"),
                 program_name, i);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(8);
         }
@@ -343,8 +353,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed getting block size of %s\n"),
                 program_name, nbuf);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(9);
         }
@@ -355,8 +366,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed in IFO copy (%ld blocks)\n"),
                 program_name, (long)nblk);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(10);
         }
@@ -382,17 +394,19 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 perror(mntd);
                 pfeall(_("%s: failed stat(%s) - %s\n"),
                     program_name, mntd, strerror(errno));
-                if ( force )
+                if ( force ) {
                     do0 = 0;
-                else
+                } else {
                     exit(1);
+                }
             }
         }
 
-        if ( fnlower && ign_lc )
+        if ( fnlower && ign_lc ) {
             NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.bup", vidd, i, 0))
-        else
+        } else {
             NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.BUP", vidd, i, 0))
+        }
 
         pfoopt(_("X %s size %zu\n"), nbuf, pt->bups[0].st_size);
 
@@ -401,8 +415,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         if ( blk ) {
             int r = disc_block_check(blk, nbuf, fsz);
             if ( r > 0 ) {
-                if ( !force || r >= 10 )
+                if ( !force || r >= 10 ) {
                     exit(r);
+                }
                 pfeall(_(
                   "%s: continuing due to force option, "
                   "but output might be very large, and "
@@ -418,8 +433,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         if ( dvdfile == 0 ) {
             pfeall(_("%s: failed opening BUP of title %d\n"),
                 program_name, i);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(8);
         }
@@ -428,8 +444,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed getting block size of %s\n"),
                 program_name, nbuf);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(9);
         }
@@ -440,8 +457,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed in BUP copy (%ld blocks)\n"),
                 program_name, (long)nblk);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(10);
         }
@@ -460,8 +478,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: both IFO and BUP had bad blocks "
                 "(%llu, %llu bad blocks)\n"),
                 program_name, ifo_badbl, bup_badbl);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(10);
         /* If only one but not both are damaged, copy the good
@@ -503,8 +522,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 pfeall(_("%s: copy %s to %s failed\n"),
                     program_name, nbuf, dst);
                 free(dst);
-                if ( force )
+                if ( force ) {
                     break;
+                }
                 DVDClose(dvdreader);
                 exit(10);
             }
@@ -532,18 +552,20 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 perror(mntd);
                 pfeall(_("%s: failed stat(%s) - %s\n"),
                     program_name, mntd, strerror(errno));
-                if ( force )
+                if ( force ) {
                     do0 = 0;
-                else
+                } else {
                     exit(1);
+                }
             }
         }
 
         if ( do0 ) {
-        if ( fnlower && ign_lc )
+        if ( fnlower && ign_lc ) {
             NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.vob", vidd, i, 0))
-        else
+        } else {
             NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.VOB", vidd, i, 0))
+        }
 
         pfoopt(_("X %s size %zu\n"), nbuf, pt->vobs[0].st_size);
         } /* do0 */
@@ -555,8 +577,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         if ( blk ) {
             int r = disc_block_check(blk, nbuf, fsz);
             if ( r > 0 ) {
-                if ( !force || r >= 10 )
+                if ( !force || r >= 10 ) {
                     exit(r);
+                }
                 pfeall(_(
                   "%s: continuing due to force option, "
                   "but output might be very large, and "
@@ -584,15 +607,17 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 td = open(nbuf, O_CREAT|O_EXCL|O_TRUNC|O_WRONLY, 0666);
                 if ( td < 0 && force && errno == EEXIST ) {
                     td = open(nbuf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
-                    if ( td >= 0 )
+                    if ( td >= 0 ) {
                         pfoopt(_("%s: truncated extant %s\n"),
                             program_name, nbuf);
+                    }
                 }
                 if ( td < 0 ) {
                     pfeall(_("%s: failed creating %s - %s\n"),
                         program_name, nbuf, strerror(errno));
-                    if ( force )
+                    if ( force ) {
                         break;
+                    }
                     DVDClose(dvdreader);
                     exit(8);
                 }
@@ -605,8 +630,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
             pfeall(_("%s: failed opening menu of title %d\n"),
                 program_name, i);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(8);
         }
@@ -615,8 +641,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed getting block size of %s\n"),
                 program_name, nbuf);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(9);
         }
@@ -626,8 +653,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed to copy VOB at %ld blocks\n"),
                 program_name, (long)nblk);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 break;
+            }
             DVDClose(dvdreader);
             exit(10);
         }
@@ -645,8 +673,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         if ( dvdfile == 0 ) {
             pfeall(_("%s: failed opening title %d\n"),
                 program_name, i);
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(11);
         }
@@ -655,8 +684,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             pfeall(_("%s: failed getting block size of %s\n"),
                 program_name, nbuf);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(12);
         }
@@ -669,29 +699,33 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
         PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.VOB", i, j))
         if ( statihack(mntd, pn, &(pt->vobs[j])) ) {
-            if ( errno == ENOENT )
+            if ( errno == ENOENT ) {
                 continue;
+            }
             perror(mntd);
             pfeall(_("%s: error in stat() of %s\n"),
                 program_name, mntd);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(14);
         }
-        if ( fnlower && ign_lc )
+        if ( fnlower && ign_lc ) {
             NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.vob", vidd, i, j))
-        else
+        } else {
             NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.VOB", vidd, i, j))
+        }
 
         /* check for multiple 'links' to file; 1st seen 2010 */
         blk = UDFFindFile(dvdreader, pn-1, &fsz);
         if ( blk ) {
             int r = disc_block_check(blk, nbuf, fsz);
             if ( r > 0 ) {
-                if ( !force || r >= 10 )
+                if ( !force || r >= 10 ) {
                     exit(r);
+                }
                 pfeall(_(
                   "%s: continuing due to force option, "
                   "but output might be very large, and "
@@ -716,8 +750,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 (unsigned)blk_sz,
                 sz % blk_sz);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(15);
         }
@@ -730,8 +765,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             _("%s: failed in VOB copy, %zu blocks\n"),
                 program_name, sz);
             DVDCloseFile(dvdfile);
-            if ( force )
+            if ( force ) {
                 continue;
+            }
             DVDClose(dvdreader);
             exit(16);
         }
@@ -748,8 +784,9 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             if ( nblk ) {
                 pfeall(_("%s: %ld stray blocks from %s\n")
                     , program_name, (long)nblk, nbuf);
-                if ( force )
+                if ( force ) {
                     continue;
+                }
                 exit(17);
             }
         } /* !want_dry_run */
@@ -1066,6 +1103,7 @@ copy_file(const char* src, const char* dest)
             chmod(src, sb.st_mode | 0400);
             ifd = open(src, O_RDONLY|O_LARGEFILE);
             chmod(src, sb.st_mode);
+
             if ( ifd < 0 ) {
                 pfeall(_("%s: %s open(O_RDONLY)ing: %s\n"),
                     program_name, strerror(errno), src);

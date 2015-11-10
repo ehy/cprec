@@ -1,5 +1,5 @@
 /* 
-   hdr_cfg.h --	common things in accord with a 'config.h' file.
+   hdr_cfg.h --    common things in accord with a 'config.h' file.
 
    Copyright (C) 2007 Ed Hynan
 
@@ -78,11 +78,11 @@ void free ();
 #if HAVE_STRING_H
 # include <string.h>
 #else
-#	if __STDC__
-	size_t strlen (const char *);
-#	else
-	size_t strlen ();
-#	endif
+#   if __STDC__
+    size_t strlen (const char *);
+#   else
+    size_t strlen ();
+#   endif
 #endif
 
 #if HAVE_CTYPE_H
@@ -140,11 +140,11 @@ void free ();
 #if HAVE_ERROR_H
 #include <error.h>
 #else
-#	if defined(__STDC__) && (HAVE_VPRINTF || HAVE_DOPRNT)
-	void error (int, int, const char *, ...);
-#	else
-	void error ();
-#	endif
+#   if defined(__STDC__) && (HAVE_VPRINTF || HAVE_DOPRNT)
+    void error (int, int, const char *, ...);
+#   else
+    void error ();
+#   endif
 #endif
 
 #ifndef O_NOFOLLOW

@@ -1299,7 +1299,9 @@ get_options(int argc, char* argv[])
 inline void
 set_program_name(const char* p)
 {
-    if ( ! p || ! *p ) return;
+    if ( ! p || ! *p ) {
+        return;
+    }
     const char* q = strrchr(p, '/');
     program_name = (q && *++q) ? q : p;
 }
@@ -1457,8 +1459,9 @@ main(int argc, char* argv[])
 
     if ( dryrun || outname == "" ) {
         out = STDOUT_FILENO;
-        if ( outname == "" )
+        if ( outname == "" ) {
             outname = "<standard output>";
+        }
     } else {
         out = open(outname.c_str(), O_TRUNC|O_CREAT|O_WRONLY, 0666);
     }

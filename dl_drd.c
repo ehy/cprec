@@ -30,31 +30,31 @@
 int
 load_drd_syms(void)
 {
-	return 0;
+    return 0;
 }
 
 int
 close_drd(void)
 {
-	return 0;
+    return 0;
 }
 
 int
 open_drd(const char* drd_soname, int drd_flags)
 {
-	return 0;
+    return 0;
 }
 
 int
 open_drd_default(void)
 {
-	return 0;
+    return 0;
 }
 
 int
 get_drd_defflags(void)
 {
-	return 0;
+    return 0;
 }
 
 #else /* HAVE_LIBDVDREAD */
@@ -92,9 +92,9 @@ UDFFindFile_t drd_UDFFindFile;
 int
 load_drd_syms(void)
 {
-	int nerr = 0;
+    int nerr = 0;
 
-	dlerror();
+    dlerror();
 
 /* dlsym() null return is not strictly an error, but not OK here */
 #undef  SYMLOAD
@@ -103,65 +103,66 @@ if ( (drd_##S = (S##_t)dlsym(drd_handle, #S)) == 0 ) { \
   const char* p = dlerror(); \
   nerr += E; \
   pfeall(_("%s: failed on symbol %s: %s\n"), \
-  	program_name, #S, p ? p : _("true null address")); \
+      program_name, #S, p ? p : _("true null address")); \
 }
-	SYMLOAD(DVDOpen, 1)
-	SYMLOAD(DVDClose, 1)
-	SYMLOAD(DVDOpenFile, 1)
-	SYMLOAD(DVDCloseFile, 1)
-	SYMLOAD(DVDReadBlocks, 1)
-	SYMLOAD(DVDFileSeek, 1)
-	SYMLOAD(DVDFileSize, 1)
-	SYMLOAD(UDFFindFile, 1)
-	/* special optional case: allowed to fail */
-	SYMLOAD(DVDVersion, 0)
-	/* Not used or optional so do not add to error count.
-	   If symbol is not optional then change 0 to 1
-	   and move above this comment.
-	 */
-	SYMLOAD(DVDReadBytes, 0)
-	SYMLOAD(DVDDiscID, 0)
-	SYMLOAD(DVDUDFVolumeInfo, 0)
-	SYMLOAD(DVDISOVolumeInfo, 0)
-	SYMLOAD(DVDUDFCacheLevel, 0)
+    SYMLOAD(DVDOpen, 1)
+    SYMLOAD(DVDClose, 1)
+    SYMLOAD(DVDOpenFile, 1)
+    SYMLOAD(DVDCloseFile, 1)
+    SYMLOAD(DVDReadBlocks, 1)
+    SYMLOAD(DVDFileSeek, 1)
+    SYMLOAD(DVDFileSize, 1)
+    SYMLOAD(UDFFindFile, 1)
+    /* special optional case: allowed to fail */
+    SYMLOAD(DVDVersion, 0)
+    /* Not used or optional so do not add to error count.
+       If symbol is not optional then change 0 to 1
+       and move above this comment.
+     */
+    SYMLOAD(DVDReadBytes, 0)
+    SYMLOAD(DVDDiscID, 0)
+    SYMLOAD(DVDUDFVolumeInfo, 0)
+    SYMLOAD(DVDISOVolumeInfo, 0)
+    SYMLOAD(DVDUDFCacheLevel, 0)
 #undef  SYMLOAD
 
-	return nerr;
+    return nerr;
 }
 
 int
 close_drd(void)
 {
-	if ( !drd_handle || dlclose(drd_handle) )
-		return -1;
-	drd_handle = 0;
-	return 0;
+    if ( !drd_handle || dlclose(drd_handle) ) { /* fix-missing-block.sh */
+        return -1;
+    }
+    drd_handle = 0;
+    return 0;
 }
 
 int
 open_drd(const char* drd_soname, int drd_flags)
 {
-	close_drd();
-	drd_handle = dlopen(drd_soname, drd_flags);
-	if ( drd_handle == 0 ) {
-		const char* p = dlerror();
-		pfeall(_("%s: failed loading %s: %s\n"),
-			program_name, drd_soname, p?p:_("unknown error"));
-		return -1;
-	}
-	return 0;
+    close_drd();
+    drd_handle = dlopen(drd_soname, drd_flags);
+    if ( drd_handle == 0 ) {
+        const char* p = dlerror();
+        pfeall(_("%s: failed loading %s: %s\n"),
+            program_name, drd_soname, p?p:_("unknown error"));
+        return -1;
+    }
+    return 0;
 }
 
 int
 open_drd_default(void)
 {
-	return open_drd(drd_defname, drd_defflags);
+    return open_drd(drd_defname, drd_defflags);
 }
 
 int
 get_drd_defflags(void)
 {
-	return drd_defflags;
+    return drd_defflags;
 }
 
 #endif /* HAVE_LIBDVDREAD */
