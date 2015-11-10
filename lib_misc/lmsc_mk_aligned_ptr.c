@@ -34,17 +34,17 @@
 unsigned char*
 lmsc_mk_aligned_ptr(unsigned char* up, size_t alnmnt)
 {
-	size_t msk;
-	ptrdiff_t dff;
+    size_t msk;
+    ptrdiff_t dff;
 
-	msk = alnmnt - 1;
-	dff = (ptrdiff_t)up & (ptrdiff_t)msk;
+    msk = alnmnt - 1;
+    dff = (ptrdiff_t)up & (ptrdiff_t)msk;
 
-	if ( dff == (ptrdiff_t)0 ) {
-		return up;
-	}
+    if ( dff == (ptrdiff_t)0 ) {
+        return up;
+    }
 
-	return up + (ptrdiff_t)alnmnt - dff;
+    return up + (ptrdiff_t)alnmnt - dff;
 }
 
 

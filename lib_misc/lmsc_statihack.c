@@ -30,18 +30,18 @@
 int
 lmsc_statihack(const char* fn, char* n, struct stat* sb)
 {
-	int statr, isup = (*n == 'V');
+    int statr, isup = (*n == 'V');
 
-	if ( (statr = stat(fn, sb)) && errno == ENOENT && isup ) {
-		U2l(n);
+    if ( (statr = stat(fn, sb)) && errno == ENOENT && isup ) {
+        U2l(n);
 
-		if ( (statr = stat(fn, sb)) ) {
-			l2U(n);
-			errno = ENOENT;
-		}
-	}
+        if ( (statr = stat(fn, sb)) ) {
+            l2U(n);
+            errno = ENOENT;
+        }
+    }
 
-	return statr;
+    return statr;
 }
 
 

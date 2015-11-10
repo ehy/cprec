@@ -31,15 +31,17 @@ nlink_t
 lmsc_get_max_hlink(const char* path)
 {
 #if HAVE_PATHCONF
-	long l = pathconf(path, _PC_LINK_MAX);
-	if ( l == -1 ) l = 1;
-	return (nlink_t)l;
-#elif	LINK_MAX
-	return LINK_MAX;
-#elif	_POSIX_LINK_MAX
-	return _POSIX_LINK_MAX;
+    long l = pathconf(path, _PC_LINK_MAX);
+    if ( l == -1 ) {
+        l = 1;
+    }
+    return (nlink_t)l;
+#elif    LINK_MAX
+    return LINK_MAX;
+#elif    _POSIX_LINK_MAX
+    return _POSIX_LINK_MAX;
 #else
-	return 1;
+    return 1;
 #endif
 }
 

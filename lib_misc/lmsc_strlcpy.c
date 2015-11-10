@@ -27,18 +27,24 @@
 size_t
 lmsc_strcntcpy(char* dst, const char* src, size_t cnt)
 {
-        size_t n = cnt;
-        char* d = dst;
-        const char* s = src;
+    size_t n = cnt;
+    char* d = dst;
+    const char* s = src;
 
-        while ( n && (*d++ = *s++) )
-                --n;
-        if ( !n ) {
-                if ( cnt )
-                        *--d = '\0';
-                while ( *s++ );
+    while ( n && (*d++ = *s++) ) {
+        --n;
+    }
+
+    if ( !n ) {
+        if ( cnt ) {
+            *--d = '\0';
         }
-        return --s - src;
+        while ( *s++ ) {
+            ;
+        }
+    }
+
+    return --s - src;
 }
 
 

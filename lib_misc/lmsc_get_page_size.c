@@ -33,33 +33,34 @@
 int
 lmsc_xget_page_size(void)
 {
-	int s = lmsc_get_page_size();
-	if ( s < 0 )
-		exit(1);
-	return s;
+    int s = lmsc_get_page_size();
+    if ( s < 0 ) {
+        exit(1);
+    }
+    return s;
 }
 
 int
 lmsc_get_page_size(void)
 {
-	int s;
+    int s;
 #if HAVE_SYSCONF
-	s = (int)sysconf(_SC_PAGESIZE);
-#	if LIB_MISC_VERBOSE
-        if ( s < 0 ) {
-		perror("sysconf(_SC_PAGESIZE)");
-        }
-#	endif /* LIB_MISC_VERBOSE */
+    s = (int)sysconf(_SC_PAGESIZE);
+#   if LIB_MISC_VERBOSE
+    if ( s < 0 ) {
+        perror("sysconf(_SC_PAGESIZE)");
+    }
+#   endif /* LIB_MISC_VERBOSE */
 #elif HAVE_GETPAGESIZE
-	s = getpagesize();
+    s = getpagesize();
 #else
-#	error "Fix get_page_size() somehow!"
+#   error "Fix get_page_size() somehow!"
 #endif
-        if ( s <= 0 ) {
-		return s ? s : -1;
-        }
+    if ( s <= 0 ) {
+        return s ? s : -1;
+    }
 
-	return s;
+    return s;
 }
 
 

@@ -28,22 +28,22 @@
 /* wrap strtol(): returns nonzero on error */
 int lmsc_s_tol(const char* str, long* result, char** endp, int base)
 {
-	int e = errno;
+    int e = errno;
 
-	errno = 0;
-	*result = strtol(str, endp, base);
+    errno = 0;
+    *result = strtol(str, endp, base);
 
-	if ( errno ) {
-		return -1;
-	}
-	if ( str == *endp ) {
-		errno = EINVAL;
-		return -1;
-	}
+    if ( errno ) {
+        return -1;
+    }
+    if ( str == *endp ) {
+        errno = EINVAL;
+        return -1;
+    }
 
-	errno = e;
+    errno = e;
 
-	return 0;
+    return 0;
 }
 
 

@@ -24,7 +24,7 @@
 #include <errno.h>
 
 #if LIB_MISC_TESTING
-#	define LIB_MISC_FUNC_PTRS 1
+#   define LIB_MISC_FUNC_PTRS 1
 #endif
 
 /* TODO: put x_string funcs in own file */
@@ -36,30 +36,30 @@
 const char* lmsc_x_strdup_failmsg = "strdup() failed";
 char* lmsc_x_strdup(const char* src)
 {
-	char* p = strdup(src);
+    char* p = strdup(src);
 
-	if ( p == NULL ) {
-		/* lmsc_pf_init_files() does nothing if not needed */
-		lmsc_pf_init_files();
-		lmsc_pfeall("%s (%s)\n",
-			lmsc_x_strdup_failmsg,
-			strerror(errno));
-		exit(EXIT_FAILURE);
-	}
+    if ( p == NULL ) {
+        /* lmsc_pf_init_files() does nothing if not needed */
+        lmsc_pf_init_files();
+        lmsc_pfeall("%s (%s)\n",
+            lmsc_x_strdup_failmsg,
+            strerror(errno));
+        exit(EXIT_FAILURE);
+    }
 
-	return p;
+    return p;
 }
 
 #if LIB_MISC_FUNC_PTRS
 
-int	    (*p_lmsc_get_nofd)(int) = lmsc_get_nofd;
-int	    (*p_lmsc_get_max_path)(void) = lmsc_get_max_path;
-int	    (*p_lmsc_get_max_per_path)(const char* pth) = lmsc_get_max_per_path;
-int	    (*p_lmsc_get_page_size)(void) = lmsc_get_page_size;
-int	    (*p_lmsc_xget_page_size)(void) = lmsc_xget_page_size;
-nlink_t	    (*p_lmsc_get_max_hlink)(const char* path) = lmsc_get_max_hlink;
-size_t	    (*p_lmsc_strcntcpy)(char* dst, const char* src, size_t cnt) = lmsc_strcntcpy;
-int	    (*p_lmsc_statihack)(const char* fn, char* n, struct stat* sb) = lmsc_statihack;
+int (*p_lmsc_get_nofd)(int) = lmsc_get_nofd;
+int (*p_lmsc_get_max_path)(void) = lmsc_get_max_path;
+int (*p_lmsc_get_max_per_path)(const char* pth) = lmsc_get_max_per_path;
+int (*p_lmsc_get_page_size)(void) = lmsc_get_page_size;
+int (*p_lmsc_xget_page_size)(void) = lmsc_xget_page_size;
+nlink_t (*p_lmsc_get_max_hlink)(const char* path) = lmsc_get_max_hlink;
+size_t  (*p_lmsc_strcntcpy)(char* dst, const char* src, size_t cnt) = lmsc_strcntcpy;
+int   (*p_lmsc_statihack)(const char* fn, char* n, struct stat* sb) = lmsc_statihack;
 char* (*p_lmsc_l2U)(char* p) = lmsc_l2U;
 char* (*p_lmsc_U2l)(char* p) = lmsc_U2l;
 unsigned char* lmsc_mk_aligned_ptr(unsigned char* up, size_t alnmnt);
@@ -87,11 +87,11 @@ void (*p_lmsc_pf_init_files)(void) = lmsc_pf_init_files;
 #if LIB_MISC_TESTING
 int main(int argc, char* argv[])
 {
-	int r = (*p_lmsc_pfoall)("cur max path==%d\n"
-		, get_max_per_path("."));
-	pfeall("printed %d chars\n", r);
+    int r = (*p_lmsc_pfoall)("cur max path==%d\n"
+        , get_max_per_path("."));
+    pfeall("printed %d chars\n", r);
 
-	return 0;
+    return 0;
 }
 #endif
 

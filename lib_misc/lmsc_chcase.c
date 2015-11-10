@@ -23,21 +23,22 @@
 
 #include <ctype.h>
 
-
 char* lmsc_l2U(char* p)
 {
-	char* s;
-	for ( s = p; *s; s++ )
-		*s = toupper((int)*s);
-	return p;
+    char* s;
+    for ( s = p; *s; s++ ) {
+        *s = toupper((int)*s);
+    }
+    return p;
 }
 
 char* lmsc_U2l(char* p)
 {
-	char* s;
-	for ( s = p; *s; s++ )
-		*s = tolower((int)*s);
-	return p;
+    char* s;
+    for ( s = p; *s; s++ ) {
+        *s = tolower((int)*s);
+    }
+    return p;
 }
 
 

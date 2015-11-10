@@ -37,7 +37,7 @@
 #endif
 
 #ifndef PFIO_DEBUG_ENVNAME
-#	define PFIO_DEBUG_ENVNAME	"PFIO_DEBUG"
+#    define PFIO_DEBUG_ENVNAME    "PFIO_DEBUG"
 #endif /* PFIO_DEBUG_ENVNAME */
 static const char* pfio_dbg_envvar_str = PFIO_DEBUG_ENVNAME;
 
@@ -53,74 +53,76 @@ static FILE* pfdbgfile;
 void
 lmsc_pfo_setopt(int doit)
 {
-	lmsc_pf_init_files();
-	do_pfoopt = doit ? 1 : 0;
+    lmsc_pf_init_files();
+    do_pfoopt = doit ? 1 : 0;
 }
 void
 lmsc_pfe_setopt(int doit)
 {
-	lmsc_pf_init_files();
-	do_pfeopt = doit ? 1 : 0;
+    lmsc_pf_init_files();
+    do_pfeopt = doit ? 1 : 0;
 }
 
 void
 lmsc_pf_debug_check(void)
 {
-	static int done;
-	const char* p;
-	const char* str = pfio_dbg_envvar_str;
+    static int done;
+    const char* p;
+    const char* str = pfio_dbg_envvar_str;
 
-	if ( done )
-		return;
+    if ( done ) {
+        return;
+    }
 
-	done = 1;
-	pfdbgfile = stderr;
+    done = 1;
+    pfdbgfile = stderr;
 
-	p = getenv(str);
+    p = getenv(str);
 
-	if ( p ) {
-		do_pf_dbg = 1;
-		if ( *p && *p != '-' )
-			pfdbgfile = fopen(p, "w");
-		if ( pfdbgfile == NULL ) {
-			pfdbgfile = stderr;
-			lmsc_pf_dbg(_("dbg: failed opening dbg file %s\n"), p);
-		}
-	}
+    if ( p ) {
+        do_pf_dbg = 1;
+        if ( *p && *p != '-' ) {
+            pfdbgfile = fopen(p, "w");
+        }
+        if ( pfdbgfile == NULL ) {
+            pfdbgfile = stderr;
+            lmsc_pf_dbg(_("dbg: failed opening dbg file %s\n"), p);
+        }
+    }
 
-	lmsc_pf_dbg(_("dbg: %s == %s -- will print debug messages\n"), str, p);
+    lmsc_pf_dbg(_("dbg: %s == %s -- will print debug messages\n"), str, p);
 }
 
 void
 lmsc_pf_setup(int dopfo, int dopfe)
 {
-	lmsc_pfo_setopt(dopfo);
-	lmsc_pfe_setopt(dopfe);
+    lmsc_pfo_setopt(dopfo);
+    lmsc_pfe_setopt(dopfe);
 }
 
 /* assign the above FILE*s */
 void
 lmsc_pf_assign_files(FILE* out, FILE* err)
 {
-	/* keep pf_init_done = 1 1st! if it follows lmsc_pf_debug_check()
-	 * then the FILE* assignments are overridden
-	 */
-	pf_init_done = 1;
-	pfoutfile = out;
-	pferrfile = err;
-	lmsc_pf_debug_check();
+    /* keep pf_init_done = 1 1st! if it follows lmsc_pf_debug_check()
+     * then the FILE* assignments are overridden
+     */
+    pf_init_done = 1;
+    pfoutfile = out;
+    pferrfile = err;
+    lmsc_pf_debug_check();
 }
 void
 lmsc_pf_assign_files_default(void)
 {
-	lmsc_pf_assign_files(stdout, stderr);
+    lmsc_pf_assign_files(stdout, stderr);
 }
 void
 lmsc_pf_init_files(void)
 {
-	if ( !pf_init_done ) {
-		lmsc_pf_assign_files_default();
-	}
+    if ( !pf_init_done ) {
+        lmsc_pf_assign_files_default();
+    }
 }
 
 /*
@@ -129,20 +131,21 @@ lmsc_pf_init_files(void)
 int
 lmsc_pfoopt(const char* fmt, ...)
 {
-	int r;
-	va_list ap;
+    int r;
+    va_list ap;
 
-	va_start(ap, fmt);
-	pf_init_files();
-	if ( do_pfoopt )
-		r = vfprintf(pfoutfile, fmt, ap);
-	else if ( do_pf_dbg )
-		r = vfprintf(pfdbgfile, fmt, ap);
-	else
-		r = 0;
-	va_end(ap);
+    va_start(ap, fmt);
+    pf_init_files();
+    if ( do_pfoopt ) {
+        r = vfprintf(pfoutfile, fmt, ap);
+    } else if ( do_pf_dbg ) {
+        r = vfprintf(pfdbgfile, fmt, ap);
+    } else {
+        r = 0;
+    }
+    va_end(ap);
 
-	return r;
+    return r;
 }
 
 
@@ -152,15 +155,15 @@ lmsc_pfoopt(const char* fmt, ...)
 int
 lmsc_pfoall(const char* fmt, ...)
 {
-	int r;
-	va_list ap;
+    int r;
+    va_list ap;
 
-	va_start(ap, fmt);
-	pf_init_files();
-	r = vfprintf(pfoutfile, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    pf_init_files();
+    r = vfprintf(pfoutfile, fmt, ap);
+    va_end(ap);
 
-	return r;
+    return r;
 }
 
 
@@ -170,20 +173,21 @@ lmsc_pfoall(const char* fmt, ...)
 int
 lmsc_pfeopt(const char* fmt, ...)
 {
-	int r;
-	va_list ap;
+    int r;
+    va_list ap;
 
-	va_start(ap, fmt);
-	pf_init_files();
-	if ( do_pfeopt )
-		r = vfprintf(pferrfile, fmt, ap);
-	else if ( do_pf_dbg )
-		r = vfprintf(pfdbgfile, fmt, ap);
-	else
-		r = 0;
-	va_end(ap);
+    va_start(ap, fmt);
+    pf_init_files();
+    if ( do_pfeopt ) {
+        r = vfprintf(pferrfile, fmt, ap);
+    } else if ( do_pf_dbg ) {
+        r = vfprintf(pfdbgfile, fmt, ap);
+    } else {
+        r = 0;
+    }
+    va_end(ap);
 
-	return r;
+    return r;
 }
 
 
@@ -193,15 +197,15 @@ lmsc_pfeopt(const char* fmt, ...)
 int
 lmsc_pfeall(const char* fmt, ...)
 {
-	int r;
-	va_list ap;
+    int r;
+    va_list ap;
 
-	va_start(ap, fmt);
-	pf_init_files();
-	r = vfprintf(pferrfile, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    pf_init_files();
+    r = vfprintf(pferrfile, fmt, ap);
+    va_end(ap);
 
-	return r;
+    return r;
 }
 
 /*
@@ -210,18 +214,19 @@ lmsc_pfeall(const char* fmt, ...)
 int
 lmsc_pf_dbg(const char* fmt, ...)
 {
-	int r;
-	va_list ap;
+    int r;
+    va_list ap;
 
-	va_start(ap, fmt);
-	pf_init_files();
-	if ( do_pf_dbg )
-		r = vfprintf(pfdbgfile, fmt, ap);
-	else
-		r = 0;
-	va_end(ap);
+    va_start(ap, fmt);
+    pf_init_files();
+    if ( do_pf_dbg ) {
+        r = vfprintf(pfdbgfile, fmt, ap);
+    } else {
+        r = 0;
+    }
+    va_end(ap);
 
-	return r;
+    return r;
 }
 
 
@@ -251,19 +256,21 @@ lmsc_eoputs(const char* str)
 #if ! HAVE_ERROR
 void lmsc_error(int code, int errn, const char* fmt, ...)
 {
-	va_list ap;
+    va_list ap;
 
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
 
-	if ( errn )
-		fprintf(stderr, ": %s\n", strerror(errn));
-	else
-		fputc('\n', stderr);
+    if ( errn ) {
+        fprintf(stderr, ": %s\n", strerror(errn));
+    } else {
+        fputc('\n', stderr);
+    }
 
-	if ( code )
-		exit(code);
+    if ( code ) {
+        exit(code);
+    }
 }
 #endif /* ! HAVE_ERROR */
 
