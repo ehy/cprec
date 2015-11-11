@@ -25,13 +25,14 @@ OBJS = \
 
 all: $(LIB)
 
-# SysV, traditional, ar opts w/o dash;
-# posix specifies the dash; also does
-# not have ranlib, but systems probably
-# have compatitblity ranlib if they
-# don't need it.
+# Although not (probably) needed with ar -s,
+# keep the ranlib if defined, expecting it to
+# be harmless at worst, or even necessary on
+# some system.  RANLIB is not defined in this
+# file; if it is in make's predefined macros,
+# it can run.
 $(LIB) : $(OBJS)
-	$(AR) -cru $@ $(OBJS)
+	$(AR) -crsu $@ $(OBJS)
 	test X"$(RANLIB)" = X || $(RANLIB) $@
 
 clean:
