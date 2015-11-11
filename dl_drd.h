@@ -1,4 +1,4 @@
-/* 
+/*
    dl_drd.[hc] - load libdvdread functions
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #ifndef _DL_DRD_H_
@@ -64,24 +64,29 @@ typedef void drd_file_t;
 typedef void drd_reader_t;
 
 /* function pointer typedefs */
-typedef drd_reader_t*	(*DVDOpen_t)(const char*);
-typedef void	(*DVDClose_t)(drd_reader_t*);
-typedef drd_file_t*	(*DVDOpenFile_t)(drd_reader_t*, int, drd_read_t);
-typedef void	(*DVDCloseFile_t)(drd_file_t*);
-typedef ssize_t  (*DVDReadBlocks_t)(drd_file_t*, int, size_t, unsigned char*);
-typedef int	(*DVDFileSeek_t)(drd_file_t*, int);
-typedef ssize_t  (*DVDReadBytes_t)(drd_file_t*, void*, size_t);
-typedef ssize_t  (*DVDFileSize_t)(drd_file_t*);
-typedef int	(*DVDDiscID_t)(drd_reader_t*, unsigned char*);
-typedef int	(*DVDUDFVolumeInfo_t)(drd_reader_t*, char*, unsigned int,
-                      unsigned char*, unsigned int);
-typedef int      (*DVDISOVolumeInfo_t)(drd_reader_t*, char*, unsigned int,
-                      unsigned char*, unsigned int);
-typedef int      (*DVDUDFCacheLevel_t)(drd_reader_t*, int);
-/* special case: DVDVersion was not in libdvdread 904; this might be NULL */
-typedef int      (*DVDVersion_t)(void);
+typedef drd_reader_t*   (*DVDOpen_t)(const char*);
+typedef void            (*DVDClose_t)(drd_reader_t*);
+typedef drd_file_t*
+    (*DVDOpenFile_t)(drd_reader_t*, int, drd_read_t);
+typedef void            (*DVDCloseFile_t)(drd_file_t*);
+typedef ssize_t
+    (*DVDReadBlocks_t)(drd_file_t*, int, size_t, unsigned char*);
+typedef int             (*DVDFileSeek_t)(drd_file_t*, int);
+typedef ssize_t         (*DVDReadBytes_t)(drd_file_t*, void*, size_t);
+typedef ssize_t         (*DVDFileSize_t)(drd_file_t*);
+typedef int             (*DVDDiscID_t)(drd_reader_t*, unsigned char*);
+typedef int
+    (*DVDUDFVolumeInfo_t)(drd_reader_t*, char*, unsigned int,
+        unsigned char*, unsigned int);
+typedef int
+    (*DVDISOVolumeInfo_t)(drd_reader_t*, char*, unsigned int,
+        unsigned char*, unsigned int);
+typedef int             (*DVDUDFCacheLevel_t)(drd_reader_t*, int);
+/* special case: DVDVersion wasn't' in libdvdread 904; might be NULL */
+typedef int             (*DVDVersion_t)(void);
 /* proto in dvdread/dvd_udf.h -- reliable published interface? */
-typedef uint32_t (*UDFFindFile_t)(drd_reader_t*, char*, uint32_t*);
+typedef uint32_t
+    (*UDFFindFile_t)(drd_reader_t*, char*, uint32_t*);
 
 /* macros for libdvdread symbols -- not used internally */
 #if ! DL_DRD_INTERN

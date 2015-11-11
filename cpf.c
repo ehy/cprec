@@ -1,4 +1,4 @@
-/* 
+/*
    cpf.[hc] - copy functions
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #include "hdr_cfg.h"
@@ -380,7 +380,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         set_f_meta(nbuf, &(pt->ifos[0]));
         break;
         } /* do0 */
-        /* end do IFO */    
+        /* end do IFO */
 
         /* do BUP */
         while ( do0 && pt->has_bup ) {
@@ -838,6 +838,13 @@ copy_vob(
             return -1;
         }
 
+        pfoopt(_("%s: %s exists, ignore existing option is on\n"),
+            program_name, out);
+
+        /* for option ignore existing, advance and
+         * return count, letting caller go on as if
+         * all completed OK
+         */
         *poff += blkcnt;
         return blkcnt;
     }
@@ -1004,7 +1011,7 @@ copy_file_force(const char* src, const char* dest)
                         program_name,
                         strerror(errno), dest);
                     exit(24);
-                }                
+                }
             }
             n--;
             continue;
@@ -1543,8 +1550,8 @@ copy_vob_fd(
                 if ( nb > 0 ) {
                     cnt -= nb;
                     continue;
-                }    
-            }    
+                }
+            }
 
             eputs(_("DVD bad blocks: cannot salvage\n"));
 
