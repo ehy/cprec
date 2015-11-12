@@ -1,6 +1,11 @@
 bin_PROGRAMS=cprec
 
-cprec_SOURCES=cprec.c cprec.h apue_ftw.c apue_ftw.h cpf.c cpf.h ino.c ino.h block_hash.c block_hash.h meta_set.h meta_set.c path_set.h path_set.c walk.h walk.c dl_drd.h dl_drd.c cprec.1 xmalloc.c xmalloc.h hdr_cfg.h system.h aclocal.m4
+cprec_SOURCES=cprec.c cprec.h apue_ftw.c apue_ftw.h cpf.c cpf.h
+cprec_SOURCES+=vd_cpf.c vd_cpf.h ino.c ino.h block_hash.c block_hash.h
+cprec_SOURCES+=meta_set.h meta_set.c path_set.h path_set.c walk.h walk.c
+cprec_SOURCES+=dl_drd.h dl_drd.c cprec.1 xmalloc.c xmalloc.h
+cprec_SOURCES+=hdr_cfg.h system.h aclocal.m4
+
 if NEED_GETOPT_C
 cprec_SOURCES+=gngetopt.h getopt.c
 endif
@@ -10,7 +15,7 @@ endif
 
 if WITH_DD_DVD
 bin_PROGRAMS+= dd-dvd
-dd_dvd_SOURCES=dd-dvd.cc dl_drd.h dl_drd.c dd-dvd.1
+dd_dvd_SOURCES=dd-dvd.cc dl_drd.h dl_drd.c vd_cpf.c vd_cpf.h dd-dvd.1
 dd_dvd_LDADD = lib_misc/lib_misc.a
 if NEED_GETOPT_C
 dd_dvd_SOURCES+=gngetopt.h getopt.c

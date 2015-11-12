@@ -1,4 +1,4 @@
-/* 
+/*
    dd-dvd.cc -- backup to disk a video DVD image
 
    Copyright (C) 2010 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #define _FILE_OFFSET_BITS 64
@@ -43,9 +43,10 @@
 
 extern "C" {
 #    include "hdr_cfg.h"
-#    include "lib_misc.h"
-#    include "dl_drd.h"
 }
+#include "lib_misc.h"
+#include "dl_drd.h"
+#include "vd_cpf.h"
 
 #if HAVE_GETOPT_H
 #    include <getopt.h>
@@ -98,6 +99,9 @@ extern "C" { const char* program_name = default_program_name; }
 
 using namespace std;
 using namespace rel_ops;
+
+string inname;   // name of input
+string outname;  // name of output
 
 template <class T> class auto_array {
     T* p;
@@ -515,6 +519,7 @@ list_build(file_list& lst, dvd_reader_p drd)
     list_sort(lst);
 }
 
+#if 0
 /* if poff==0 do fd copy else do vob copy */
 /*
  *  call when read fails with io error; assume optical medium fault.
@@ -616,7 +621,7 @@ copy_vob_badblks(
     nbr = cnt * blk_sz;
 
     if ( write_all(out, buf, nbr) != nbr ) {
-        perror("write in copy_badblks");                
+        perror("write in copy_badblks");
         return -1;
     }
 
@@ -629,7 +634,7 @@ copy_vob_badblks(
 
     return cnt;
 }
-
+#endif
 
 // copy IFO of BUP with DVDReadBytes()
 ssize_t
@@ -641,6 +646,30 @@ copy_ifo(
     int* poff = 0
     )
 {
+#if 1
+    vd_rw_proc_args pargs;
+    auto_array<char> inpnm(inname.length() + 1);
+    auto_array<char> outnm(outname.length() + 1);
+
+    strlcpy(inpnm, inname.c_str(), inname.length() + 1);
+    strlcpy(outnm, outname.c_str(), outname.length() + 1);
+
+    pargs.vd_dvdfile      = dvdfile    ;
+    pargs.vd_inp          = inp        ;
+    pargs.vd_out          = out        ;
+    pargs.vd_program_name = program_name;
+    pargs.vd_inp_fname    = inpnm;
+    pargs.vd_out_fname    = outnm;
+    pargs.vd_blkcnt       = blkcnt     ;
+    pargs.vd_blknrd       = block_read_count;
+    pargs.vd_blk_sz       = blk_sz     ;
+    pargs.vd_retrybadblk  = retrybadblk;
+    pargs.vd_numbadblk    = &numbadblk ;
+    pargs.vd_poff         = poff       ;
+    pargs.vd_buf          = buf        ;
+
+    return vd_rw_ifo_blks(&pargs);
+#else
     unsigned nxrd = 0;
     const unsigned lxrd = 512;
     size_t cnt = blkcnt;
@@ -676,6 +705,7 @@ copy_ifo(
     }
 
     return blkcnt - cnt;
+#endif
 }
 
 // if poff==0 do fd copy else do vob copy
@@ -688,6 +718,30 @@ copy_vob(
     int* poff = 0
     )
 {
+#if 1
+    vd_rw_proc_args pargs;
+    auto_array<char> inpnm(inname.length() + 1);
+    auto_array<char> outnm(outname.length() + 1);
+
+    strlcpy(inpnm, inname.c_str(), inname.length() + 1);
+    strlcpy(outnm, outname.c_str(), outname.length() + 1);
+
+    pargs.vd_dvdfile      = dvdfile    ;
+    pargs.vd_inp          = inp        ;
+    pargs.vd_out          = out        ;
+    pargs.vd_program_name = program_name;
+    pargs.vd_inp_fname    = inpnm;
+    pargs.vd_out_fname    = outnm;
+    pargs.vd_blkcnt       = blkcnt     ;
+    pargs.vd_blknrd       = block_read_count;
+    pargs.vd_blk_sz       = blk_sz     ;
+    pargs.vd_retrybadblk  = retrybadblk;
+    pargs.vd_numbadblk    = &numbadblk ;
+    pargs.vd_poff         = poff       ;
+    pargs.vd_buf          = buf        ;
+
+    return vd_rw_ifo_blks(&pargs);
+#else
     size_t cnt = blkcnt;
 
     errno = 0;
@@ -742,7 +796,7 @@ copy_vob(
             if ( nb > 0 ) {
                 cnt -= nb;
                 continue;
-            }    
+            }
 
             perror("DVD bad blocks: cannot salvage");
 
@@ -763,6 +817,7 @@ copy_vob(
     }
 
     return blkcnt - cnt;
+#endif
 }
 
 // Just go through collected data and print, showing ops
@@ -1245,7 +1300,7 @@ get_options(int argc, char* argv[])
 {
     int c;
 
-    while ( (c = getopt_long(argc, argv, 
+    while ( (c = getopt_long(argc, argv,
                "n"    /* dry-run */
                "q"    /* quiet or silent */
                "v"    /* verbose */
@@ -1320,8 +1375,9 @@ main(int argc, char* argv[])
         usage(EXIT_FAILURE);
     }
 
-    string inname(argv[nopt++]);
-    string outname(argv[nopt] == 0 ? "" : argv[nopt++]);
+    inname  = argv[nopt++];
+    outname = argv[nopt] == 0 ? "" : argv[nopt++];
+
     if ( argv[nopt] != 0 ) {
         usage(EXIT_FAILURE);
     }

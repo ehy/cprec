@@ -21,6 +21,14 @@
 #ifndef _DL_DRD_H_
 #define _DL_DRD_H_ 1
 
+/* C code, but useful in C++ */
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+/* these are included by dvd_reader.h -- int32_t etc. */
+#include <sys/types.h>
+#include <inttypes.h>
 
 /* procedure prototypes (stubs if we have the lib at link-time) */
 int open_drd(const char* drd_soname, int drd_flags);
@@ -45,9 +53,9 @@ int get_drd_defflags(void);
 #define drd_READ_INFO_BACKUP_FILE DVD_READ_INFO_BACKUP_FILE
 #define drd_READ_MENU_VOBS DVD_READ_MENU_VOBS
 #define drd_READ_TITLE_VOBS DVD_READ_TITLE_VOBS
-typedef dvd_read_domain_t drd_read_t;
-typedef dvd_file_t drd_file_t;
-typedef dvd_reader_t drd_reader_t;
+typedef dvd_read_domain_t   drd_read_t;
+typedef dvd_file_t          drd_file_t;
+typedef dvd_reader_t        drd_reader_t;
 
 #else /* HAVE_LIBDVDREAD */
 
@@ -71,7 +79,7 @@ typedef drd_file_t*
 typedef void            (*DVDCloseFile_t)(drd_file_t*);
 typedef ssize_t
     (*DVDReadBlocks_t)(drd_file_t*, int, size_t, unsigned char*);
-typedef int             (*DVDFileSeek_t)(drd_file_t*, int);
+typedef int32_t         (*DVDFileSeek_t)(drd_file_t*, int32_t);
 typedef ssize_t         (*DVDReadBytes_t)(drd_file_t*, void*, size_t);
 typedef ssize_t         (*DVDFileSize_t)(drd_file_t*);
 typedef int             (*DVDDiscID_t)(drd_reader_t*, unsigned char*);
@@ -130,5 +138,10 @@ extern const int  drd_defflags;
 extern void* drd_handle;
 
 #endif /* HAVE_LIBDVDREAD */
+
+/* C code, but useful in C++ */
+#if defined(__cplusplus)
+} /* end extern "C" */
+#endif
 
 #endif /* _DL_DRD_H_ */
