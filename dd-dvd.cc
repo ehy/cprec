@@ -740,7 +740,7 @@ copy_vob(
     pargs.vd_poff         = poff       ;
     pargs.vd_buf          = buf        ;
 
-    return vd_rw_ifo_blks(&pargs);
+    return vd_rw_vob_blks(&pargs);
 #else
     size_t cnt = blkcnt;
 
