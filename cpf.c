@@ -1,21 +1,21 @@
 /*
-   cpf.[hc] - copy functions
+ cpf.[hc] - copy functions
 
-   Copyright (C) 2007 Ed Hynan
+ Copyright (C) 2007 Ed Hynan
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #include "hdr_cfg.h"
@@ -59,7 +59,8 @@ struct { const char* c, * r; } ifo_cmps[] = {
 };
 
 /* static procedures */
-static int disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz);
+static int disc_block_check(
+        uint32_t blk, const char* nbuf, uint32_t fsz);
 static ssize_t copy_vob_fd(drd_file_t* dvdfile
         , const char* outfname
         , int infd, int outfd
@@ -68,34 +69,34 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
 
 /* string safety return checks; fatal err */
 #define SCPYCHK(d, s, c) \
-    { \
-        size_t l = c; \
-        size_t n = strlcpy(d, s, l); \
-        if ( n >= l ) { \
-            pfeall( \
-                _("%s: internal string error in pointer or size (%s:%u)\n"), \
-                program_name, __FILE__, (unsigned)__LINE__); \
-            exit(60); \
-        } \
-        snp_retv = (int)n; \
-    }
+{ \
+    size_t l = c; \
+    size_t n = strlcpy(d, s, l); \
+    if ( n >= l ) { \
+        pfeall( \
+          _("%s: internal string error in pointer or size (%s:%u)\n"), \
+          program_name, __FILE__, (unsigned)__LINE__); \
+        exit(60); \
+    } \
+    snp_retv = (int)n; \
+}
 
 /* for snprintf into nbuf: use as NBP((args to snprintf)), no ';' */
 #define NBP(ARGS) NBPRINTF(snp_retv, ARGS, 60)
 
 /* for snprintf into 'pn', a pointer into mntd -- as above macro */
 #define PNP(ARGS) \
-    { \
-        int c = (int)PNREM; \
-        int n = snprintf ARGS ; \
-        if ( n >= c || n < 0 ) { \
-            pfeall( \
-                _("%s: internal string error in pointer or size (%s:%u)\n"), \
-                program_name,  __FILE__, (unsigned)__LINE__); \
-            exit(60); \
-        } \
-        snp_retv = n; \
-    }
+{ \
+    int c = (int)PNREM; \
+    int n = snprintf ARGS ; \
+    if ( n >= c || n < 0 ) { \
+        pfeall( \
+          _("%s: internal string error in pointer or size (%s:%u)\n"), \
+          program_name,  __FILE__, (unsigned)__LINE__); \
+        exit(60); \
+    } \
+    snp_retv = n; \
+}
 
 /* macros above will leave result in snp_retv; use or ignore */
 static int snp_retv;

@@ -1,21 +1,21 @@
 /*
-   cprec - A recursive directory hierarchy copier; much like 'cp -Rp'.
+ cprec - A recursive directory hierarchy copier; much like 'cp -Rp'.
 
-   Copyright (C) 2007 Ed Hynan
+ Copyright (C) 2007 Ed Hynan
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 /*
@@ -99,7 +99,7 @@ int nfdmax  = 64;  /* use no more than this number of dir fd */
 /* flagging whether to quit on some errors, or ignore and go on: */
 int ign_dnr = 0;   /* ignore directories not readable */
 int ign_ns  = 0;   /* ignore stat() failures -- REMOVE THIS */
-int ign_ex  = 0;   /* ignore EEXIST errors writing output --ignore-existing */
+int ign_ex  = 0;   /* ignore EEXIST writing output --ignore-existing */
 /* whether to ignore certain irregulars -- (sockets are NEVER copied) */
 int ign_sl  = 0;   /* ignore symbolic links --ignore-symlinks */
 int ign_hl  = 0;   /* ignore hard links --ignore-hardlinks */
