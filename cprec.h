@@ -1,4 +1,4 @@
-/* 
+/*
    cprec - A recursive directory hierarchy copier; much like 'cp -Rp'.
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #ifndef _CPREC_H_
 #define _CPREC_H_ 1
@@ -23,7 +23,7 @@
 /* dvd read stuff */
 #ifndef BLOCK_READ_CNT
 /* #define BLOCK_READ_CNT 4096 -- * 2k, so 1 == 2k, 512 == 1m */
-#define BLOCK_READ_CNT	512 /* 1 == 2k, 512 == 1m */
+#define BLOCK_READ_CNT	4096 /* 1 == 2k, 512 == 1m */
 #endif /* #ifndef BLOCK_READ_CNT */
 /* alternative to macro */
 extern size_t         block_read_count;

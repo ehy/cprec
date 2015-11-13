@@ -38,13 +38,13 @@ vd_rw_ifo_blks(vd_rw_proc_args* pargs)
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
     int             out         = pargs->vd_out;
-    const char*     program_name= pargs->vd_program_name;
+    const char*     progname    = pargs->vd_program_name;
     const char*     inp_fname   = pargs->vd_inp_fname;
     const char*     out_fname   = pargs->vd_out_fname;
     size_t          blkcnt      = pargs->vd_blkcnt;
     size_t          blknrd      = pargs->vd_blknrd;
     size_t          blk_sz      = pargs->vd_blk_sz;
-    size_t          retrybadblk = pargs->vd_retrybadblk;
+    size_t          blknretry   = pargs->vd_retrybadblk;
     size_t*         numbadblk   = pargs->vd_numbadblk;
     int*            poff        = pargs->vd_poff;
     unsigned char*  buf         = pargs->vd_buf;
@@ -57,7 +57,6 @@ vd_rw_ifo_blks(vd_rw_proc_args* pargs)
     DVDFileSeek(dvdfile, 0);
 
     while ( cnt ) {
-        //ssize_t nb;
         size_t  nbr = MIN(cnt, blknrd);
         size_t bcnt = nbr * blk_sz;
 
@@ -94,13 +93,13 @@ vd_rw_vob_blks(vd_rw_proc_args* pargs)
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
     int             out         = pargs->vd_out;
-    const char*     program_name= pargs->vd_program_name;
+    const char*     progname    = pargs->vd_program_name;
     const char*     inp_fname   = pargs->vd_inp_fname;
     const char*     out_fname   = pargs->vd_out_fname;
     size_t          blkcnt      = pargs->vd_blkcnt;
     size_t          blknrd      = pargs->vd_blknrd;
     size_t          blk_sz      = pargs->vd_blk_sz;
-    size_t          retrybadblk = pargs->vd_retrybadblk;
+    size_t          blknretry   = pargs->vd_retrybadblk;
     size_t*         numbadblk   = pargs->vd_numbadblk;
     int*            poff        = pargs->vd_poff;
     unsigned char*  buf         = pargs->vd_buf;
@@ -128,7 +127,7 @@ vd_rw_vob_blks(vd_rw_proc_args* pargs)
                 if ( rmd ) {
                     pfeopt(
                         _("%s: WARN: fractional read remainder %zd\n"),
-                        program_name, rmd);
+                        progname, rmd);
                     lseek(inp, 0 - rmd, SEEK_CUR);
                 }
                 nb = ssz / blk_sz;
@@ -138,15 +137,15 @@ vd_rw_vob_blks(vd_rw_proc_args* pargs)
         if ( nb <= 0 ) {
             perror("DVD read");
 
-            /* retry is disable when retrybadblk == 0 */
-            if ( retrybadblk < 1 ) {
+            /* retry is disable when blknretry == 0 */
+            if ( blknretry < 1 ) {
                 pfeopt(_("%s: retry bad block == %zu, failing\n"),
-                    program_name, retrybadblk);
+                    progname, blknretry);
                 return -1;
             }
 
             pfeopt(_("%s: retry bad block == %zu, retrying\n"),
-                program_name, retrybadblk);
+                progname, blknretry);
 
             errno = 0;
             /* call desperation procedure:
@@ -197,13 +196,13 @@ vd_rw_vob_badblks(vd_rw_proc_args* pargs)
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
     int             out         = pargs->vd_out;
-    const char*     program_name= pargs->vd_program_name;
+    const char*     progname    = pargs->vd_program_name;
     const char*     inp_fname   = pargs->vd_inp_fname;
     const char*     out_fname   = pargs->vd_out_fname;
     size_t          blkcnt      = pargs->vd_blkcnt;
     size_t          blknrd      = pargs->vd_blknrd;
     size_t          blk_sz      = pargs->vd_blk_sz;
-    size_t          retrybadblk = pargs->vd_retrybadblk;
+    size_t          blknretry   = pargs->vd_retrybadblk;
     size_t*         numbadblk   = pargs->vd_numbadblk;
     int*            poff        = pargs->vd_poff;
     unsigned char*  buf         = pargs->vd_buf;
@@ -224,7 +223,7 @@ vd_rw_vob_badblks(vd_rw_proc_args* pargs)
         return -1;
     }
 
-    nbr = retrybadblk;
+    nbr = blknretry;
 
     while ( cnt ) {
         ssize_t nb;

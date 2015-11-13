@@ -33,6 +33,7 @@ typedef u_int32_t uint32_t;
 #include "lib_misc.h"
 #include "dl_drd.h"
 #include "block_hash.h"
+#include "vd_cpf.h"
 #include "xmalloc.h"
 #include "cpf.h"
 
@@ -49,7 +50,7 @@ const unsigned regm2 = REGM2;
 const size_t blk_sz = drd_VIDEO_LB_LEN;
 
 /* found bad blocks? */
-unsigned long numbadblk = 0;
+size_t numbadblk = 0;
 
 /* these pairs are used in ifo copy error handling */
 struct { const char* c, * r; } ifo_cmps[] = {
@@ -59,16 +60,11 @@ struct { const char* c, * r; } ifo_cmps[] = {
 
 /* static procedures */
 static int disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz);
-static ssize_t copy_vob_badblks(drd_file_t* dvdfile
-        , const char* outfname
-        , int infd, int outfd
-        , unsigned char* buf
-        , size_t blkcnt, long* poff);
 static ssize_t copy_vob_fd(drd_file_t* dvdfile
         , const char* outfname
         , int infd, int outfd
         , unsigned char* buf
-        , size_t blkcnt, long* poff);
+        , size_t blkcnt, int* poff);
 
 /* string safety return checks; fatal err */
 #define SCPYCHK(d, s, c) \
@@ -110,14 +106,14 @@ static int snp_retv;
 void
 copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 {
-    titlist_p    pt;
-    long        i1;
-    struct stat    sb;
-    drd_read_t    dom;
-    char*        pn;
-    int        i, j, maxtitle, do0;
-    drd_file_t*    dvdfile = NULL;
-    ssize_t        nblk = 0;
+    titlist_p        pt;
+    int              i1;
+    struct stat      sb;
+    drd_read_t       dom;
+    char*            pn;
+    int              i, j, maxtitle, do0;
+    drd_file_t*      dvdfile = NULL;
+    ssize_t          nblk = 0;
     unsigned long    ifo_badbl = 0, bup_badbl = 0;
 
     /* If no vobs were found then don't bother */
@@ -134,7 +130,8 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
     }
 
     /* pn is a pointer into a buffer: careful with this! */
-    #define PNREM ((size_t)MAX((ssize_t)0, ((ssize_t)mntdbufdlen - (ssize_t)(pn - mntd))))
+    #define PNREM ((size_t)MAX((ssize_t)0, \
+        ((ssize_t)mntdbufdlen - (ssize_t)(pn - mntd))))
     pn = &mntd[mntdlen];
     *pn++ = '/';
     *pn = '\0';
@@ -247,17 +244,17 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
         i1 = 0;
         if ( !want_dry_run ) {
-        if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
-            pfeall(
-              _("%s: failed \"%s\" copy (%ld blocks)\n"),
-              program_name, fnstr[i], (long)nblk);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                continue;
+            if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
+                pfeall(
+                  _("%s: failed \"%s\" copy (%ld blocks)\n"),
+                  program_name, fnstr[i], (long)nblk);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    continue;
+                }
+                DVDClose(dvdreader);
+                exit(7);
             }
-            DVDClose(dvdreader);
-            exit(7);
-        }
         }
 
         DVDCloseFile(dvdfile);
@@ -293,254 +290,248 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
         /* do IFO */
         while ( do0 && pt->has_ifo ) {
-        uint32_t blk, fsz;
+            uint32_t blk, fsz;
+            const char* t_fmt = fnlower && ign_lc
+                ? "%s/vts_%02d_%d.ifo" : "%s/VTS_%02d_%d.IFO";
 
-        PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.IFO", i, 0))
-        if ( statihack(mntd, pn, &(pt->ifos[0])) ) {
-            if ( errno == ENOENT ) {
-                do0 = 0;
-            } else {
-                perror(mntd);
-                pfeall(_("%s: failed stat(%s) - %s\n"),
-                    program_name, mntd, strerror(errno));
-                if ( force ) {
+            PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.IFO", i, 0))
+            if ( statihack(mntd, pn, &(pt->ifos[0])) ) {
+                if ( errno == ENOENT ) {
                     do0 = 0;
                 } else {
-                    exit(1);
+                    perror(mntd);
+                    pfeall(_("%s: failed stat(%s) - %s\n"),
+                        program_name, mntd, strerror(errno));
+                    if ( force ) {
+                        do0 = 0;
+                    } else {
+                        exit(1);
+                    }
                 }
             }
-        }
 
-        if ( fnlower && ign_lc ) {
-            NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.ifo", vidd, i, 0))
-        } else {
-            NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.IFO", vidd, i, 0))
-        }
+            NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-        pfoopt(_("X %s size %zu\n"), nbuf, pt->ifos[0].st_size);
+            pfoopt(_("X %s size %zu\n"), nbuf, pt->ifos[0].st_size);
 
-        /* check for multiple 'links' to file; 1st seen 2010 */
-        blk = UDFFindFile(dvdreader, pn-1, &fsz);
-        if ( blk ) {
-            int r = disc_block_check(blk, nbuf, fsz);
-            if ( r > 0 ) {
-                if ( !force || r >= 10 ) {
-                    exit(r);
-                }
-                pfeall(_(
-                  "%s: continuing due to force option, "
-                  "but output might be very large, and "
-                  "might not make a proper UDF fs.\n"),
-                  program_name);
-            } else if ( r < 0 ) {
-                break;
-            }
-        }
-
-        dom = drd_READ_INFO_FILE;
-        dvdfile = DVDOpenFile(dvdreader, i, dom);
-        if ( dvdfile == 0 ) {
-            pfeall(_("%s: failed opening IFO of title %d\n"),
-                program_name, i);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(8);
-        }
-
-        if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
-            pfeall(_("%s: failed getting block size of %s\n"),
-                program_name, nbuf);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(9);
-        }
-
-        i1 = 0;
-        ifo_badbl = numbadblk;
-        if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
-            pfeall(_("%s: failed in IFO copy (%ld blocks)\n"),
-                program_name, (long)nblk);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(10);
-        }
-        ifo_badbl = numbadblk - ifo_badbl;
-
-        DVDCloseFile(dvdfile);
-
-        /* try preserving metadata -- never fatal on error */
-        set_f_meta(nbuf, &(pt->ifos[0]));
-        break;
-        } /* do0 */
-        /* end do IFO */
-
-        /* do BUP */
-        while ( do0 && pt->has_bup ) {
-        uint32_t blk, fsz;
-
-        PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.BUP", i, 0))
-        if ( statihack(mntd, pn, &(pt->bups[0])) ) {
-            if ( errno == ENOENT ) {
-                do0 = 0;
-            } else {
-                perror(mntd);
-                pfeall(_("%s: failed stat(%s) - %s\n"),
-                    program_name, mntd, strerror(errno));
-                if ( force ) {
-                    do0 = 0;
-                } else {
-                    exit(1);
-                }
-            }
-        }
-
-        if ( fnlower && ign_lc ) {
-            NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.bup", vidd, i, 0))
-        } else {
-            NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.BUP", vidd, i, 0))
-        }
-
-        pfoopt(_("X %s size %zu\n"), nbuf, pt->bups[0].st_size);
-
-        /* check for multiple 'links' to file; 1st seen 2010 */
-        blk = UDFFindFile(dvdreader, pn-1, &fsz);
-        if ( blk ) {
-            int r = disc_block_check(blk, nbuf, fsz);
-            if ( r > 0 ) {
-                if ( !force || r >= 10 ) {
-                    exit(r);
-                }
-                pfeall(_(
-                  "%s: continuing due to force option, "
-                  "but output might be very large, and "
-                  "might not make a proper UDF fs.\n"),
-                  program_name);
-            } else if ( r < 0 ) {
-                break;
-            }
-        }
-
-        dom = drd_READ_INFO_BACKUP_FILE;
-        dvdfile = DVDOpenFile(dvdreader, i, dom);
-        if ( dvdfile == 0 ) {
-            pfeall(_("%s: failed opening BUP of title %d\n"),
-                program_name, i);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(8);
-        }
-
-        if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
-            pfeall(_("%s: failed getting block size of %s\n"),
-                program_name, nbuf);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(9);
-        }
-
-        i1 = 0;
-        bup_badbl = numbadblk;
-        if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
-            pfeall(_("%s: failed in BUP copy (%ld blocks)\n"),
-                program_name, (long)nblk);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(10);
-        }
-        bup_badbl = numbadblk - bup_badbl;
-
-        DVDCloseFile(dvdfile);
-
-        /* If both ifo and bup are damaged, that's bad.  Vobs
-         * can have some bad or zeroed blocks, and any machine
-         * should recover, but the ifo's have the important code
-         * and data for playing the set; hence, the backup bup.
-         * Continue anyway if force in effect (disc might still
-         * be usable, e.g. ifo is not part of main titleset).
-         */
-        if ( ifo_badbl && bup_badbl ) {
-            pfeall(_("%s: both IFO and BUP had bad blocks "
-                "(%llu, %llu bad blocks)\n"),
-                program_name, ifo_badbl, bup_badbl);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(10);
-        /* If only one but not both are damaged, copy the good
-         * over the bad, since they are identical.
-         */
-        } else if ( ifo_badbl || bup_badbl ) {
-            size_t i;
-            char* p;
-            char* dst = x_strdup(nbuf); /* no ret on err */
-
-            /*
-             * Note: filename *must* have expected suffix at this point,
-             * hence the literal 4 at strlcpy().
-             */
-            p = strrchr(ifo_badbl ? dst : nbuf, '.');
-            if ( p++ == NULL ) {
-                /* At this point there is no longer
-                 * any reason to live.
-                 */
-                abort();
-            }
-            for ( i = 0; i < A_SIZE(ifo_cmps); i++ ) {
-                if ( ! strcmp(p, ifo_cmps[i].c) ) {
-                    strlcpy(p, ifo_cmps[i].r, 4);
+            /* check for multiple 'links' to file; 1st seen 2010 */
+            blk = UDFFindFile(dvdreader, pn-1, &fsz);
+            if ( blk ) {
+                int r = disc_block_check(blk, nbuf, fsz);
+                if ( r > 0 ) {
+                    if ( !force || r >= 10 ) {
+                        exit(r);
+                    }
+                    pfeall(_(
+                      "%s: continuing due to force option, "
+                      "but output might be very large, and "
+                      "might not make a proper UDF fs.\n"),
+                      program_name);
+                } else if ( r < 0 ) {
                     break;
                 }
             }
-            if ( i >= A_SIZE(ifo_cmps) ) {
-                /* At this point there is no longer
-                 * any reason to live.
-                 */
-                abort();
+
+            dom = drd_READ_INFO_FILE;
+            dvdfile = DVDOpenFile(dvdreader, i, dom);
+            if ( dvdfile == 0 ) {
+                pfeall(_("%s: failed opening IFO of title %d\n"),
+                    program_name, i);
+                if ( force ) {
+                    break;
+                }
+                DVDClose(dvdreader);
+                exit(8);
             }
 
-            pfeall(_("%s: copying %s to %s (bad blocks)\n"),
-                program_name, nbuf, dst);
+            if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
+                pfeall(_("%s: failed getting block size of %s\n"),
+                    program_name, nbuf);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    break;
+                }
+                DVDClose(dvdreader);
+                exit(9);
+            }
 
-            if ( copy_file(nbuf, dst) ) {
-                pfeall(_("%s: copy %s to %s failed\n"),
-                    program_name, nbuf, dst);
-                free(dst);
+            i1 = 0;
+            ifo_badbl = numbadblk;
+            if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
+                pfeall(_("%s: failed in IFO copy (%ld blocks)\n"),
+                    program_name, (long)nblk);
+                DVDCloseFile(dvdfile);
                 if ( force ) {
                     break;
                 }
                 DVDClose(dvdreader);
                 exit(10);
             }
+            ifo_badbl = numbadblk - ifo_badbl;
 
-            set_f_meta(ifo_badbl ? dst : nbuf,
-                &(pt->ifos[0]));
-            set_f_meta(bup_badbl ? dst : nbuf,
-                &(pt->bups[0]));
+            DVDCloseFile(dvdfile);
 
-            free(dst);
-        } else {
-            /* try preserving metadata -- never fatal */
-            set_f_meta(nbuf, &(pt->bups[0]));
-        }
+            /* try preserving metadata -- never fatal on error */
+            set_f_meta(nbuf, &(pt->ifos[0]));
+            break;
+        } /* do0 */
+        /* end do IFO */
 
-        break;
+        /* do BUP */
+        while ( do0 && pt->has_bup ) {
+            uint32_t blk, fsz;
+            const char* t_fmt = fnlower && ign_lc
+                ? "%s/vts_%02d_%d.bup" : "%s/VTS_%02d_%d.BUP";
+
+            PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.BUP", i, 0))
+            if ( statihack(mntd, pn, &(pt->bups[0])) ) {
+                if ( errno == ENOENT ) {
+                    do0 = 0;
+                } else {
+                    perror(mntd);
+                    pfeall(_("%s: failed stat(%s) - %s\n"),
+                        program_name, mntd, strerror(errno));
+                    if ( force ) {
+                        do0 = 0;
+                    } else {
+                        exit(1);
+                    }
+                }
+            }
+
+            NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
+
+            pfoopt(_("X %s size %zu\n"), nbuf, pt->bups[0].st_size);
+
+            /* check for multiple 'links' to file; 1st seen 2010 */
+            blk = UDFFindFile(dvdreader, pn-1, &fsz);
+            if ( blk ) {
+                int r = disc_block_check(blk, nbuf, fsz);
+                if ( r > 0 ) {
+                    if ( !force || r >= 10 ) {
+                        exit(r);
+                    }
+                    pfeall(_(
+                      "%s: continuing due to force option, "
+                      "but output might be very large, and "
+                      "might not make a proper UDF fs.\n"),
+                      program_name);
+                } else if ( r < 0 ) {
+                    break;
+                }
+            }
+
+            dom = drd_READ_INFO_BACKUP_FILE;
+            dvdfile = DVDOpenFile(dvdreader, i, dom);
+            if ( dvdfile == 0 ) {
+                pfeall(_("%s: failed opening BUP of title %d\n"),
+                    program_name, i);
+                if ( force ) {
+                    break;
+                }
+                DVDClose(dvdreader);
+                exit(8);
+            }
+
+            if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
+                pfeall(_("%s: failed getting block size of %s\n"),
+                    program_name, nbuf);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    break;
+                }
+                DVDClose(dvdreader);
+                exit(9);
+            }
+
+            i1 = 0;
+            bup_badbl = numbadblk;
+            if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
+                pfeall(_("%s: failed in BUP copy (%ld blocks)\n"),
+                    program_name, (long)nblk);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    break;
+                }
+                DVDClose(dvdreader);
+                exit(10);
+            }
+            bup_badbl = numbadblk - bup_badbl;
+
+            DVDCloseFile(dvdfile);
+
+            /* If both ifo and bup are damaged, that's bad.  Vobs
+             * can have some bad or zeroed blocks, and any machine
+             * should recover, but the ifo's have the important code
+             * and data for playing the set; hence, the backup bup.
+             * Continue anyway if force in effect (disc might still
+             * be usable, e.g. ifo is not part of main titleset).
+             */
+            if ( ifo_badbl && bup_badbl ) {
+                pfeall(_("%s: both IFO and BUP had bad blocks "
+                    "(%llu, %llu bad blocks)\n"),
+                    program_name, ifo_badbl, bup_badbl);
+                if ( force ) {
+                    break;
+                }
+                DVDClose(dvdreader);
+                exit(10);
+            /* If only one but not both are damaged, copy the good
+             * over the bad, since they are identical.
+             */
+            } else if ( ifo_badbl || bup_badbl ) {
+                size_t i;
+                char* p;
+                char* dst = x_strdup(nbuf); /* no ret on err */
+
+                /*
+                 * Note: filename *must* have expected suffix
+                 * at this point, hence the literal 4 at strlcpy().
+                 */
+                p = strrchr(ifo_badbl ? dst : nbuf, '.');
+                if ( p++ == NULL ) {
+                    /* At this point there is no longer
+                     * any reason to live.
+                     */
+                    abort();
+                }
+                for ( i = 0; i < A_SIZE(ifo_cmps); i++ ) {
+                    if ( ! strcmp(p, ifo_cmps[i].c) ) {
+                        strlcpy(p, ifo_cmps[i].r, 4);
+                        break;
+                    }
+                }
+                if ( i >= A_SIZE(ifo_cmps) ) {
+                    /* At this point there is no longer
+                     * any reason to live.
+                     */
+                    abort();
+                }
+
+                pfeall(_("%s: copying %s to %s (bad blocks)\n"),
+                    program_name, nbuf, dst);
+
+                if ( copy_file(nbuf, dst) ) {
+                    pfeall(_("%s: copy %s to %s failed\n"),
+                        program_name, nbuf, dst);
+                    free(dst);
+                    if ( force ) {
+                        break;
+                    }
+                    DVDClose(dvdreader);
+                    exit(10);
+                }
+
+                set_f_meta(ifo_badbl ? dst : nbuf, &(pt->ifos[0]));
+                set_f_meta(bup_badbl ? dst : nbuf, &(pt->bups[0]));
+
+                free(dst);
+            } else {
+                /* try preserving metadata -- never fatal */
+                set_f_meta(nbuf, &(pt->bups[0]));
+            }
+
+            break;
         } /* do0 */
         /* end do BUP */
 
@@ -561,221 +552,226 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
         }
 
         if ( do0 ) {
-        if ( fnlower && ign_lc ) {
-            NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.vob", vidd, i, 0))
-        } else {
-            NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.VOB", vidd, i, 0))
-        }
+            const char* t_fmt = fnlower && ign_lc
+                ? "%s/vts_%02d_%d.vob" : "%s/VTS_%02d_%d.VOB";
+            NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-        pfoopt(_("X %s size %zu\n"), nbuf, pt->vobs[0].st_size);
+            pfoopt(_("X %s size %zu\n"), nbuf, pt->vobs[0].st_size);
         } /* do0 */
 
         while ( do0 && !want_dry_run ) {
-        uint32_t blk, fsz;
-        /* check for multiple 'links' to file; 1st seen 2010 */
-        blk = UDFFindFile(dvdreader, pn-1, &fsz);
-        if ( blk ) {
-            int r = disc_block_check(blk, nbuf, fsz);
-            if ( r > 0 ) {
-                if ( !force || r >= 10 ) {
-                    exit(r);
+            uint32_t blk, fsz;
+
+            /* check for multiple 'links' to file; 1st seen 2010 */
+            blk = UDFFindFile(dvdreader, pn - 1, &fsz);
+            if ( blk ) {
+                int r = disc_block_check(blk, nbuf, fsz);
+                if ( r > 0 ) {
+                    if ( !force || r >= 10 ) {
+                        exit(r);
+                    }
+                    pfeall(_(
+                      "%s: continuing due to force option, "
+                      "but output might be very large, and "
+                      "might not make a proper UDF fs.\n"),
+                      program_name);
+                } else if ( r < 0 ) {
+                    break;
                 }
-                pfeall(_(
-                  "%s: continuing due to force option, "
-                  "but output might be very large, and "
-                  "might not make a proper UDF fs.\n"),
-                  program_name);
-            } else if ( r < 0 ) {
-                break;
             }
-        }
 
-        dom = drd_READ_MENU_VOBS;
-        dvdfile = DVDOpenFile(dvdreader, i, dom);
-        if ( dvdfile == 0 ) {
-            /* EH: Tue Apr 27 10:53:44 EDT 2010
-             * Some video DVDs have one or more zero size VTS_??_0.VOB
-             * files (menu vob for title).  DVDOpenFile() above might
-             * OR MIGHT NOT fail (return 0) for such files.  WHY?
-             * IAC, check st_size for 0 and if so handle it here.
-             */
-            if ( pt->vobs[0].st_size == 0 ) {
-                int td;
+            dom = drd_READ_MENU_VOBS;
+            dvdfile = DVDOpenFile(dvdreader, i, dom);
+            if ( dvdfile == 0 ) {
+                /* EH: Tue Apr 27 10:53:44 EDT 2010
+                 * Some DVDs have one or more zero size VTS_??_0.VOB
+                 * files (menu vob for title).  DVDOpenFile() might
+                 * OR MIGHT NOT fail (return 0) for such files.  WHY?
+                 * IAC, check st_size for 0 and if so handle it here.
+                 */
+                if ( pt->vobs[0].st_size == 0 ) {
+                    int td;
 
-                pfeopt(_("%s: creating zero size %s\n"),
+                    pfeopt(_("%s: creating zero size %s\n"),
+                        program_name, nbuf);
+                    td = open(nbuf,
+                        O_CREAT|O_EXCL|O_TRUNC|O_WRONLY, 0666);
+
+                    if ( td < 0 && force && errno == EEXIST ) {
+                        td = open(nbuf,
+                            O_CREAT|O_TRUNC|O_WRONLY, 0666);
+                        if ( td >= 0 ) {
+                            pfoopt(_("%s: truncated extant %s\n"),
+                                program_name, nbuf);
+                        }
+                    }
+
+                    if ( td < 0 ) {
+                        pfeall(_("%s: failed creating %s - %s\n"),
+                            program_name, nbuf, strerror(errno));
+                        if ( force ) {
+                            break;
+                        }
+                        DVDClose(dvdreader);
+                        exit(8);
+                    }
+
+                    close(td);
+
+                    /* try preserving metadata
+                     *  -- never fatal on error
+                     */
+                    set_f_meta(nbuf, &(pt->vobs[0]));
+                    break;
+                } /* st_size == 0 */
+
+                pfeall(_("%s: failed opening menu of title %d\n"),
+                    program_name, i);
+                if ( force ) {
+                    break;
+                }
+                DVDClose(dvdreader);
+                exit(8);
+            }
+
+            if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
+                pfeall(_("%s: failed getting block size of %s\n"),
                     program_name, nbuf);
-                td = open(nbuf, O_CREAT|O_EXCL|O_TRUNC|O_WRONLY, 0666);
-                if ( td < 0 && force && errno == EEXIST ) {
-                    td = open(nbuf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
-                    if ( td >= 0 ) {
-                        pfoopt(_("%s: truncated extant %s\n"),
-                            program_name, nbuf);
-                    }
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    break;
                 }
-                if ( td < 0 ) {
-                    pfeall(_("%s: failed creating %s - %s\n"),
-                        program_name, nbuf, strerror(errno));
-                    if ( force ) {
-                        break;
-                    }
-                    DVDClose(dvdreader);
-                    exit(8);
+                DVDClose(dvdreader);
+                exit(9);
+            }
+
+            i1 = 0;
+            if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
+                pfeall(_("%s: failed to copy VOB at %ld blocks\n"),
+                    program_name, (long)nblk);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    break;
                 }
-                close(td);
-
-                /* try preserving metadata -- never fatal on error */
-                set_f_meta(nbuf, &(pt->vobs[0]));
-                break;
-            } /* st_size == 0 */
-
-            pfeall(_("%s: failed opening menu of title %d\n"),
-                program_name, i);
-            if ( force ) {
-                break;
+                DVDClose(dvdreader);
+                exit(10);
             }
-            DVDClose(dvdreader);
-            exit(8);
-        }
 
-        if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
-            pfeall(_("%s: failed getting block size of %s\n"),
-                program_name, nbuf);
             DVDCloseFile(dvdfile);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(9);
-        }
 
-        i1 = 0;
-        if ( copy_vob(dvdfile, nbuf, buf, nblk, &i1) != nblk ) {
-            pfeall(_("%s: failed to copy VOB at %ld blocks\n"),
-                program_name, (long)nblk);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                break;
-            }
-            DVDClose(dvdreader);
-            exit(10);
-        }
-
-        DVDCloseFile(dvdfile);
-
-        /* try preserving metadata -- never fatal on error */
-        set_f_meta(nbuf, &(pt->vobs[0]));
-        break; /* no loop */
+            /* try preserving metadata -- never fatal on error */
+            set_f_meta(nbuf, &(pt->vobs[0]));
+            break; /* no loop */
         } /* do0 */
 
         if ( !want_dry_run ) {
-        dom = drd_READ_TITLE_VOBS;
-        dvdfile = DVDOpenFile(dvdreader, i, dom);
-        if ( dvdfile == 0 ) {
-            pfeall(_("%s: failed opening title %d\n"),
-                program_name, i);
-            if ( force ) {
-                continue;
+            dom = drd_READ_TITLE_VOBS;
+            dvdfile = DVDOpenFile(dvdreader, i, dom);
+            if ( dvdfile == 0 ) {
+                pfeall(_("%s: failed opening title %d\n"),
+                    program_name, i);
+                if ( force ) {
+                    continue;
+                }
+                DVDClose(dvdreader);
+                exit(11);
             }
-            DVDClose(dvdreader);
-            exit(11);
-        }
 
-        if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
-            pfeall(_("%s: failed getting block size of %s\n"),
-                program_name, nbuf);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                continue;
+            if ( (nblk = DVDFileSize(dvdfile)) < 0 ) {
+                pfeall(_("%s: failed getting block size of %s\n"),
+                    program_name, nbuf);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    continue;
+                }
+                DVDClose(dvdreader);
+                exit(12);
             }
-            DVDClose(dvdreader);
-            exit(12);
-        }
         } /* !want_dry_run */
 
         i1 = 0;
         for ( j = 1; j <= pt->num; j++ ) {
-        uint32_t blk, fsz;
-        size_t sz;
+            uint32_t blk, fsz;
+            size_t sz;
+            const char* t_fmt = fnlower && ign_lc
+                ? "%s/vts_%02d_%d.vob" : "%s/VTS_%02d_%d.VOB";
 
-        PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.VOB", i, j))
-        if ( statihack(mntd, pn, &(pt->vobs[j])) ) {
-            if ( errno == ENOENT ) {
-                continue;
-            }
-            perror(mntd);
-            pfeall(_("%s: error in stat() of %s\n"),
-                program_name, mntd);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                continue;
-            }
-            DVDClose(dvdreader);
-            exit(14);
-        }
-        if ( fnlower && ign_lc ) {
-            NBP((nbuf, nbufbufdlen, "%s/vts_%02d_%d.vob", vidd, i, j))
-        } else {
-            NBP((nbuf, nbufbufdlen, "%s/VTS_%02d_%d.VOB", vidd, i, j))
-        }
-
-        /* check for multiple 'links' to file; 1st seen 2010 */
-        blk = UDFFindFile(dvdreader, pn-1, &fsz);
-        if ( blk ) {
-            int r = disc_block_check(blk, nbuf, fsz);
-            if ( r > 0 ) {
-                if ( !force || r >= 10 ) {
-                    exit(r);
+            PNP((pn, PNREM, "VIDEO_TS/VTS_%02d_%d.VOB", i, j))
+            if ( statihack(mntd, pn, &(pt->vobs[j])) ) {
+                if ( errno == ENOENT ) {
+                    continue;
                 }
-                pfeall(_(
-                  "%s: continuing due to force option, "
-                  "but output might be very large, and "
-                  "might not make a proper UDF fs.\n"),
-                  program_name);
-            } else if ( r < 0 ) {
-                nblk -= fsz / blk_sz;
-                continue;
+                perror(mntd);
+                pfeall(_("%s: error in stat() of %s\n"),
+                    program_name, mntd);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    continue;
+                }
+                DVDClose(dvdreader);
+                exit(14);
             }
-        }
 
-        sz = pt->vobs[j].st_size;
-        pfoopt(_("X %s size %zu\n")
-            , nbuf, pt->vobs[j].st_size);
+            NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, j))
 
-        if ( sz % blk_sz ) {
-            pfeall(_("%s: error in size %zu of %s\n"),
-                program_name, sz, mntd);
-            pfeall(_("%s: %zu %% %u == %zu\n"),
-                program_name,
-                sz,
-                (unsigned)blk_sz,
-                sz % blk_sz);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                continue;
+            /* check for multiple 'links' to file; 1st seen 2010 */
+            blk = UDFFindFile(dvdreader, pn-1, &fsz);
+            if ( blk ) {
+                int r = disc_block_check(blk, nbuf, fsz);
+                if ( r > 0 ) {
+                    if ( !force || r >= 10 ) {
+                        exit(r);
+                    }
+                    pfeall(_(
+                      "%s: continuing due to force option, "
+                      "but output might be very large, and "
+                      "might not make a proper UDF fs.\n"),
+                      program_name);
+                } else if ( r < 0 ) {
+                    nblk -= fsz / blk_sz;
+                    continue;
+                }
             }
-            DVDClose(dvdreader);
-            exit(15);
-        }
 
-        if ( !want_dry_run ) {
-        sz /= blk_sz;
+            sz = pt->vobs[j].st_size;
+            pfoopt(_("X %s size %zu\n")
+                , nbuf, pt->vobs[j].st_size);
 
-        if ( copy_vob(dvdfile, nbuf, buf, sz, &i1) != sz ) {
-            pfeall(
-            _("%s: failed in VOB copy, %zu blocks\n"),
-                program_name, sz);
-            DVDCloseFile(dvdfile);
-            if ( force ) {
-                continue;
+            if ( sz % blk_sz ) {
+                pfeall(_("%s: error in size %zu of %s\n"),
+                    program_name, sz, mntd);
+                pfeall(_("%s: %zu %% %u == %zu\n"),
+                    program_name,
+                    sz,
+                    (unsigned)blk_sz,
+                    sz % blk_sz);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    continue;
+                }
+                DVDClose(dvdreader);
+                exit(15);
             }
-            DVDClose(dvdreader);
-            exit(16);
-        }
-        nblk -= sz;
 
-        /* try preserving metadata -- never fatal on error */
-        set_f_meta(nbuf, &(pt->vobs[j]));
-        } /* !want_dry_run */
+            if ( !want_dry_run ) {
+            sz /= blk_sz;
+
+            if ( copy_vob(dvdfile, nbuf, buf, sz, &i1) != sz ) {
+                pfeall(
+                _("%s: failed in VOB copy, %zu blocks\n"),
+                    program_name, sz);
+                DVDCloseFile(dvdfile);
+                if ( force ) {
+                    continue;
+                }
+                DVDClose(dvdreader);
+                exit(16);
+            }
+            nblk -= sz;
+
+            /* try preserving metadata -- never fatal on error */
+            set_f_meta(nbuf, &(pt->vobs[j]));
+            } /* !want_dry_run */
         } /* for ( j = 1; j <= pt->num; j++ ) { */
 
         if ( !want_dry_run ) {
@@ -799,7 +795,7 @@ copy_vob(
     const char* out,
     unsigned char* buf,
     size_t blkcnt,
-    long* poff
+    int* poff
     )
 {
     int o;
@@ -952,7 +948,8 @@ copy_file_force(const char* src, const char* dest)
     ssize_t szi, szo;
     unsigned char* buf;
     struct stat sb;
-    size_t n, wrcnt, blcnt, rem;
+    size_t n, wrcnt, blcnt, rem, badblk;
+    vd_rw_proc_args pargs;
 
     buf = global_aligned_buffer;
 
@@ -971,7 +968,8 @@ copy_file_force(const char* src, const char* dest)
         exit(21);
     }
 
-    ofd = open(dest, O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW|O_LARGEFILE, 0666);
+    ofd = open(dest,
+        O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW|O_LARGEFILE, 0666);
     if ( ofd < 0 ) {
         pfeall(
             _("%s: %s open()ing: %s\n"),
@@ -983,6 +981,33 @@ copy_file_force(const char* src, const char* dest)
     blcnt = sb.st_size / wrcnt;
     rem = sb.st_size % wrcnt;
 
+    pargs.vd_dvdfile      = 0;
+    pargs.vd_inp          = ifd;
+    pargs.vd_out          = ofd;
+    pargs.vd_program_name = program_name;
+    pargs.vd_inp_fname    = src;
+    pargs.vd_out_fname    = dest;
+    pargs.vd_blkcnt       = blcnt;
+    pargs.vd_blknrd       = block_read_count;
+    pargs.vd_blk_sz       = blk_sz;
+    pargs.vd_retrybadblk  = retrybadblk;
+    pargs.vd_numbadblk    = &numbadblk;
+    pargs.vd_poff         = 0;
+    pargs.vd_buf          = buf;
+
+    badblk = numbadblk;
+
+    if ( vd_rw_vob_blks(&pargs) != blcnt ) {
+        pfeall(_("%s: %s write()ing: %s\n"),
+            program_name, strerror(errno), dest);
+        exit(24);
+    }
+
+    if ( badblk > numbadblk ) {
+        pfeopt(_("%s errors reading %s -- %zu zero blocks written!\n"),
+            program_name, src, badblk - numbadblk);
+    }
+#if 0
     for ( n = 0; n < blcnt; n++ ) {
         szi = read_all(ifd, buf, wrcnt);
         if ( szi < 0 ) {
@@ -1033,8 +1058,27 @@ copy_file_force(const char* src, const char* dest)
             exit(26);
         }
     }
+#endif
 
-    if ( rem ) {
+    if ( rem ) { // blk_sz
+        pargs.vd_blkcnt       = 1;
+        pargs.vd_blk_sz       = rem;
+        pargs.vd_retrybadblk  = 1;
+
+        if ( vd_rw_vob_blks(&pargs) != 1 ) {
+            pfeall(_("%s: %s write()ing: %s\n"),
+                program_name, strerror(errno), dest);
+            exit(24);
+        }
+
+        badblk = numbadblk;
+
+        if ( badblk > numbadblk ) {
+            pfeopt(
+                _("%s errors reading %s -- %zu zero blocks written!\n"),
+                program_name, src, badblk - numbadblk);
+        }
+#if 0
         szi = read_all(ifd, buf, rem);
         if ( szi < 0 ) {
             if ( errno != EIO ) {
@@ -1063,6 +1107,7 @@ copy_file_force(const char* src, const char* dest)
                 program_name, strerror(errno), dest);
             exit(29);
         }
+#endif
     }
 
     if ( close(ifd) ) {
@@ -1382,122 +1427,6 @@ wr_regmask(char* d, int dlen, unsigned val)
 
 /* static procedures */
 
-/* if poff==0 do fd copy else do vob copy */
-/*
- *  call when read fails with io error; assume optical medium fault.
- *  zero the destination buffer and try reading one block at a time.
- *  if read fails w/ EIO advanvce one block (writing zeroes).
- *  return -1 for errors other than EIO.
- */
-static ssize_t
-copy_vob_badblks(
-    drd_file_t* dvdfile,
-    const char* outfname,
-    int inp, int out,
-    unsigned char* buf,
-    size_t blkcnt,
-    long* poff
-    )
-{
-    time_t tm1, tm2;
-    size_t nbr;
-    off_t rdp;
-    unsigned long good = 0, bad = 0;
-    size_t cnt = blkcnt;
-    unsigned char* prd = buf;
-
-    tm1 = time(0);
-
-    if ( inp >= 0 && (rdp = lseek(inp, 0, SEEK_CUR)) < 0 ) {
-        int t = errno;
-        perror("lseek cur in copy_vob_badblks");
-        errno = t;
-        return -1;
-    }
-
-    nbr = retrybadblk;
-
-    while ( cnt ) {
-        ssize_t nb;
-        nbr = MIN(nbr, cnt);
-
-        if ( poff ) {
-            nb = DVDReadBlocks(dvdfile, *poff, nbr, prd);
-        } else if ( inp >= 0 ) {
-            ssize_t ssz = read_all(inp, prd, nbr * blk_sz);
-            if ( ssz <= 0 ) {
-                nb = ssz;
-            } else {
-                ssize_t rmd = ssz % blk_sz;
-                if ( rmd ) {
-                    int t = errno;
-                    perror("read_all in copy_badblocks");
-                    errno = t;
-                    return -1;
-                }
-                nb = ssz / blk_sz;
-            }
-        } else {
-            pfeall(_("FATAL internal error: inp == %d\n"),
-                inp);
-            errno = EINVAL;
-            return -1;
-        }
-
-        if ( nb == 0 ) {
-            break;
-        } else if ( nb < 0 ) {
-            if ( errno != EIO ) {
-                perror(outfname);
-                return -1;
-            }
-
-            memset(prd, 0, nbr * blk_sz);
-
-            nb = nbr;
-            bad += nb;
-        } else {
-            good += nb;
-        }
-
-        if ( poff ) {
-            *poff += (long)nb;
-        }
-
-        cnt -= nb;
-        nb  *= blk_sz;
-        prd += nb;
-        rdp += nb;
-
-        if ( inp >= 0 && lseek(inp, rdp, SEEK_SET) != rdp ) {
-            int t = errno;
-            perror("lseek set in copy_badblocks");
-            errno = t;
-            return -1;
-        }
-    }
-
-    cnt = blkcnt - cnt;
-    nbr = cnt * blk_sz;
-
-    if ( write_all(out, buf, nbr) != nbr ) {
-        perror(outfname);
-        return -1;
-    }
-
-    numbadblk += bad;
-    tm2 = time(0);
-    pfeall(
-        _("%lu bad blocks zeroed in read of %lu "
-        "(%g good blocks in %llu seconds) for %s\n"),
-        bad, (unsigned long)blkcnt,
-        (double)good / (double)blkcnt,
-        (unsigned long long)tm2 - tm1,
-        outfname);
-
-    return cnt;
-}
-
 static ssize_t
 copy_vob_fd(
     drd_file_t* dvdfile,
@@ -1505,73 +1434,26 @@ copy_vob_fd(
     int inp, int out,
     unsigned char* buf,
     size_t blkcnt,
-    long* poff
+    int* poff
     )
 {
-    size_t cnt = blkcnt;
+    vd_rw_proc_args pargs;
 
-    errno = 0;
+    pargs.vd_dvdfile      = dvdfile    ;
+    pargs.vd_inp          = -1;
+    pargs.vd_out          = out        ;
+    pargs.vd_program_name = program_name;
+    pargs.vd_inp_fname    = "<input>";
+    pargs.vd_out_fname    = outfname;
+    pargs.vd_blkcnt       = blkcnt     ;
+    pargs.vd_blknrd       = block_read_count;
+    pargs.vd_blk_sz       = blk_sz     ;
+    pargs.vd_retrybadblk  = retrybadblk;
+    pargs.vd_numbadblk    = &numbadblk ;
+    pargs.vd_poff         = poff       ;
+    pargs.vd_buf          = buf        ;
 
-    while ( cnt ) {
-        ssize_t nb;
-        size_t  nbr = MIN(cnt, block_read_count);
-
-        if ( poff ) {
-            nb = DVDReadBlocks(dvdfile, *poff, nbr, buf);
-        } else if ( inp >= 0 ) {
-            ssize_t ssz = read_all(inp, buf, nbr * blk_sz);
-            if ( ssz <= 0 ) {
-                nb = ssz;
-            } else {
-                ssize_t rmd = ssz % blk_sz;
-                if ( rmd ) {
-                    lseek(inp, (off_t)0 - rmd, SEEK_CUR);
-                }
-                nb = ssz / blk_sz;
-            }
-        } else {
-            pfeall(_("FATAL internal error: inp == %d\n"),
-                inp);
-            errno = EINVAL;
-            return -1;
-        }
-
-        if ( nb <= 0 ) {
-            perror(outfname);
-            errno = 0;
-            /* call desperation procedure:
-             * will write bogus data for failed
-             * reads on the premise that still
-             * a video dvd _might_ remain usable
-             */
-            if ( do_ioerrs ) {
-                nb = copy_vob_badblks(dvdfile, outfname,
-                    inp, out, buf, nbr, poff);
-                if ( nb > 0 ) {
-                    cnt -= nb;
-                    continue;
-                }
-            }
-
-            eputs(_("DVD bad blocks: cannot salvage\n"));
-
-            return -1;
-        }
-
-        if ( poff ) {
-            *poff += (long)nb;
-        }
-        cnt -= nb;
-        nb *= blk_sz;
-
-        if ( write_all(out, buf, nb) != nb ) {
-            perror(outfname);
-
-            return -1;
-        }
-    }
-
-    return blkcnt - cnt;
+    return vd_rw_vob_blks(&pargs);
 }
 
 /*

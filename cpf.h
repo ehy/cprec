@@ -1,4 +1,4 @@
-/* 
+/*
    cpf.[hc] - copy functions
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #ifndef _CPF_H_
@@ -32,12 +32,12 @@ extern const unsigned regmN;
 extern const unsigned regm2;
 
 /* found bad blocks? */
-extern unsigned long numbadblk;
+extern size_t numbadblk;
 
 void       copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf);
 ssize_t    copy_vob(drd_file_t* dvdfile
            , const char* out, unsigned char* buf
-           , size_t blkcnt, long* poff);
+           , size_t blkcnt, int* poff);
 int        copy_file(const char* src, const char* dest);
 int        copy_file_force(const char* src, const char* dest);
 int        copy_bup_ifo(char* src, const char* dest);

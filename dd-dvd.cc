@@ -519,307 +519,6 @@ list_build(file_list& lst, dvd_reader_p drd)
     list_sort(lst);
 }
 
-#if 0
-/* if poff==0 do fd copy else do vob copy */
-/*
- *  call when read fails with io error; assume optical medium fault.
- *  zero the destination buffer and try reading one block at a time.
- *  if read fails w/ EIO advanvce one block (writing zeroes).
- *  return -1 for errors other than EIO.
- */
-ssize_t
-copy_vob_badblks(
-    drd_file_t* dvdfile,
-    int inp, int out,
-    unsigned char* buf,
-    size_t blkcnt,
-    int* poff = 0
-    )
-{
-    time_t tm1, tm2;
-    size_t nbr;
-    off_t rdp;
-    unsigned long good = 0, bad = 0;
-    size_t cnt = blkcnt;
-    unsigned char* prd = buf;
-
-    tm1 = time(0);
-
-    if ( inp >= 0 && (rdp = lseek(inp, 0, SEEK_CUR)) < 0 ) {
-        int t = errno;
-        perror("lseek cur in copy_badblocks");
-        errno = t;
-        return -1;
-    }
-
-    nbr = retrybadblk;
-
-    while ( cnt ) {
-        ssize_t nb;
-        nbr = min(nbr, cnt);
-
-        if ( poff ) {
-            nb = DVDReadBlocks(dvdfile, *poff, nbr, prd);
-        } else if ( inp >= 0 ) {
-            ssize_t ssz = read_all(inp, prd, nbr * blk_sz);
-            if ( ssz <= 0 ) {
-                nb = ssz;
-            } else {
-                ssize_t rmd = ssz % blk_sz;
-                if ( rmd ) {
-                    int t = errno;
-                    perror("read_all in copy_badblocks");
-                    errno = t;
-                    return -1;
-                }
-                nb = ssz / blk_sz;
-            }
-        } else {
-            pfeall("FATAL internal error: inp == %d\n",
-                inp);
-            errno = EINVAL;
-            return -1;
-        }
-
-        if ( nb == 0 ) {
-            break;
-        } else if ( nb < 0 ) {
-            if ( errno != EIO ) {
-                perror(poff ?
-                    "dvdread in copy_badblocks" :
-                    "read in copy_badblocks"
-                );
-                return -1;
-            }
-
-            memset(prd, 0, nbr * blk_sz);
-
-            nb = nbr;
-            bad += nb;
-        } else {
-            good += nb;
-        }
-
-        if ( poff ) {
-            *poff += (int)nb;
-        }
-
-        cnt -= nb;
-        nb  *= blk_sz;
-        prd += nb;
-        rdp += nb;
-
-        if ( inp >= 0 && lseek(inp, rdp, SEEK_SET) != rdp ) {
-            int t = errno;
-            perror("lseek set in copy_badblocks");
-            errno = t;
-            return -1;
-        }
-    }
-
-    cnt = blkcnt - cnt;
-    nbr = cnt * blk_sz;
-
-    if ( write_all(out, buf, nbr) != nbr ) {
-        perror("write in copy_badblks");
-        return -1;
-    }
-
-    numbadblk += bad;
-    tm2 = time(0);
-    pfeall(
-        "%lu bad blocks zeroed in read of %lu in %llu seconds\n",
-        bad, (unsigned long)blkcnt,
-        (unsigned long long)tm2 - tm1);
-
-    return cnt;
-}
-#endif
-
-// copy IFO of BUP with DVDReadBytes()
-ssize_t
-copy_ifo(
-    drd_file_t* dvdfile,
-    int inp, int out,
-    unsigned char* buf,
-    size_t blkcnt,
-    int* poff = 0
-    )
-{
-#if 1
-    vd_rw_proc_args pargs;
-    auto_array<char> inpnm(inname.length() + 1);
-    auto_array<char> outnm(outname.length() + 1);
-
-    strlcpy(inpnm, inname.c_str(), inname.length() + 1);
-    strlcpy(outnm, outname.c_str(), outname.length() + 1);
-
-    pargs.vd_dvdfile      = dvdfile    ;
-    pargs.vd_inp          = inp        ;
-    pargs.vd_out          = out        ;
-    pargs.vd_program_name = program_name;
-    pargs.vd_inp_fname    = inpnm;
-    pargs.vd_out_fname    = outnm;
-    pargs.vd_blkcnt       = blkcnt     ;
-    pargs.vd_blknrd       = block_read_count;
-    pargs.vd_blk_sz       = blk_sz     ;
-    pargs.vd_retrybadblk  = retrybadblk;
-    pargs.vd_numbadblk    = &numbadblk ;
-    pargs.vd_poff         = poff       ;
-    pargs.vd_buf          = buf        ;
-
-    return vd_rw_ifo_blks(&pargs);
-#else
-    unsigned nxrd = 0;
-    const unsigned lxrd = 512;
-    size_t cnt = blkcnt;
-
-    errno = 0;
-    DVDFileSeek(dvdfile, int32_t(0));
-
-    while ( cnt ) {
-        //ssize_t nb;
-        size_t  nbr = min(cnt, block_read_count);
-        size_t bcnt = nbr * blk_sz;
-
-        while ( bcnt ) {
-            ssize_t bret = DVDReadBytes(
-                dvdfile, buf, bcnt);
-            if ( bret < 0 ) {
-                perror("DVDReadBytes");
-                return -1;
-            }
-            bcnt -= bret;
-
-            while ( bret ) {
-                ssize_t wret = write_all(out, buf, bret);
-                if ( wret < 0 ) {
-                    perror("DVDReadBytes->write");
-                    return -1;
-                }
-                bret -= wret;
-            }
-        }
-
-        cnt -= nbr;
-    }
-
-    return blkcnt - cnt;
-#endif
-}
-
-// if poff==0 do fd copy else do vob copy
-ssize_t
-copy_vob(
-    drd_file_t* dvdfile,
-    int inp, int out,
-    unsigned char* buf,
-    size_t blkcnt,
-    int* poff = 0
-    )
-{
-#if 1
-    vd_rw_proc_args pargs;
-    auto_array<char> inpnm(inname.length() + 1);
-    auto_array<char> outnm(outname.length() + 1);
-
-    strlcpy(inpnm, inname.c_str(), inname.length() + 1);
-    strlcpy(outnm, outname.c_str(), outname.length() + 1);
-
-    pargs.vd_dvdfile      = dvdfile    ;
-    pargs.vd_inp          = inp        ;
-    pargs.vd_out          = out        ;
-    pargs.vd_program_name = program_name;
-    pargs.vd_inp_fname    = inpnm;
-    pargs.vd_out_fname    = outnm;
-    pargs.vd_blkcnt       = blkcnt     ;
-    pargs.vd_blknrd       = block_read_count;
-    pargs.vd_blk_sz       = blk_sz     ;
-    pargs.vd_retrybadblk  = retrybadblk;
-    pargs.vd_numbadblk    = &numbadblk ;
-    pargs.vd_poff         = poff       ;
-    pargs.vd_buf          = buf        ;
-
-    return vd_rw_vob_blks(&pargs);
-#else
-    size_t cnt = blkcnt;
-
-    errno = 0;
-
-    while ( cnt ) {
-        ssize_t nb;
-        size_t  nbr = min(cnt, block_read_count);
-
-        if ( poff ) {
-            nb = DVDReadBlocks(dvdfile, *poff, nbr, buf);
-        } else {
-            ssize_t ssz = read_all(inp, buf, nbr * blk_sz);
-            if ( ssz <= 0 ) {
-                nb = ssz;
-            } else {
-                /* it shouldn't happen: e.g. medium/fs won't
-                 * have a size that is not a blocksize multiple,
-                 * but have this little code in place anyway:
-                 */
-                ssize_t rmd = ssz % blk_sz;
-                if ( rmd ) {
-                    pfeopt(
-                        _("%s: WARN: fractional read remainder %zd\n"),
-                        program_name, rmd);
-                    lseek(inp, off_t(0) - rmd, SEEK_CUR);
-                }
-                nb = ssz / blk_sz;
-            }
-        }
-
-        if ( nb <= 0 ) {
-            perror("DVD read");
-
-            /* retry is disable when retrybadblk == 0 */
-            if ( retrybadblk < 1 ) {
-                pfeopt(_("%s: retry bad block == %zu, failing\n"),
-                    program_name, retrybadblk);
-                return -1;
-            }
-
-            pfeopt(_("%s: retry bad block == %zu, retrying\n"),
-                program_name, retrybadblk);
-
-            errno = 0;
-            /* call desperation procedure:
-             * will write bogus data for failed
-             * reads on the premise that still
-             * a video dvd _might_ remain usable
-             */
-            nb = copy_vob_badblks(
-                dvdfile, inp, out, buf, nbr, poff);
-            if ( nb > 0 ) {
-                cnt -= nb;
-                continue;
-            }
-
-            perror("DVD bad blocks: cannot salvage");
-
-            return -1;
-        }
-
-        if ( poff ) {
-            *poff += (int)nb;
-        }
-        cnt -= nb;
-        nb *= blk_sz;
-
-        if ( write_all(out, buf, nb) != nb ) {
-            perror("write DVD data");
-
-            return -1;
-        }
-    }
-
-    return blkcnt - cnt;
-#endif
-}
-
 // Just go through collected data and print, showing ops
 // to be done, but do nothing else -- same function signature
 // as dd_ops_exec() so that a selected call can be made
@@ -940,6 +639,23 @@ dd_ops_exec(
 
     off_t fptr = 0;
 
+    vd_rw_proc_args pargs;
+    auto_array<char> inpnm(inname.length() + 1);
+    auto_array<char> outnm(outname.length() + 1);
+
+    strlcpy(inpnm, inname.c_str(), inname.length() + 1);
+    strlcpy(outnm, outname.c_str(), outname.length() + 1);
+
+    pargs.vd_out          = out        ;
+    pargs.vd_program_name = program_name;
+    pargs.vd_inp_fname    = inpnm;
+    pargs.vd_out_fname    = outnm;
+    pargs.vd_blknrd       = block_read_count;
+    pargs.vd_blk_sz       = blk_sz     ;
+    pargs.vd_retrybadblk  = retrybadblk;
+    pargs.vd_numbadblk    = &numbadblk ;
+    pargs.vd_buf          = iobuffer;
+
     for ( unsigned n = 0; n < slst.size(); n++ ) {
         vtf_set_index ix(slst[n]);
         const vtf_set& vs = smap.find(ix)->second;
@@ -989,12 +705,20 @@ dd_ops_exec(
                         (unsigned long long)pos);
                     exit(EXIT_FAILURE);
                 }
-                ret = copy_vob(0, inp, out, iobuffer, ddbsz, 0);
+
+                pargs.vd_dvdfile      = 0;
+                pargs.vd_inp          = inp        ;
+                pargs.vd_blkcnt       = ddbsz;
+                pargs.vd_poff         = 0;
+
+                ret = vd_rw_vob_blks(&pargs);
+
                 if ( ret != ddbsz ) {
                     pfeall(_("%s: read failed at block %llu, %zu\n"),
                         program_name, (unsigned long long)fptr, ddbsz);
                     exit(EXIT_FAILURE);
                 }
+
                 fptr += off_t(ddbsz);
             }
 
@@ -1030,7 +754,8 @@ dd_ops_exec(
             }
 
             // copy DVD type data:
-            // use libdvdread API (within copy*()) per file type
+            // use libdvdread API per file type with
+            // vd_rw_vob_blks() or vd_rw_ifo_blks()
             size_t szr;
             size_t rsz = vf.size / blk_sz;
             pfeopt(
@@ -1043,16 +768,18 @@ dd_ops_exec(
                 (unsigned long long)rsz,
                 (unsigned long long)vf.size,
                 sdom);
+
             int t = 0;
-            if ( vf.nfile == 0 ) {
-                szr = ftype == vtf_vob
-                ? copy_vob(df, -1, out, iobuffer, rsz, &t)
-                : copy_ifo(df, -1, out, iobuffer, rsz, &t);
-            } else {
-                szr = ftype == vtf_vob
-                ? copy_vob(df, -1, out, iobuffer, rsz, &setoff)
-                : copy_ifo(df, -1, out, iobuffer, rsz, &t);
-            }
+            pargs.vd_dvdfile      = df;
+            pargs.vd_inp          = -1;
+            pargs.vd_blkcnt       = rsz;
+            pargs.vd_poff         =
+                vf.nfile > 0 && ftype == vtf_vob
+                ? &setoff : &t;
+
+            szr = ftype == vtf_vob
+                ? vd_rw_vob_blks(&pargs)
+                : vd_rw_ifo_blks(&pargs);
 
             // copy DVD type data:
             // error check
@@ -1088,7 +815,14 @@ dd_ops_exec(
                 (unsigned long long)pos);
             exit(EXIT_FAILURE);
         }
-        ret = copy_vob(0, inp, out, iobuffer, ddbsz, 0);
+
+        pargs.vd_dvdfile      = 0;
+        pargs.vd_inp          = inp;
+        pargs.vd_blkcnt       = ddbsz;
+        pargs.vd_poff         = 0;
+
+        ret = vd_rw_vob_blks(&pargs);
+
         if ( ret != ddbsz ) {
             pfeall(
                 "DD failed at block %llu, %zu\n",
@@ -1096,6 +830,7 @@ dd_ops_exec(
                 ddbsz);
             exit(EXIT_FAILURE);
         }
+
         fptr += off_t(ddbsz);
     }
 

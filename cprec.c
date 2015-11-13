@@ -1,4 +1,4 @@
-/* 
+/*
    cprec - A recursive directory hierarchy copier; much like 'cp -Rp'.
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 /*
@@ -74,10 +74,10 @@ static void print_hlink_info(void);
 const char* program_name = "cprec";
 
 /* alternative to macro */
-size_t        block_read_count = BLOCK_READ_CNT;
+size_t  block_read_count = BLOCK_READ_CNT;
 
 /* badblock retry read count */
-size_t          retrybadblk = 32;
+size_t  retrybadblk = 48;
 
 /* for meta data funcs */
 dire_p topdir;
@@ -360,7 +360,9 @@ get_env_vars(int* doregmask, int* regmask)
     }
 
     /* desperate measures in response to I/O errors?
-     * do not try $CPREC_DESPERATE > 1 -- bad code
+     * if CPREC_DESPERATE > 1 then use retry code on all
+     * files, else only on video files -- note that video
+     * files can handle a little corruption, but others probably not!
      */
     if ( (penv = getenv("CPREC_DESPERATE")) != NULL ) {
         switch ( *penv ) {
@@ -399,7 +401,7 @@ get_env_vars(int* doregmask, int* regmask)
             _("Will desperately try to continue with I/O errors, %d\n")
             , do_ioerrs);
         }
-    } else {    
+    } else {
         do_ioerrs = 0;
     }
 }
@@ -772,7 +774,7 @@ cprec(int texist, int tisdir)
     blk_free_storage();
 
     if ( numbadblk ) {
-        pfeopt(_("%s: found %lu bad blocks\n"),
+        pfeopt(_("%s: found %zu bad blocks\n"),
             program_name, numbadblk);
     }
 
@@ -947,7 +949,7 @@ get_options(int argc, char* argv[])
     int c;
     char* dvd = NULL;
 
-    while ( (c = getopt_long(argc, argv, 
+    while ( (c = getopt_long(argc, argv,
                "n:"    /* node -- devnode */
                "q"    /* quiet or silent */
                "s"    /* simple copy */
