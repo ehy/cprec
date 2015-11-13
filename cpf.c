@@ -976,6 +976,13 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
         int e = errno;
 
         close(ifd);
+        if ( close(ifd) ) {
+            pfeall(_("%s: %s close()ing: %s\n"),
+                program_name, strerror(errno), src);
+            pfeall(_("%s: had gotten %s open()ing: %s\n"),
+                program_name, strerror(e), dest);
+            exit(33);
+        }
 
         if ( e == EEXIST && force ) {
             struct stat sb;
@@ -1001,13 +1008,9 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
             return copy_file_force(src, dest, retry_blocks);
         }
 
-        errno = e;
-        perror(dest);
-
         if ( e != EEXIST || !ign_ex ) {
-            pfeall(
-                _("%s: %s open()ing: %s\n"),
-                program_name, strerror(errno), dest);
+            pfeall(_("%s: %s open()ing: %s\n"),
+                program_name, strerror(e), dest);
             exit(22);
         }
 
@@ -1043,12 +1046,12 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
         exit(24);
     }
 
-    if ( badblk > numbadblk ) {
+    if ( badblk < numbadblk ) {
         pfeopt(_("%s errors reading %s -- %zu zero blocks written!\n"),
-            program_name, src, badblk - numbadblk);
+            program_name, src, numbadblk - badblk);
     }
 
-    if ( rem ) { // blk_sz
+    if ( rem ) {
         pargs.vd_blkcnt       = 1;
         pargs.vd_blk_sz       = rem;
         pargs.vd_retrybadblk  = MIN(1, retry_blocks);
@@ -1061,10 +1064,10 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
 
         badblk = numbadblk;
 
-        if ( badblk > numbadblk ) {
+        if ( badblk < numbadblk ) {
             pfeopt(
                 _("%s errors reading %s -- %zu zero blocks written!\n"),
-                program_name, src, badblk - numbadblk);
+                program_name, src, numbadblk - badblk);
         }
     }
 
