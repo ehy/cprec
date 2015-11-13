@@ -53,7 +53,7 @@ extern "C" {
  * @param vd_blkcnt count of 2048 byte blocks requested for read->write
  * @param vd_blknrd count of 2048 byte blocks to request per read
  * @param vd_blk_sz rw block size (certainly 2048)
- * @param vd_retrybadblk count fo io error retry reads
+ * @param vd_retrybadblk count for io error retry reads
  * @param vd_numbadblk pointer bad block count accumulator
  * @param vd_poff if not NULL: DVDReadBlocks titleset offset, maintained
  * @param vd_buf working data buffer: capacity at least (blkcnt * 2048)

@@ -39,7 +39,8 @@ ssize_t    copy_vob(drd_file_t* dvdfile
            , const char* out, unsigned char* buf
            , size_t blkcnt, int* poff);
 int        copy_file(const char* src, const char* dest);
-int        copy_file_force(const char* src, const char* dest);
+int        copy_file_force(const char* src, const char* dest
+           , size_t retry_blocks);
 int        copy_bup_ifo(char* src, const char* dest);
 void       wr_regmask(char* d, int dlen, unsigned val);
 

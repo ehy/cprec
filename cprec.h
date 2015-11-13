@@ -21,14 +21,14 @@
 #define _CPREC_H_ 1
 
 /* dvd read stuff */
-#ifndef BLOCK_READ_CNT
-/* #define BLOCK_READ_CNT 4096 -- * 2k, so 1 == 2k, 512 == 1m */
-#define BLOCK_READ_CNT	4096 /* 1 == 2k, 512 == 1m */
-#endif /* #ifndef BLOCK_READ_CNT */
-/* alternative to macro */
+#ifndef DEF_BLOCK_READ_CNT
+/* #define DEF_BLOCK_READ_CNT 4096 -- * 2k, so 1 == 2k, 512 == 1m */
+#define DEF_BLOCK_READ_CNT	4096 /* 1 == 2k, 512 == 1m */
+#endif /* #ifndef DEF_BLOCK_READ_CNT */
 extern size_t         block_read_count;
 
 /* badblock retry read count */
+#define DEF_RETRY_BLOCK_CNT	48
 extern size_t         retrybadblk;
 
 /* main memory */

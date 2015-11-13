@@ -60,7 +60,8 @@ static void resolve_dvd_dev();
 /* call get_max_path(); on failure exit fail_statux */
 static size_t fatal_max_path(int fail_status);
 static unsigned char* setup_global_buffer(void);
-static void get_env_vars(int* doregmask, int* regmask);
+static void get_env_vars_2nd(int* doregmask, int* regmask);
+static void get_env_vars_1st();
 static void usage(int status);
 static int  get_options(int argc, char* argv[]);
 /* main for recursive copy of fs hierarchy */
@@ -74,10 +75,13 @@ static void print_hlink_info(void);
 const char* program_name = "cprec";
 
 /* alternative to macro */
-size_t  block_read_count = BLOCK_READ_CNT;
+const size_t def_block_read_count = DEF_BLOCK_READ_CNT;
+const size_t max_block_read_count = DEF_BLOCK_READ_CNT * 8;
+size_t  block_read_count = DEF_BLOCK_READ_CNT;
 
 /* badblock retry read count */
-size_t  retrybadblk = 48;
+const size_t def_retrybadblk = DEF_RETRY_BLOCK_CNT;
+size_t retrybadblk = DEF_RETRY_BLOCK_CNT;
 
 /* for meta data funcs */
 dire_p topdir;
@@ -166,6 +170,8 @@ static struct option const long_options[] =
     {CPCAST "ignore-symlinks", no_argument, 0, 'S'},
     {CPCAST "ignore-specials", no_argument, 0, 'D'},
     {CPCAST "ignore-nonreadable", no_argument, 0, 'N'},
+    {CPCAST "block-read-count", required_argument, 0, 'b'},
+    {CPCAST "retry-block-count", required_argument, 0, 'r'},
     {CPCAST "help", no_argument, 0, 'h'},
     {CPCAST "version", no_argument, 0, 'V'},
     {NULL, 0, NULL, 0}
@@ -331,7 +337,7 @@ init_lib_drd(void)
 }
 
 static void
-get_env_vars(int* doregmask, int* regmask)
+get_env_vars_2nd(int* doregmask, int* regmask)
 {
     const char*       penv;
 
@@ -358,6 +364,12 @@ get_env_vars(int* doregmask, int* regmask)
             *doregmask = 0;
         }
     }
+}
+
+static void
+get_env_vars_1st()
+{
+    const char*       penv;
 
     /* desperate measures in response to I/O errors?
      * if CPREC_DESPERATE > 1 then use retry code on all
@@ -412,7 +424,7 @@ setup_global_buffer(void)
     unsigned char*    buf;
 
     global_buffer_align = xget_page_size();
-    global_buffer_size = (size_t)drd_VIDEO_LB_LEN * BLOCK_READ_CNT +
+    global_buffer_size = (size_t)drd_VIDEO_LB_LEN * block_read_count +
       global_buffer_align - 1;
 
     if ( global_buffer_size % global_buffer_align ) {
@@ -606,7 +618,7 @@ cprec(int texist, int tisdir)
 
     buf = setup_global_buffer();
 
-    get_env_vars(&doregmask, &regmask);
+    get_env_vars_2nd(&doregmask, &regmask);
 
     source_index = 0;
     for ( ; source_index < source_count; source_index++ ) {
@@ -802,7 +814,16 @@ main(int argc, char* argv[])
 
     pf_init_files();
 
+    pf_setup(1, 1);
+
+    get_env_vars_1st();
     i = get_options(argc, argv);
+
+    if (retrybadblk > block_read_count ) {
+        pfeall(_("%s: retry blocks %zu greater than read blocks %zu\n"),
+            program_name, retrybadblk, block_read_count);
+        usage(EXIT_FAILURE);
+    }
 
     pf_setup(want_verbose > want_quiet, want_quiet == 0);
 
@@ -947,15 +968,17 @@ static int
 get_options(int argc, char* argv[])
 {
     int c;
+    long l_tmp; /* for lmsc_s_tol */
+    char* ep;   /* for lmsc_s_tol */
     char* dvd = NULL;
 
     while ( (c = getopt_long(argc, argv,
-               "n:"    /* node -- devnode */
+               "n:"   /* node -- devnode */
                "q"    /* quiet or silent */
                "s"    /* simple copy */
                "f"    /* force */
                "p"    /* preserve */
-               "d:"    /* dvdbackup */
+               "d:"   /* dvdbackup */
                "v"    /* verbose */
 #if ! HAVE_LIBDVDREAD
                "L:"    /* libdvdr */
@@ -965,8 +988,10 @@ get_options(int argc, char* argv[])
                "H"    /* ignore-hardlinks */
                "D"    /* ignore-specials */
                "N"    /* ignore-nonreadable */
+               "b:"   /* read count */
+               "r:"   /* retry count */
                "h"    /* help */
-               "V",    /* version */
+               "V",   /* version */
                long_options, (int*)0)) != EOF )
     {
         switch (c) {
@@ -1025,12 +1050,31 @@ get_options(int argc, char* argv[])
             case 'V':
                 printf("%s %s\n", program_name, VERSION);
                 exit(0);
+                break;
+            case 'b':        /* --block-read-count */
+                /* fall through */
+            case 'r':        /* --retry-block-count */
+                if ( lmsc_s_tol(optarg, &l_tmp, &ep, 0) || *ep ) {
+                    usage(EXIT_FAILURE);
+                } else if ( l_tmp < 0 ) {
+                    usage(EXIT_FAILURE);
+                } else if ( c == 'b' ) {
+                    block_read_count = (size_t)l_tmp;
+                    if ( block_read_count > max_block_read_count ) {
+                        usage(EXIT_FAILURE);
+                    }
+                } else if ( c == 'r' ) {
+                    retrybadblk = (size_t)l_tmp;
+                }
+                break;
 
             case 'h':
                 usage(0);
+                break;
 
             default:
                 usage(EXIT_FAILURE);
+                break;
         }
     }
 
@@ -1070,8 +1114,12 @@ Options:\n\
   -S, --ignore-symlinks      ignore symbolic links; copy target\n\
   -H, --ignore-hardlinks     ignore hard links; make new copies\n\
   -D, --ignore-specials      ignore devices and pipes\n\
-  -N, --ignore-nonreadable   ignore not readable source directories\n\
-  %s-h, --help                 display this help and exit\n\
+  %s-N, --ignore-nonreadable   ignore not readable source directories\n\
+  -b, --block-read-count     2048 byte blocks per read operation\n\
+                             (default %zu, maximum %zu)\n\
+  -r. --retry-block-count    blocks per retry on IO errors\n\
+                             (default %zu, 0 disables retrying)\n\
+  -h, --help                 display this help and exit\n\
   -V, --version              output version information and exit\n\
 %s"),
 dvdnamedef, dvdnamedef,
@@ -1080,6 +1128,7 @@ _("-L, --libdvdr NAME         use NAME as dvdread library\n  "),
 #else
 "",
 #endif
+def_block_read_count, max_block_read_count, def_retrybadblk,
 "");
     exit(status);
 }

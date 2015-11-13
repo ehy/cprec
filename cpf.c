@@ -828,6 +828,7 @@ copy_vob(
             return copy_vob(dvdfile, out, buf, blkcnt, poff);
         }
 
+        errno = e;
         perror(out);
 
         if ( e != EEXIST || !ign_ex ) {
@@ -921,10 +922,13 @@ copy_bup_ifo(char* src, const char* dest)
 
     if ( ret ) {
         unlink(dest);
-        if ( do_ioerrs > 1 ) {
+        /* if do_ioerrs > 1 then retries were already done,
+         * see copy_file()
+         */
+        if ( do_ioerrs == 1 ) {
             pfeall(_("%s: trying forceful copy %s -> %s\n"),
                 program_name, t, dest);
-            ret = copy_file_force(t, dest);
+            ret = copy_file_force(t, dest, retrybadblk);
         }
     }
     if ( ret ) {
@@ -942,7 +946,7 @@ copy_bup_ifo(char* src, const char* dest)
 }
 
 int
-copy_file_force(const char* src, const char* dest)
+copy_file_force(const char* src, const char* dest, size_t retry_blocks)
 {
     int ifd, ofd;
     ssize_t szi, szo;
@@ -968,13 +972,49 @@ copy_file_force(const char* src, const char* dest)
         exit(21);
     }
 
-    ofd = open(dest,
-        O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW|O_LARGEFILE, 0666);
-    if ( ofd < 0 ) {
-        pfeall(
-            _("%s: %s open()ing: %s\n"),
-            program_name, strerror(errno), dest);
-        exit(22);
+    if ( (ofd = open(dest, OPENFL, 0666)) < 0 ) {
+        int e = errno;
+
+        close(ifd);
+
+        if ( e == EEXIST && force ) {
+            struct stat sb;
+
+            pfoopt(_("%s: %s exists, using force\n"),
+                program_name, dest);
+
+            if ( stat(dest, &sb) ) {
+                pfeopt(_("%s: stat(%s) failed -- %s\n"),
+                    program_name, dest, strerror(errno));
+                sb.st_mode = 0600;
+                sb.st_atime = sb.st_mtime = sb.st_ctime = 0;
+            }
+
+            chmod(dest, sb.st_mode | 0600);
+            if ( unlink(dest) ) {
+                pfeopt(_("%s: unlink(%s) failed -- %s\n"),
+                    program_name, dest, strerror(errno));
+                chmod(dest, sb.st_mode);
+                return -1;
+            }
+
+            return copy_file_force(src, dest, retry_blocks);
+        }
+
+        errno = e;
+        perror(dest);
+
+        if ( e != EEXIST || !ign_ex ) {
+            pfeall(
+                _("%s: %s open()ing: %s\n"),
+                program_name, strerror(errno), dest);
+            exit(22);
+        }
+
+        pfoopt(_("%s: %s exists, ignore existing option is on\n"),
+            program_name, dest);
+
+        return 0;
     }
 
     wrcnt = blk_sz;
@@ -990,7 +1030,7 @@ copy_file_force(const char* src, const char* dest)
     pargs.vd_blkcnt       = blcnt;
     pargs.vd_blknrd       = block_read_count;
     pargs.vd_blk_sz       = blk_sz;
-    pargs.vd_retrybadblk  = retrybadblk;
+    pargs.vd_retrybadblk  = retry_blocks;
     pargs.vd_numbadblk    = &numbadblk;
     pargs.vd_poff         = 0;
     pargs.vd_buf          = buf;
@@ -1007,63 +1047,11 @@ copy_file_force(const char* src, const char* dest)
         pfeopt(_("%s errors reading %s -- %zu zero blocks written!\n"),
             program_name, src, badblk - numbadblk);
     }
-#if 0
-    for ( n = 0; n < blcnt; n++ ) {
-        szi = read_all(ifd, buf, wrcnt);
-        if ( szi < 0 ) {
-            size_t l = n + 1;
-            if ( errno != EIO ) {
-                pfeall(
-                    _("%s: %s read()ing: %s\n"),
-                    program_name, strerror(errno), src);
-                exit(23);
-            }
-            while ( l < blcnt && lseek(ifd,wrcnt*l,SEEK_SET) < 0 ) {
-                l++;
-            }
-            pfeopt(
-                _("%s: writing %lu null blocks at block %lu\n"),
-                program_name,
-                (unsigned long)l - n,
-                (unsigned long)n);
-            memset(buf, 0, wrcnt);
-            szi = wrcnt;
-            for ( ; n < l; n++ ) {
-                szo = write_all(ofd, buf, szi);
-                if ( szo != szi ) {
-                    pfeall(
-                        _("%s: %s write()ing: %s\n"),
-                        program_name,
-                        strerror(errno), dest);
-                    exit(24);
-                }
-            }
-            n--;
-            continue;
-        } else if ( szi < wrcnt ) {
-            /* why short read ? */
-            pfeall(
-                _("%s: internal error: wtf at block %lu\n"),
-                program_name,
-                (unsigned long)n);
-
-            exit(25);
-        }
-
-        szo = write_all(ofd, buf, szi);
-        if ( szo != szi ) {
-            pfeall(
-                _("%s: %s write()ing: %s\n"),
-                program_name, strerror(errno), dest);
-            exit(26);
-        }
-    }
-#endif
 
     if ( rem ) { // blk_sz
         pargs.vd_blkcnt       = 1;
         pargs.vd_blk_sz       = rem;
-        pargs.vd_retrybadblk  = 1;
+        pargs.vd_retrybadblk  = MIN(1, retry_blocks);
 
         if ( vd_rw_vob_blks(&pargs) != 1 ) {
             pfeall(_("%s: %s write()ing: %s\n"),
@@ -1078,36 +1066,6 @@ copy_file_force(const char* src, const char* dest)
                 _("%s errors reading %s -- %zu zero blocks written!\n"),
                 program_name, src, badblk - numbadblk);
         }
-#if 0
-        szi = read_all(ifd, buf, rem);
-        if ( szi < 0 ) {
-            if ( errno != EIO ) {
-                pfeall(
-                    _("%s: %s read()ing: %s\n"),
-                    program_name, strerror(errno), src);
-                exit(27);
-            }
-            pfeopt(
-                _("%s: writing %lu nulls at end\n"),
-                program_name, (unsigned long)rem);
-            memset(buf, 0, rem);
-            szi = rem;
-        } else if ( szi < rem ) {
-            /* why short read ? */
-            pfeall(
-                _("%s: internal error: wtf at end\n"),
-                program_name);
-
-            exit(28);
-        }
-        szo = write_all(ofd, buf, szi);
-        if ( szo != szi ) {
-            pfeall(
-                _("%s: %s write()ing: %s\n"),
-                program_name, strerror(errno), dest);
-            exit(29);
-        }
-#endif
     }
 
     if ( close(ifd) ) {
@@ -1130,150 +1088,7 @@ copy_file_force(const char* src, const char* dest)
 int
 copy_file(const char* src, const char* dest)
 {
-    int ifd, ofd;
-    ssize_t szi, szo;
-    unsigned char* buf;
-    struct stat sb;
-    const size_t wrcnt = block_read_count * blk_sz;
-
-    buf = global_aligned_buffer;
-
-    ifd = open(src, O_RDONLY|O_LARGEFILE);
-    if ( ifd < 0 ) {
-        int e = errno;
-        if ( e == EPERM && force ) {
-            pfoopt(_("%s: %s exists, using force\n"),
-                program_name, src);
-
-            if ( stat(src, &sb) ) {
-                pfeopt(_("%s: stat(%s) failed -- %s\n"),
-                    program_name, src, strerror(errno));
-                sb.st_mode = 0400;
-                sb.st_atime = sb.st_mtime = sb.st_ctime = 0;
-            }
-
-            chmod(src, sb.st_mode | 0400);
-            ifd = open(src, O_RDONLY|O_LARGEFILE);
-            chmod(src, sb.st_mode);
-
-            if ( ifd < 0 ) {
-                pfeall(_("%s: %s open(O_RDONLY)ing: %s\n"),
-                    program_name, strerror(errno), src);
-                return -1;
-            }
-        } else if ( !force ) {
-            pfeall(_("%s: %s open(O_RDONLY)ing: %s\n"),
-                program_name, strerror(errno), src);
-            exit(40);
-        } else {
-            pfeall(_("%s: %s open(O_RDONLY)ing: %s\n"),
-                program_name, strerror(errno), src);
-            return -1;
-        }
-    }
-
-    /* for set_f_meta */
-    if ( fstat(ifd, &sb) ) {
-        pfeall(_("%s: %s fstat()ing: %s\n"),
-            program_name, strerror(errno), src);
-        if ( force ) {
-            sb.st_mode = 0400;
-            sb.st_atime = sb.st_mtime = sb.st_ctime = 0;
-        } else {
-            exit(41);
-        }
-    }
-
-    if ( (ofd = open(dest, OPENFL, 0666)) < 0 ) {
-        int e = errno;
-
-        pfeall(_("%s: %s open(O_RDWR)ing: %s\n"),
-            program_name, strerror(errno), dest);
-
-        close(ifd);
-        if ( e == EEXIST && force ) {
-            pfoopt(_("%s: %s exists, using force\n"),
-                program_name, dest);
-
-            if ( stat(dest, &sb) ) {
-                pfeopt(_("%s: stat(%s) failed -- %s\n"),
-                    program_name, dest, strerror(errno));
-                sb.st_mode = 0600;
-                sb.st_atime = sb.st_mtime = sb.st_ctime = 0;
-            }
-
-            chmod(dest, sb.st_mode | 0600);
-            if ( unlink(dest) ) {
-                pfeopt(_("%s: unlink(%s) failed -- %s\n"),
-                    program_name, dest, strerror(errno));
-                chmod(dest, sb.st_mode);
-                return -1;
-            }
-
-            return copy_file(src, dest);
-        }
-
-        if ( e == EEXIST && ign_ex ) {
-            /* try preserving metadata -- never fatal on error */
-            set_f_meta(dest, &sb);
-
-            return 0;
-        }
-
-        if ( force ) {
-            return -1;
-        }
-
-        exit(42);
-    }
-
-    while ( (szi = read_all(ifd, buf, wrcnt)) > 0 ) {
-        szo = write_all(ofd, buf, szi);
-        if ( szo != szi ) {
-            pfeall(_("%s: %s write()ing: %s\n"),
-                program_name, strerror(errno), dest);
-            if ( force ) {
-                close(ifd);
-                close(ofd);
-                return -1;
-            }
-            exit(43);
-        }
-    }
-
-    if ( szi != 0 ) {
-        int e = errno;
-        pfeopt(_("%s: %s read()ing: %s\n"),
-            program_name, strerror(errno), src);
-        errno = e;
-        /* In this case if err is EIO let caller handle it */
-        if ( errno == EIO || force ) {
-            close(ifd);
-            close(ofd);
-            return -1;
-        }
-        exit(44);
-    }
-
-    if ( close(ifd) ) {
-        pfeall(_("%s: %s close()ing: %s\n"),
-            program_name, strerror(errno), src);
-        if ( !force ) {
-            exit(45);
-        }
-    }
-    if ( close(ofd) ) {
-        pfeall(_("%s: %s close()ing: %s\n"),
-            program_name, strerror(errno), dest);
-        if ( !force ) {
-            exit(46);
-        }
-    }
-
-    /* try preserving metadata -- never fatal on error */
-    set_f_meta(dest, &sb);
-
-    return 0;
+    return copy_file_force(src, dest, do_ioerrs > 1 ? retrybadblk : 0);
 }
 
 void

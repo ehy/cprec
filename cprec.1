@@ -187,6 +187,22 @@ and it might be necessary to set the
 .hy
 environment variable suitably.
 .TP
+.BR  \-b , " \-\-block-read-count" " <\fIpositive integer\fP>"
+Specify the the number of 2048 byte blocks to
+request with each read.
+.TP
+.BR  \-r , " \-\-retry-block-count" " <\fIpositive integer\fP>"
+On IO error, \fIcprec\fP will try again, but the block
+read count (-b) is divided into several reads of this size.
+If this smaller read fails, then \fIcprec\fP uses zeroes
+(0) for the output blocks and continues (which is probably
+acceptable for DVD video backup because the affect on
+playback might be acceptable to a human viewer; so far
+all playback machines have handled zeroed data well).
+If the possibility of zeroed blocks is unacceptable then
+give `0' for this option and \fIcprec\fP will fail rather
+than retry. The default is non-zero (48 presently).
+.TP
 .BR \-h , " \-\-help"
 Show summary of options and exit.
 .TP

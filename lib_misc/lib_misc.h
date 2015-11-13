@@ -1,21 +1,21 @@
-/* 
-   lib_misc.[hc] - library of misc. funcs.
+/*
+ lib_misc.[hc] - library of misc. funcs.
 
-   Copyright (C) 2007 Ed Hynan
+ Copyright (C) 2007 Ed Hynan
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #ifndef _LIB_MISC_H_
@@ -160,19 +160,19 @@ char* lmsc_x_strdup(const char*);
 /*
  * print format to out or err streams optionally or unconditionally.
  */
-int lmsc_pfoopt(const char*, ...); /* print format to out stream optionally */
-int lmsc_pfoall(const char*, ...); /* print format to out stream not optionally */
-int lmsc_pfeopt(const char*, ...); /* print format to err stream optionally */
-int lmsc_pfeall(const char*, ...); /* print format to err stream not optionally */
-int lmsc_pf_dbg(const char*, ...); /* print format debug messages optionally */
+int lmsc_pfoopt(const char*, ...); /* print to stdout optionally */
+int lmsc_pfoall(const char*, ...); /* print to stdout not optionally */
+int lmsc_pfeopt(const char*, ...); /* print to stderr optionally */
+int lmsc_pfeall(const char*, ...); /* print to stderr not optionally */
+int lmsc_pf_dbg(const char*, ...); /* print debug messages optionally */
 #if ! HAVE_ERROR
 void lmsc_error(int code, int errn, const char* fmt, ...);
 #endif
 #if NO_PUTS_MACROS
-int lmsc_oputs(const char*); /* print string to out stream optionally */
-int lmsc_aputs(const char*); /* print string to out stream not optionally */
-int lmsc_eoputs(const char*);/* print string to out stream optionally */
-int lmsc_eputs(const char*); /* print string to out stream not optionally */
+int lmsc_oputs(const char*); /* puts to stdout optionally */
+int lmsc_aputs(const char*); /* puts to stdout not optionally */
+int lmsc_eoputs(const char*);/* puts to stderr optionally */
+int lmsc_eputs(const char*); /* puts to stderr not optionally */
 #else
 #define lmsc_oputs(str)   lmsc_pfoopt("%s", (str))
 #define lmsc_aputs(str)   lmsc_pfoall("%s", (str))
@@ -199,17 +199,17 @@ void lmsc_pf_init_files(void);
  */
 
 /* define handier names for procedure */
-#define    get_nofd    lmsc_get_nofd
-#define    get_max_path    lmsc_get_max_path
-#define    get_max_per_path    lmsc_get_max_per_path
-#define    get_mnt_dev      lmsc_get_mnt_dev
-#define    get_page_size    lmsc_get_page_size
-#define    xget_page_size    lmsc_xget_page_size
-#define    get_max_hlink    lmsc_get_max_hlink
-#define    read_all    lmsc_read_all
-#define    write_all    lmsc_write_all
-#define    strcntcpy    lmsc_strcntcpy
-#define    statihack    lmsc_statihack
+#define    get_nofd             lmsc_get_nofd
+#define    get_max_path         lmsc_get_max_path
+#define    get_max_per_path     lmsc_get_max_per_path
+#define    get_mnt_dev          lmsc_get_mnt_dev
+#define    get_page_size        lmsc_get_page_size
+#define    xget_page_size       lmsc_xget_page_size
+#define    get_max_hlink        lmsc_get_max_hlink
+#define    read_all             lmsc_read_all
+#define    write_all            lmsc_write_all
+#define    strcntcpy            lmsc_strcntcpy
+#define    statihack            lmsc_statihack
 
 /* formerly inline procedures */
 #define    l2U    lmsc_l2U
