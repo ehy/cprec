@@ -1064,7 +1064,8 @@ get_options(int argc, char* argv[])
                         usage(EXIT_FAILURE);
                     }
                 } else if ( c == 'r' ) {
-                    retrybadblk = (size_t)l_tmp;
+                    retrybadblk =
+                        MIN((size_t)l_tmp, max_block_read_count);
                 }
                 break;
 

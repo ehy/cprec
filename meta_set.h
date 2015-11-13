@@ -1,4 +1,4 @@
-/* 
+/*
    meta_set.[hc] - filesys metadata functions
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #ifndef _META_SET_H_
@@ -38,5 +38,27 @@ void        set_f_meta(const char*, const struct stat*);
 void        set_d_meta(const char*, const struct stat*);
 void        rec_d_meta(dire_p);
 void        set_dire_t(const char*, const struct stat*);
+
+/*
+ * The following are helpers for code external to this translation unit.
+ *
+ * The program has an option to preserve metadata and this is set in
+ * extern preserve.
+ *
+ * where directories or regular files are created, the syscall takes
+ * a mode_t argument.  Therefore, let the following provide a value
+ * for that argument based on preserve.
+ *
+ * If we are preserving, mask off group and world bits temporarily, on
+ * the premise that prior to successful completion permissions will
+ * be set depth-first-recursively from the source modes.  Else, if not
+ * preserving then allow umask to work with all bits.
+ */
+
+/* return mode_t for regular files per preserve option */
+mode_t get_reg_mode(void);
+
+/* return mode_t for directories per preserve option */
+mode_t get_dir_mode(void);
 
 #endif /* _META_SET_H_ */

@@ -1,4 +1,4 @@
-/* 
+/*
    walk.[hc] - tree walking funcs.
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #include "hdr_cfg.h"
@@ -240,7 +240,7 @@ setvidentry(const char* nam, const char* path, const struct stat* sb)
         plast = pl;
     } while ( (pl = pl->pnext) != NULL );
 
-    if ( pl == NULL ) { /* not found */        
+    if ( pl == NULL ) { /* not found */
         pl = xmalloc(sizeof(titlist_t));
         pl->pprev = plast;
         pl->pnext = NULL;
@@ -438,7 +438,9 @@ handle_file(const char* file, const struct stat* sb, int flag)
             break;
         }
 
-        if ( (r = mkdir(outd, 0777)) && (e = errno) != EEXIST ) {
+        r = mkdir(outd, get_dir_mode());
+
+        if ( r && (e = errno) != EEXIST ) {
             pfeopt(_("%s: mkdir(%s) failed - %s\n"),
                 program_name, outd, strerror(e));
             if ( !force ) {

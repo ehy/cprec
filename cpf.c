@@ -591,15 +591,16 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                  */
                 if ( pt->vobs[0].st_size == 0 ) {
                     int td;
+                    mode_t omode = get_reg_mode();
 
                     pfeopt(_("%s: creating zero size %s\n"),
                         program_name, nbuf);
                     td = open(nbuf,
-                        O_CREAT|O_EXCL|O_TRUNC|O_WRONLY, 0666);
+                        O_CREAT|O_EXCL|O_TRUNC|O_WRONLY, omode);
 
                     if ( td < 0 && force && errno == EEXIST ) {
                         td = open(nbuf,
-                            O_CREAT|O_TRUNC|O_WRONLY, 0666);
+                            O_CREAT|O_TRUNC|O_WRONLY, omode);
                         if ( td >= 0 ) {
                             pfoopt(_("%s: truncated extant %s\n"),
                                 program_name, nbuf);
@@ -801,7 +802,7 @@ copy_vob(
     int o;
     size_t cnt;
 
-    if ( (o = open(out, OPENFL, 0666)) < 0 ) {
+    if ( (o = open(out, OPENFL, get_reg_mode())) < 0 ) {
         int e = errno;
 
         if ( e == EEXIST && force ) {
@@ -972,10 +973,9 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
         exit(21);
     }
 
-    if ( (ofd = open(dest, OPENFL, 0666)) < 0 ) {
+    if ( (ofd = open(dest, OPENFL, get_reg_mode())) < 0 ) {
         int e = errno;
 
-        close(ifd);
         if ( close(ifd) ) {
             pfeall(_("%s: %s close()ing: %s\n"),
                 program_name, strerror(errno), src);
