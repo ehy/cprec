@@ -24,71 +24,83 @@
 #include "lib_misc.h"
 #include "vd_cpf.h"
 
-// copy IFO of BUP with DVDReadBytes()
-ssize_t
-/* copy_ifo(
-    drd_file_t* dvdfile,
-    int inp, int out,
-    unsigned char* buf,
-    size_t blkcnt,
-    int* poff
+/*
+static procedures to wrap the read procedures used herein
+
+procedures operate in bytes for uniformity; DVDReadBlocks()
+will divide by block size
 */
+
+/*
+ * name: reader_fdread -- reader for 'low level' read(2)
+ *
+ * name: reader_dvdbytes -- reader for libdvdread DVDReadBytes()
+ *
+ * name: reader_dvdblocks -- reader for libdvdread DVDReadBlocks()
+ *
+ * @param pargs -- structure with with general parameters
+ * @param cnt -- number of bytes to read in this call
+ * @return number of blocks read
+ */
+/* reader for 'low level' read(2) syscall on file descriptor */
+static ssize_t
+reader_fdread(vd_rw_proc_args* pargs, size_t cnt);
+/* reader for libdvdread DVDReadBytes() */
+static ssize_t
+reader_dvdbytes(vd_rw_proc_args* pargs, size_t cnt);
+/* reader for libdvdread DVDReadBlocks() */
+static ssize_t
+reader_dvdblocks(vd_rw_proc_args* pargs, size_t cnt);
+
+/* a type for reader procedures: */
+typedef ssize_t (*dv_read_proc)(vd_rw_proc_args*, size_t);
+
+/* internal loop receives pointer to read proc. */
+static ssize_t
+vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc);
+/* internal loop receives pointer to read proc.; for error retries */
+static ssize_t
+vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc);
+
+/*
+implementations of procedures with external linkage
+*/
+
+/* copy IFO of BUP with DVDReadBytes() */
+ssize_t
 vd_rw_ifo_blks(vd_rw_proc_args* pargs)
 {
-    drd_file_t*     dvdfile     = pargs->vd_dvdfile;
-    int             inp         = pargs->vd_inp;
-    int             out         = pargs->vd_out;
-    const char*     progname    = pargs->vd_program_name;
-    const char*     inp_fname   = pargs->vd_inp_fname;
-    const char*     out_fname   = pargs->vd_out_fname;
-    size_t          blkcnt      = pargs->vd_blkcnt;
-    size_t          blknrd      = pargs->vd_blknrd;
-    size_t          blk_sz      = pargs->vd_blk_sz;
-    size_t          blknretry   = pargs->vd_retrybadblk;
-    size_t*         numbadblk   = pargs->vd_numbadblk;
-    int*            poff        = pargs->vd_poff;
-    unsigned char*  buf         = pargs->vd_buf;
-
-    unsigned nxrd = 0;
-    const unsigned lxrd = 512;
-    size_t cnt = blkcnt;
-
-    errno = 0;
-    DVDFileSeek(dvdfile, 0);
-
-    while ( cnt ) {
-        size_t  nbr = MIN(cnt, blknrd);
-        size_t bcnt = nbr * blk_sz;
-
-        while ( bcnt ) {
-            ssize_t bret = DVDReadBytes(
-                dvdfile, buf, bcnt);
-            if ( bret < 0 ) {
-                perror("DVDReadBytes");
-                return -1;
-            }
-            bcnt -= bret;
-
-            while ( bret ) {
-                ssize_t wret = write_all(out, buf, bret);
-                if ( wret < 0 ) {
-                    perror("DVDReadBytes->write");
-                    return -1;
-                }
-                bret -= wret;
-            }
-        }
-
-        cnt -= nbr;
-    }
-
-    return blkcnt - cnt;
+    return vd_rw_in_out(pargs, reader_dvdbytes);
 }
 
-// if poff==0 do fd copy else do vob copy
 ssize_t
-/* copy_vob( */
 vd_rw_vob_blks(vd_rw_proc_args* pargs)
+{
+    return vd_rw_in_out(pargs, pargs->vd_poff == NULL
+        ? reader_fdread : reader_dvdblocks);
+}
+
+/*
+ *  call when read fails with io error; assume optical medium fault.
+ *  zero the destination buffer and try reading one block at a time.
+ *  if read fails w/ EIO advanvce one block (writing zeroes).
+ *  return -1 for errors other than EIO.
+ */
+ssize_t
+vd_rw_vob_badblks(vd_rw_proc_args* pargs)
+{
+    return vd_rw_in_out_retry(pargs, pargs->vd_poff == NULL
+        ? reader_fdread : reader_dvdblocks);
+}
+
+
+/*
+implementations of procedures with static linkage
+*/
+
+/* internal loop receives pointer to read proc. */
+static ssize_t
+vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
 {
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
@@ -104,39 +116,16 @@ vd_rw_vob_blks(vd_rw_proc_args* pargs)
     int*            poff        = pargs->vd_poff;
     unsigned char*  buf         = pargs->vd_buf;
 
-    size_t cnt = blkcnt;
+    size_t cnt = blkcnt * blk_sz;
+    size_t nrd = blknrd * blk_sz;
 
     errno = 0;
 
     while ( cnt ) {
-        ssize_t nb;
-        size_t  nbr = MIN(cnt, blknrd);
-
-        if ( poff ) {
-            nb = DVDReadBlocks(dvdfile, *poff, nbr, buf);
-        } else {
-            ssize_t ssz = read_all(inp, buf, nbr * blk_sz);
-            if ( ssz <= 0 ) {
-                nb = ssz;
-            } else {
-                /* it shouldn't happen: e.g. medium/fs won't
-                 * have a size that is not a blocksize multiple,
-                 * but have this little code in place anyway:
-                 */
-                ssize_t rmd = ssz % blk_sz;
-                if ( rmd ) {
-                    pfeopt(
-                        _("%s: WARN: fractional read remainder %zd\n"),
-                        progname, rmd);
-                    lseek(inp, 0 - rmd, SEEK_CUR);
-                }
-                nb = ssz / blk_sz;
-            }
-        }
+        size_t  nbr = MIN(cnt, nrd);
+        ssize_t nb  = rproc(pargs, nbr);
 
         if ( nb <= 0 ) {
-            perror("DVD read");
-
             /* retry is disable when blknretry == 0 */
             if ( blknretry < 1 ) {
                 pfeopt(_("%s: retry bad block == %zu, failing\n"),
@@ -153,8 +142,8 @@ vd_rw_vob_blks(vd_rw_proc_args* pargs)
              * reads on the premise that still
              * a video dvd _might_ remain usable
              */
-            pargs->vd_blkcnt = nbr;
-            nb = vd_rw_vob_badblks(pargs);
+            pargs->vd_blkcnt = nbr / blk_sz;
+            nb = vd_rw_in_out_retry(pargs, rproc);
 
             if ( nb > 0 ) {
                 cnt -= nb;
@@ -167,10 +156,10 @@ vd_rw_vob_blks(vd_rw_proc_args* pargs)
         }
 
         if ( poff ) {
-            *poff += (int)nb;
+            *poff += (int)(nb / blk_sz);
         }
+
         cnt -= nb;
-        nb *= blk_sz;
 
         if ( write_all(out, buf, nb) != nb ) {
             perror("write DVD data");
@@ -179,19 +168,12 @@ vd_rw_vob_blks(vd_rw_proc_args* pargs)
         }
     }
 
-    return blkcnt - cnt;
+    return blkcnt - cnt / blk_sz;
 }
 
-
-/* if poff==0 do fd copy else do vob copy */
-/*
- *  call when read fails with io error; assume optical medium fault.
- *  zero the destination buffer and try reading one block at a time.
- *  if read fails w/ EIO advanvce one block (writing zeroes).
- *  return -1 for errors other than EIO.
- */
-ssize_t
-vd_rw_vob_badblks(vd_rw_proc_args* pargs)
+/* internal loop receives pointer to read proc. */
+static ssize_t
+vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc)
 {
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
@@ -211,97 +193,155 @@ vd_rw_vob_badblks(vd_rw_proc_args* pargs)
     size_t nbr;
     off_t rdp;
     unsigned long good = 0, bad = 0;
-    size_t cnt = blkcnt;
+    size_t cnt = blkcnt * blk_sz;
     unsigned char* prd = buf;
 
     tm1 = time(0);
 
     if ( inp >= 0 && (rdp = lseek(inp, 0, SEEK_CUR)) < 0 ) {
         int t = errno;
-        perror("lseek cur in copy_badblocks");
+        perror("lseek cur in reading input");
         errno = t;
         return -1;
     }
 
-    nbr = blknretry;
+    nbr = blknretry * blk_sz;
+
+    errno = 0;
 
     while ( cnt ) {
-        ssize_t nb;
-        nbr = MIN(nbr, cnt);
-
-        if ( poff ) {
-            nb = DVDReadBlocks(dvdfile, *poff, nbr, prd);
-        } else if ( inp >= 0 ) {
-            ssize_t ssz = read_all(inp, prd, nbr * blk_sz);
-            if ( ssz <= 0 ) {
-                nb = ssz;
-            } else {
-                ssize_t rmd = ssz % blk_sz;
-                if ( rmd ) {
-                    int t = errno;
-                    perror("read_all in copy_badblocks");
-                    errno = t;
-                    return -1;
-                }
-                nb = ssz / blk_sz;
-            }
-        } else {
-            pfeall("FATAL internal error: inp == %d\n",
-                inp);
-            errno = EINVAL;
-            return -1;
-        }
+        size_t  nbr = MIN(cnt, nbr);
+        ssize_t nb  = rproc(pargs, nbr);
 
         if ( nb == 0 ) {
             break;
         } else if ( nb < 0 ) {
             if ( errno != EIO ) {
-                perror(poff ?
-                    "dvdread in copy_badblocks" :
-                    "read in copy_badblocks"
-                );
+                perror((inp_fname != NULL && *inp_fname)
+                    ? inp_fname : "reading input");
                 return -1;
             }
 
-            memset(prd, 0, nbr * blk_sz);
+            memset(prd, 0, nbr);
 
             nb = nbr;
-            bad += nb;
+            bad += nb / blk_sz;
         } else {
-            good += nb;
+            good += nb / blk_sz;
         }
 
         if ( poff ) {
-            *poff += (int)nb;
+            *poff += (int)(nb / blk_sz);
         }
 
         cnt -= nb;
-        nb  *= blk_sz;
         prd += nb;
         rdp += nb;
 
         if ( inp >= 0 && lseek(inp, rdp, SEEK_SET) != rdp ) {
             int t = errno;
-            perror("lseek set in copy_badblocks");
+            perror("lseek set in reading input");
             errno = t;
             return -1;
         }
     }
 
-    cnt = blkcnt - cnt;
-    nbr = cnt * blk_sz;
+    cnt = blkcnt * blk_sz - cnt;
+    nbr = cnt;
 
     if ( write_all(out, buf, nbr) != nbr ) {
-        perror("write in copy_badblks");
+        perror((inp_fname != NULL && *inp_fname)
+            ? inp_fname : "reading input");
         return -1;
     }
 
     *numbadblk += bad;
-    tm2 = time(0);
-    pfeall(
-        "%lu bad blocks zeroed in read of %lu in %llu seconds\n",
-        bad, (unsigned long)blkcnt,
-        (unsigned long long)tm2 - tm1);
 
-    return cnt;
+    tm2 = time(0);
+    if ( inp_fname != NULL && *inp_fname ) {
+        pfeall(
+        _("%s: %lu bad blocks zeroed in read of %lu in %llu seconds\n"),
+            inp_fname, bad, (unsigned long)blkcnt,
+            (unsigned long long)tm2 - tm1);
+
+    } else {
+        pfeall(
+            _("%lu bad blocks zeroed in read of %lu in %llu seconds\n"),
+            bad, (unsigned long)blkcnt,
+            (unsigned long long)tm2 - tm1);
+    }
+
+    return cnt / blk_sz;
+}
+
+/* reader for 'low level' read(2) syscall on file descriptor */
+static ssize_t
+reader_fdread(vd_rw_proc_args* pargs, size_t cnt)
+{
+    ssize_t ret = read_all(pargs->vd_inp, pargs->vd_buf, cnt);
+
+    if ( ret < 0 ) {
+        int e = errno;
+
+        if ( pargs->vd_inp_fname != NULL && *(pargs->vd_inp_fname) ) {
+            pfeall(_("%s: error reading '%s' \"%s\"\n"),
+                pargs->vd_program_name, pargs->vd_inp_fname,
+                strerror(e));
+        } else {
+            pfeall(_("%s: error reading from input \"%s\"\n"),
+                pargs->vd_program_name, strerror(e));
+        }
+
+        errno = e;
+    }
+
+    return ret;
+}
+
+/* reader for libdvdread DVDReadBytes() */
+static ssize_t reader_dvdbytes(vd_rw_proc_args* pargs, size_t cnt)
+{
+    ssize_t ret = DVDReadBytes(pargs->vd_dvdfile, pargs->vd_buf, cnt);
+
+    if ( ret < 0 ) {
+        int e = errno;
+
+        if ( pargs->vd_inp_fname != NULL && *(pargs->vd_inp_fname) ) {
+            pfeall(_("%s: DVDReadBytes() error reading '%s' \"%s\"\n"),
+                pargs->vd_program_name, pargs->vd_inp_fname,
+                strerror(e));
+        } else {
+            pfeall(_("%s: DVDReadBytes() error reading \"%s\"\n"),
+                pargs->vd_program_name, strerror(e));
+        }
+
+        errno = e;
+    }
+
+    return ret;
+}
+
+/* reader for libdvdread DVDReadBlocks() */
+static ssize_t reader_dvdblocks(vd_rw_proc_args* pargs, size_t cnt)
+{
+    ssize_t ret = DVDReadBlocks(pargs->vd_dvdfile, *(pargs->vd_poff),
+        cnt / pargs->vd_blk_sz, pargs->vd_buf);
+
+    if ( ret < 0 ) {
+        int e = errno;
+
+        if ( pargs->vd_inp_fname != NULL && *(pargs->vd_inp_fname) ) {
+            pfeall(_("%s: DVDReadBlocks() error reading '%s' \"%s\"\n"),
+                pargs->vd_program_name, pargs->vd_inp_fname,
+                strerror(e));
+        } else {
+            pfeall(_("%s: DVDReadBlocks() error reading \"%s\"\n"),
+                pargs->vd_program_name, strerror(e));
+        }
+
+        errno = e;
+        return ret;
+    }
+
+    return ret * pargs->vd_blk_sz;
 }
