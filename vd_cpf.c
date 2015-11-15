@@ -173,6 +173,7 @@ vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
              */
             pargs->vd_blkcnt = nbr / blk_sz;
             nb = vd_rw_in_out_retry(pargs, rproc);
+            pargs->vd_blkcnt = blkcnt;
 
             if ( nb >= 0 ) {
                 cnt -= nb;
@@ -302,8 +303,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc)
     nbr = cnt;
 
     if ( write_all(out, buf, nbr) != nbr ) {
-        perror((inp_fname != NULL && *inp_fname)
-            ? inp_fname : "reading input");
+        perror(out_fname);
         return -1;
     }
 
