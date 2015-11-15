@@ -134,8 +134,6 @@ vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
     unsigned char*  buf         = pargs->vd_buf;
 
     struct vdstatic_data data;
-
-
     size_t cnt = blkcnt * blk_sz;
     size_t nrd = blknrd * blk_sz;
 
@@ -162,15 +160,15 @@ vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
         nb  = rproc(&data);
 
         if ( nb < 0 || (nb == 0 && errno != 0) ) {
+            pfeall(_("%s: error reading '%s' -- '%s'\n"),
+                progname, inp_fname, strerror(errno));
+
             /* retry is disable when blknretry == 0 */
             if ( blknretry < 1 ) {
                 pfeopt(_("%s: retry bad block == %zu, failing\n"),
                     progname, blknretry);
                 return -1;
             }
-
-            pfeopt(_("%s: retry bad block == %zu, retrying\n"),
-                progname, blknretry);
 
             errno = 0;
             /* call desperation procedure:
