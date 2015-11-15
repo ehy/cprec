@@ -327,7 +327,14 @@ reader_fdread(struct vdstatic_data* data)
     ssize_t ret = read_all(pargs->vd_inp, data->buf, data->cnt);
 
     if ( ret < 0 ) {
-        int e = errno;
+        int e;
+
+        /* messages normally handled by calling code */
+        if ( (want_verbose - want_quiet) < 2 ) {
+            return ret;
+        }
+
+        e = errno;
 
         if ( pargs->vd_inp_fname != NULL && *(pargs->vd_inp_fname) ) {
             pfeall(_("%s: error reading '%s' \"%s\"\n"),
@@ -351,7 +358,14 @@ static ssize_t reader_dvdbytes(struct vdstatic_data* data)
     ssize_t ret = DVDReadBytes(pargs->vd_dvdfile, data->buf, data->cnt);
 
     if ( ret < 0 ) {
-        int e = errno;
+        int e;
+
+        /* messages normally handled by calling code */
+        if ( (want_verbose - want_quiet) < 2 ) {
+            return ret;
+        }
+
+        e = errno;
 
         if ( pargs->vd_inp_fname != NULL && *(pargs->vd_inp_fname) ) {
             pfeall(_("%s: DVDReadBytes() error reading '%s' \"%s\"\n"),
@@ -376,7 +390,14 @@ static ssize_t reader_dvdblocks(struct vdstatic_data* data)
         data->cnt / pargs->vd_blk_sz, data->buf);
 
     if ( ret < 0 ) {
-        int e = errno;
+        int e;
+
+        /* messages normally handled by calling code */
+        if ( (want_verbose - want_quiet) < 2 ) {
+            return ret;
+        }
+
+        e = errno;
 
         if ( pargs->vd_inp_fname != NULL && *(pargs->vd_inp_fname) ) {
             pfeall(_("%s: DVDReadBlocks() error reading '%s' \"%s\"\n"),
