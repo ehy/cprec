@@ -1128,6 +1128,9 @@ main(int argc, char* argv[])
     // NO stdout messages! data goes there
     pf_setup(0, verbose >= 1);
 
+    // flag some verbosity optional in vd_cpf.c
+    vd_cpf_verbose = verbose;
+
     // check for reasonable count args
     if ( block_read_count > max_block_read_count ) {
         // set to def rather than max assuming arg was monstrous error
