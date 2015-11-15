@@ -24,6 +24,13 @@
 #include "lib_misc.h"
 #include "vd_cpf.h"
 
+/* option flag for messages from reader procs, and minimum
+ * to produce messages */
+int vd_cpf_verbose      = 0;
+int vd_cpf_verbose_min  = 2;
+#undef  BE_LOUD
+#define BE_LOUD vd_cpf_verbose >= vd_cpf_verbose_min
+
 /*
 static procedures to wrap the read procedures used herein
 
@@ -330,7 +337,7 @@ reader_fdread(struct vdstatic_data* data)
         int e;
 
         /* messages normally handled by calling code */
-        if ( (want_verbose - want_quiet) < 2 ) {
+        if ( ! (BE_LOUD) ) {
             return ret;
         }
 
@@ -361,7 +368,7 @@ static ssize_t reader_dvdbytes(struct vdstatic_data* data)
         int e;
 
         /* messages normally handled by calling code */
-        if ( (want_verbose - want_quiet) < 2 ) {
+        if ( ! (BE_LOUD) ) {
             return ret;
         }
 
@@ -393,7 +400,7 @@ static ssize_t reader_dvdblocks(struct vdstatic_data* data)
         int e;
 
         /* messages normally handled by calling code */
-        if ( (want_verbose - want_quiet) < 2 ) {
+        if ( ! (BE_LOUD) ) {
             return ret;
         }
 

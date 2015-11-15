@@ -54,6 +54,7 @@
 #include "walk.h"
 #include "meta_set.h"
 #include "path_set.h"
+#include "vd_cpf.h"
 
 /* Prototypes for functions defined herein. */
 static void resolve_dvd_dev();
@@ -826,6 +827,9 @@ main(int argc, char* argv[])
     }
 
     pf_setup(want_verbose > want_quiet, want_quiet == 0);
+
+    /* flag in vd_cpf.c */
+    vd_cpf_verbose = want_verbose - want_quiet;
 
     if ( desired_title_s != NULL ) {
         long n;

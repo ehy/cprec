@@ -31,6 +31,10 @@ extern "C" {
 
 #include "dl_drd.h" /* drd_file_t */
 
+/* option flag for messages from reader procs, and minimum
+ * to produce messages */
+extern int vd_cpf_verbose;
+extern int vd_cpf_verbose_min;
 
 /**
  * Procedures extracted from cpf.c and dd-dvd.cc, so they
