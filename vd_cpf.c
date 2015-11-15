@@ -256,7 +256,6 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc)
     }
 
     while ( cnt ) {
-        size_t  nbr;
         ssize_t nb;
 
         nbr = MIN(cnt, nbr);
