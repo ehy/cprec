@@ -170,6 +170,9 @@ vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
                 return -1;
             }
 
+            pfeopt(_("%s: retry bad block == %zu, retrying\n"),
+                progname, blknretry);
+
             errno = 0;
             /* call desperation procedure:
              * will write NUL data for failed
