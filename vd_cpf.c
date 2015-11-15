@@ -31,6 +31,13 @@ procedures operate in bytes for uniformity; DVDReadBlocks()
 will divide by block size
 */
 
+/* struct for arguments to static procedures */
+struct vdstatic_data {
+    vd_rw_proc_args*    pargs; /* data described in header */
+    unsigned char*      buf;   /* buffer for cnt bytes */
+    size_t              cnt;   /* read count */
+};
+
 /*
  * name: reader_fdread -- reader for 'low level' read(2)
  *
@@ -44,16 +51,16 @@ will divide by block size
  */
 /* reader for 'low level' read(2) syscall on file descriptor */
 static ssize_t
-reader_fdread(vd_rw_proc_args* pargs, size_t cnt);
+reader_fdread(struct vdstatic_data* data);
 /* reader for libdvdread DVDReadBytes() */
 static ssize_t
-reader_dvdbytes(vd_rw_proc_args* pargs, size_t cnt);
+reader_dvdbytes(struct vdstatic_data* data);
 /* reader for libdvdread DVDReadBlocks() */
 static ssize_t
-reader_dvdblocks(vd_rw_proc_args* pargs, size_t cnt);
+reader_dvdblocks(struct vdstatic_data* data);
 
 /* a type for reader procedures: */
-typedef ssize_t (*dv_read_proc)(vd_rw_proc_args*, size_t);
+typedef ssize_t (*dv_read_proc)(struct vdstatic_data*);
 
 /* internal loop receives pointer to read proc. */
 static ssize_t
@@ -102,6 +109,9 @@ implementations of procedures with static linkage
 static ssize_t
 vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
 {
+    /* break out all struct members: optimizing compiler should
+     * dispose of unused automatics
+     */
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
     int             out         = pargs->vd_out;
@@ -116,16 +126,35 @@ vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
     int*            poff        = pargs->vd_poff;
     unsigned char*  buf         = pargs->vd_buf;
 
+    struct vdstatic_data data;
+
+
     size_t cnt = blkcnt * blk_sz;
     size_t nrd = blknrd * blk_sz;
 
-    errno = 0;
+    data.pargs = pargs;
+
+    if ( inp_fname == NULL || *inp_fname == '\0' ) {
+        inp_fname = _("input data");
+    }
+
+    if ( out_fname == NULL || *out_fname == '\0' ) {
+        out_fname = _("output data");
+    }
 
     while ( cnt ) {
-        size_t  nbr = MIN(cnt, nrd);
-        ssize_t nb  = rproc(pargs, nbr);
+        size_t  nbr;
+        ssize_t nb;
 
-        if ( nb <= 0 ) {
+        nbr = MIN(cnt, nrd);
+        data.buf = buf;
+        data.cnt = nbr;
+
+        errno = 0;
+
+        nb  = rproc(&data);
+
+        if ( nb < 0 || (nb == 0 && errno != 0) ) {
             /* retry is disable when blknretry == 0 */
             if ( blknretry < 1 ) {
                 pfeopt(_("%s: retry bad block == %zu, failing\n"),
@@ -145,26 +174,32 @@ vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
             pargs->vd_blkcnt = nbr / blk_sz;
             nb = vd_rw_in_out_retry(pargs, rproc);
 
-            if ( nb > 0 ) {
+            if ( nb >= 0 ) {
                 cnt -= nb;
                 continue;
             }
 
-            perror("DVD bad blocks: cannot salvage");
+            pfeall(_("%s: %s has bad blocks, read retry failed '%s'\n"),
+                progname, inp_fname, strerror(errno));
 
             return -1;
         }
 
-        if ( poff ) {
-            *poff += (int)(nb / blk_sz);
-        }
+        if ( nb > 0 ) {
+            if ( poff ) {
+                *poff += (int)(nb / blk_sz);
+            }
 
-        cnt -= nb;
+            cnt -= nb;
 
-        if ( write_all(out, buf, nb) != nb ) {
-            perror("write DVD data");
+            if ( write_all(out, buf, nb) != nb ) {
+                perror("write DVD data");
 
-            return -1;
+            pfeall(_("%s: failed writing to %s -- '%s'\n"),
+                progname, out_fname, strerror(errno));
+
+                return -1;
+            }
         }
     }
 
@@ -196,6 +231,10 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc)
     size_t cnt = blkcnt * blk_sz;
     unsigned char* prd = buf;
 
+    struct vdstatic_data data;
+
+    data.pargs = pargs;
+
     tm1 = time(0);
 
     if ( inp >= 0 && (rdp = lseek(inp, 0, SEEK_CUR)) < 0 ) {
@@ -207,18 +246,31 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc)
 
     nbr = blknretry * blk_sz;
 
-    errno = 0;
+    if ( inp_fname == NULL || *inp_fname == '\0' ) {
+        inp_fname = _("input data");
+    }
+
+    if ( out_fname == NULL || *out_fname == '\0' ) {
+        out_fname = _("output data");
+    }
 
     while ( cnt ) {
-        size_t  nbr = MIN(cnt, nbr);
-        ssize_t nb  = rproc(pargs, nbr);
+        size_t  nbr;
+        ssize_t nb;
+
+        nbr = MIN(cnt, nbr);
+        data.buf = prd;
+        data.cnt = nbr;
+
+        errno = 0;
+
+        nb  = rproc(&data);
 
         if ( nb == 0 ) {
             break;
         } else if ( nb < 0 ) {
             if ( errno != EIO ) {
-                perror((inp_fname != NULL && *inp_fname)
-                    ? inp_fname : "reading input");
+                perror(inp_fname);
                 return -1;
             }
 
@@ -258,27 +310,22 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc)
     *numbadblk += bad;
 
     tm2 = time(0);
-    if ( inp_fname != NULL && *inp_fname ) {
-        pfeall(
-        _("%s: %lu bad blocks zeroed in read of %lu in %llu seconds\n"),
-            inp_fname, bad, (unsigned long)blkcnt,
-            (unsigned long long)tm2 - tm1);
 
-    } else {
-        pfeall(
-            _("%lu bad blocks zeroed in read of %lu in %llu seconds\n"),
-            bad, (unsigned long)blkcnt,
-            (unsigned long long)tm2 - tm1);
-    }
+    pfeall(
+    _("%s: %lu bad blocks zeroed in read of %lu in %llu seconds\n"),
+        inp_fname, bad, (unsigned long)blkcnt,
+        (unsigned long long)tm2 - tm1);
+
 
     return cnt / blk_sz;
 }
 
 /* reader for 'low level' read(2) syscall on file descriptor */
 static ssize_t
-reader_fdread(vd_rw_proc_args* pargs, size_t cnt)
+reader_fdread(struct vdstatic_data* data)
 {
-    ssize_t ret = read_all(pargs->vd_inp, pargs->vd_buf, cnt);
+    vd_rw_proc_args* pargs = data->pargs;
+    ssize_t ret = read_all(pargs->vd_inp, data->buf, data->cnt);
 
     if ( ret < 0 ) {
         int e = errno;
@@ -299,9 +346,10 @@ reader_fdread(vd_rw_proc_args* pargs, size_t cnt)
 }
 
 /* reader for libdvdread DVDReadBytes() */
-static ssize_t reader_dvdbytes(vd_rw_proc_args* pargs, size_t cnt)
+static ssize_t reader_dvdbytes(struct vdstatic_data* data)
 {
-    ssize_t ret = DVDReadBytes(pargs->vd_dvdfile, pargs->vd_buf, cnt);
+    vd_rw_proc_args* pargs = data->pargs;
+    ssize_t ret = DVDReadBytes(pargs->vd_dvdfile, data->buf, data->cnt);
 
     if ( ret < 0 ) {
         int e = errno;
@@ -322,10 +370,11 @@ static ssize_t reader_dvdbytes(vd_rw_proc_args* pargs, size_t cnt)
 }
 
 /* reader for libdvdread DVDReadBlocks() */
-static ssize_t reader_dvdblocks(vd_rw_proc_args* pargs, size_t cnt)
+static ssize_t reader_dvdblocks(struct vdstatic_data* data)
 {
+    vd_rw_proc_args* pargs = data->pargs;
     ssize_t ret = DVDReadBlocks(pargs->vd_dvdfile, *(pargs->vd_poff),
-        cnt / pargs->vd_blk_sz, pargs->vd_buf);
+        data->cnt / pargs->vd_blk_sz, data->buf);
 
     if ( ret < 0 ) {
         int e = errno;
