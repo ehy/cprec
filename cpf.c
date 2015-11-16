@@ -1025,7 +1025,7 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
     blcnt = sb.st_size / wrcnt;
     rem = sb.st_size % wrcnt;
 
-    pargs.vd_dvdfile      = 0;
+    pargs.vd_dvdfile      = NULL;
     pargs.vd_inp          = ifd;
     pargs.vd_out          = ofd;
     pargs.vd_program_name = program_name;
@@ -1036,7 +1036,7 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
     pargs.vd_blk_sz       = blk_sz;
     pargs.vd_retrybadblk  = retry_blocks;
     pargs.vd_numbadblk    = &numbadblk;
-    pargs.vd_poff         = 0;
+    pargs.vd_poff         = NULL;
     pargs.vd_buf          = buf;
 
     badblk = numbadblk;
