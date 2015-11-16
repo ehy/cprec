@@ -52,8 +52,7 @@ struct vdstatic_data {
  *
  * name: reader_dvdblocks -- reader for libdvdread DVDReadBlocks()
  *
- * @param pargs -- structure with with general parameters
- * @param cnt -- number of bytes to read in this call
+ * @param data -- structure with parameters, described above
  * @return number of blocks read
  */
 /* reader for 'low level' read(2) syscall on file descriptor */
@@ -67,14 +66,14 @@ static ssize_t
 reader_dvdblocks(struct vdstatic_data* data);
 
 /* a type for reader procedures: */
-typedef ssize_t (*dv_read_proc)(struct vdstatic_data*);
+typedef ssize_t (*vd_read_proc)(struct vdstatic_data*);
 
 /* internal loop receives pointer to read proc. */
 static ssize_t
-vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc);
+vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc);
 /* internal loop receives pointer to read proc.; for error retries */
 static ssize_t
-vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc);
+vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc);
 
 /*
 implementations of procedures with external linkage
@@ -114,7 +113,7 @@ implementations of procedures with static linkage
 
 /* internal loop receives pointer to read proc. */
 static ssize_t
-vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
+vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
 {
     /* break out all struct members: optimizing compiler should
      * dispose of unused automatics
@@ -217,7 +216,7 @@ vd_rw_in_out(vd_rw_proc_args* pargs, dv_read_proc rproc)
 
 /* internal loop receives pointer to read proc. */
 static ssize_t
-vd_rw_in_out_retry(vd_rw_proc_args* pargs, dv_read_proc rproc)
+vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
 {
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
