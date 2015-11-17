@@ -1,4 +1,4 @@
-/* 
+/*
    block_hash.[hc] - for handling files pointed to by more
    than one name under the VIDEO_TS directory - seen on a March 2010
    Disney film DVD.
@@ -21,7 +21,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #ifndef _BLOCK_HASH_H_
@@ -58,11 +58,11 @@ const BHI* blk_check(blkhash_t addr, const char* name, filesize_t sz);
 /**
  * scan for entries with same "addr", placing up to
  * "num" pointers in output array "pbhi"
- * return count put in output array (between 0 and "num")
- * (there is no way to find if more are present except to
- * try again with a larger array)
+ * return count of entries found -- which might be greater
+ * than num if num is too small -- pass 0 in num to get a count,
+ * and in just this case pbhi may be NULL
  */
-unsigned blk_scan(blkhash_t addr, const BHI* pbhi[], unsigned num);
+unsigned blk_scan(blkhash_t addr, const BHI** pbhi, unsigned num);
 
 /**
  *  free all storage

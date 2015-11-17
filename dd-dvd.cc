@@ -707,7 +707,7 @@ dd_ops_exec(
                 }
 
                 pargs.vd_dvdfile      = 0;
-                pargs.vd_inp          = inp        ;
+                pargs.vd_inp          = inp;
                 pargs.vd_blkcnt       = ddbsz;
                 pargs.vd_poff         = 0;
 

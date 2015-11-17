@@ -1290,8 +1290,58 @@ copy_vob_fd(
 static int
 disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz)
 {
-    const BHI* pbhi = blk_check(
-                (blkhash_t)blk, nbuf, (filesize_t)fsz);
+    int nnzsz = 0;
+    const BHI* pbhi = blk_check((blkhash_t)blk, nbuf, (filesize_t)fsz);
+    unsigned nr = blk_scan((blkhash_t)blk, NULL, 0);
+
+    /* Found more than one with this block address: if several have
+     * the same size > 0 it should be OK to make hard links below;
+     * mkisofs/genisofs seems to handle the hard links by by making
+     * directory entries with the same address -- but if the sizes
+     * differ this obviously cannot work, so compare sizes seen so far
+     */
+    if ( nr > 1 ) {
+        unsigned i;
+        const BHI** pa;
+        filesize_t lastnzsz = 0;
+
+        pa = (const BHI**)xmalloc(sizeof(const BHI*) * nr);
+        blk_scan((blkhash_t)blk, pa, nr);
+
+        pfoopt(
+          _("source disc block 0x%08X has %u names:"),
+          (unsigned)blk, nr);
+
+        for ( i = 0; i < nr; i++ ) {
+            filesize_t csz = pa[i]->bh_size;
+
+            pfoopt(_(" %zu bytes as \"%s\""),
+              (size_t)csz, pa[i]->bh_name);
+
+            if ( csz > 0 && csz != lastnzsz ) {
+                if ( lastnzsz ) {
+                    nnzsz++;
+                }
+                lastnzsz = csz;
+            }
+        }
+
+        pfoopt("\n");
+
+        free(pa);
+    }
+
+    if ( nnzsz ) {
+        pfeall(
+          _("%s: source disc block 0x%08X has "
+          "multiple names and %d non-zero sizes; "
+          "this cannot be represented in the "
+          "output file system\n"),
+          program_name, (unsigned)blk, nnzsz);
+
+        return 9;
+    }
+
     if ( pbhi && pbhi->bh_count > 1 ) {
         /* another name points to this file! */
         pfoall(_("%s: multiple names \"%s\" == \"%s\", "
@@ -1315,46 +1365,6 @@ disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz)
           program_name, nbuf);
 
         return 10;
-    } else {
-        int nnzsz = 0;
-        const BHI* pa[32];
-        unsigned num = A_SIZE(pa);
-        unsigned nr = blk_scan((blkhash_t)blk, pa, num);
-
-        if ( nr > 1 ) {
-            unsigned i;
-            filesize_t lastnzsz = 0;
-            pfoopt(
-              _("source disc block 0x%08X has %u names:"),
-              (unsigned)blk, nr);
-            for ( i = 0; i < nr; i++ ) {
-                filesize_t csz = pa[i]->bh_size;
-                pfoopt(_(" %zu bytes as \"%s\""),
-                  (size_t)csz, pa[i]->bh_name);
-
-                if ( csz > 0 && csz != lastnzsz ) {
-                    if ( lastnzsz ) {
-                        nnzsz++;
-                    }
-                    lastnzsz = csz;
-                }
-            }
-            if ( nr >= num ) {
-                pfoopt(_(" (there might be more)"));
-            }
-            pfoopt("\n");
-        }
-
-        if ( nnzsz ) {
-            pfeall(
-              _("%s: source disc block 0x%08X has "
-              "multiple names and %d non-zero sizes; "
-              "this cannot be represented in the "
-              "output file system\n"),
-              program_name, (unsigned)blk, nnzsz);
-
-            return 9;
-        }
     }
 
     return 0;
