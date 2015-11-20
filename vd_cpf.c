@@ -203,8 +203,8 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
             if ( write_all(out, buf, nb) != nb ) {
                 perror("write DVD data");
 
-            pfeall(_("%s: failed writing to %s -- '%s'\n"),
-                progname, out_fname, strerror(errno));
+                pfeall(_("%s: failed writing to %s -- '%s'\n"),
+                    progname, out_fname, strerror(errno));
 
                 return -1;
             }
