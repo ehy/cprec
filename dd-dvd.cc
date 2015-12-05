@@ -916,19 +916,31 @@ get_vol_blocks(int fd)
         // system id
         off = 8;
         len = 32;
-        s = string(buf + off, len);
+        if ( iobuffer[off] == ' ' ) {
+            s = "";
+        } else {
+            s = string(buf + off, len);
+        }
         pfoopt("%s|%s\n", "system_id", rtrim(s).c_str());
 
         // volume id
         off = 40;
         len = 32;
-        s = string(buf + off, len);
+        if ( iobuffer[off] == ' ' ) {
+            s = "";
+        } else {
+            s = string(buf + off, len);
+        }
         pfoopt("%s|%s\n", "volume_id", rtrim(s).c_str());
 
         // volume set id
         off = 190;
         len = 128;
-        s = string(buf + off, len);
+        if ( iobuffer[off] == ' ' ) {
+            s = "";
+        } else {
+            s = string(buf + off, len);
+        }
         pfoopt("%s|%s\n", "volume_set_id", rtrim(s).c_str());
 
         // publisher id
