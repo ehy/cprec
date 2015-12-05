@@ -890,6 +890,71 @@ get_vol_blocks(int fd)
         exit(EXIT_FAILURE);
     }
 
+    // dryrun: DVD files info is printed on stderr, and stdout
+    // is not otherwise used -- as of 0.2.1 print other useful
+    // info on stdout
+    if ( dryrun ) {
+        size_t off, len;
+
+        // system id
+        off = 8;
+        len = 32;
+        iobuffer[off + len - 1] = '\0';
+        pfoopt("%s|%s\n", "system_id", (char*)&iobuffer[off]);
+
+        // volume id
+        off = 40;
+        len = 32;
+        iobuffer[off + len - 1] = '\0';
+        pfoopt("%s|%s\n", "volume_id", (char*)&iobuffer[off]);
+
+        // volume set id
+        off = 190;
+        len = 128;
+        iobuffer[off + len - 1] = '\0';
+        pfoopt("%s|%s\n", "volume_set_id", (char*)&iobuffer[off]);
+
+        // publisher id
+        off = 318;
+        len = 128;
+        iobuffer[off + len - 1] = '\0';
+        if ( iobuffer[off] == ' ' ) {
+            iobuffer[off] = '\0';
+        }
+        pfoopt("%s|%s\n", "publisher_id", (char*)&iobuffer[off]);
+
+        // preparer id
+        off = 446;
+        len = 128;
+        iobuffer[off + len - 1] = '\0';
+        if ( iobuffer[off] == ' ' ) {
+            iobuffer[off] = '\0';
+        }
+        pfoopt("%s|%s\n", "data_preparer_id", (char*)&iobuffer[off]);
+
+        // application id
+        off = 574;
+        len = 128;
+        iobuffer[off + len - 1] = '\0';
+        if ( iobuffer[off] == ' ' ) {
+            iobuffer[off] = '\0';
+        }
+        pfoopt("%s|%s\n", "application_id", (char*)&iobuffer[off]);
+
+        // copyright id
+        off = 702;
+        len = 37;
+        iobuffer[off + len - 1] = '\0';
+        if ( iobuffer[off] == ' ' ) {
+            iobuffer[off] = '\0';
+        }
+        pfoopt("%s|%s\n", "system_id", (char*)&iobuffer[off]);
+
+        // print volume size in blocks
+        pfoopt("%s|%zu\n", "filesystem_block_count", size_t(bblk));
+
+    }
+
     ocur = lseek(fd, ocur, SEEK_SET);
     if ( ocur < 0 ) {
         perror("lseek(SEEK_SET)");
@@ -926,6 +991,13 @@ get_mount_dev(const char* mtpt, string& name)
     }
 
     pfeall("using device %s for argument %s\n", buf.getp(), mtpt);
+
+    // dryrun: DVD files info is printed on stderr, and stdout
+    // is not otherwise used -- as of 0.2.1 print other useful
+    // info on stdout
+    if ( dryrun ) {
+        pfoopt("input_arg|%s|%s\n", mtpt, buf.getp());
+    }
 
     name = buf;
     return true;
@@ -1119,14 +1191,24 @@ main(int argc, char* argv[])
 
     /* setup stream helpers */
     // NO stdout messages! data goes there
+    // (unless dryrun in effect)
     if ( bequiet ) {
         FILE* tf = fopen("/dev/null", "w");
         pf_assign_files(tf, tf);
     } else {
-        pf_assign_files(stderr, stderr);
+        if ( dryrun ) {
+            pf_assign_files(stdout, stderr);
+        } else {
+            pf_assign_files(stderr, stderr);
+        }
     }
-    // NO stdout messages! data goes there
-    pf_setup(0, verbose >= 1);
+
+    // NO stdout messages (unless dryrun)! data goes there
+    if ( dryrun ) {
+        pf_setup(1, verbose >= 1);
+    } else {
+        pf_setup(0, verbose >= 1);
+    }
 
     // flag some verbosity optional in vd_cpf.c
     vd_cpf_verbose = verbose;
