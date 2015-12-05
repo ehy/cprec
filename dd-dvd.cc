@@ -1410,7 +1410,7 @@ main(int argc, char* argv[])
 
     DVDClose(drd);
     close(inp);
-    if ( close(out) ) {
+    if ( dryrun == false && close(out) ) {
         perror("closing output");
         return EXIT_FAILURE;
     }
