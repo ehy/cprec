@@ -909,68 +909,67 @@ get_vol_blocks(int fd)
     // is not otherwise used -- as of 0.2.1 print other useful
     // info on stdout
     if ( dryrun ) {
-        size_t off, len;
+        string::size_type off, len;
+        string s;
+        char* buf = (char*)iobuffer;
 
         // system id
         off = 8;
         len = 32;
-        iobuffer[off + len - 1] = '\0';
-        pfoopt("%s|%s\n", "system_id",
-            rtrim((char*)&iobuffer[off]).c_str());
+        s = string(buf + off, len);
+        pfoopt("%s|%s\n", "system_id", rtrim(s).c_str());
 
         // volume id
         off = 40;
         len = 32;
-        iobuffer[off + len - 1] = '\0';
-        pfoopt("%s|%s\n", "volume_id",
-            rtrim((char*)&iobuffer[off]).c_str());
+        s = string(buf + off, len);
+        pfoopt("%s|%s\n", "volume_id", rtrim(s).c_str());
 
         // volume set id
         off = 190;
         len = 128;
-        iobuffer[off + len - 1] = '\0';
-        pfoopt("%s|%s\n", "volume_set_id",
-            rtrim((char*)&iobuffer[off]).c_str());
+        s = string(buf + off, len);
+        pfoopt("%s|%s\n", "volume_set_id", rtrim(s).c_str());
 
         // publisher id
         off = 318;
         len = 128;
-        iobuffer[off + len - 1] = '\0';
         if ( iobuffer[off] == ' ' ) {
-            iobuffer[off] = '\0';
+            s = "";
+        } else {
+            s = string(buf + off, len);
         }
-        pfoopt("%s|%s\n", "publisher_id",
-            rtrim((char*)&iobuffer[off]).c_str());
+        pfoopt("%s|%s\n", "publisher_id", rtrim(s).c_str());
 
         // preparer id
         off = 446;
         len = 128;
-        iobuffer[off + len - 1] = '\0';
         if ( iobuffer[off] == ' ' ) {
-            iobuffer[off] = '\0';
+            s = "";
+        } else {
+            s = string(buf + off, len);
         }
-        pfoopt("%s|%s\n", "data_preparer_id",
-            rtrim((char*)&iobuffer[off]).c_str());
+        pfoopt("%s|%s\n", "data_preparer_id", rtrim(s).c_str());
 
         // application id
         off = 574;
         len = 128;
-        iobuffer[off + len - 1] = '\0';
         if ( iobuffer[off] == ' ' ) {
-            iobuffer[off] = '\0';
+            s = "";
+        } else {
+            s = string(buf + off, len);
         }
-        pfoopt("%s|%s\n", "application_id",
-            rtrim((char*)&iobuffer[off]).c_str());
+        pfoopt("%s|%s\n", "application_id", rtrim(s).c_str());
 
         // copyright id
         off = 702;
         len = 37;
-        iobuffer[off + len - 1] = '\0';
         if ( iobuffer[off] == ' ' ) {
-            iobuffer[off] = '\0';
+            s = "";
+        } else {
+            s = string(buf + off, len);
         }
-        pfoopt("%s|%s\n", "system_id",
-            rtrim((char*)&iobuffer[off]).c_str());
+        pfoopt("%s|%s\n", "system_id", rtrim(s).c_str());
 
         // print volume size in blocks
         pfoopt("%s|%zu\n", "filesystem_block_count", size_t(bblk));
