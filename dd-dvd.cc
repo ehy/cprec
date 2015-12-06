@@ -848,6 +848,38 @@ dd_ops_exec(
     return fptr;
 }
 
+// helper to get certain size fields that are stored
+// as both little and big endian, one after the other
+template<typename D, typename P> bool
+get_lbe_val(D& result, const P* pfields)
+{
+    const size_t tsz = sizeof(D);
+    const P* ple = pfields;
+    const P* pbe = pfields + tsz;
+
+    D le = 0;
+    D be = 0;
+
+    for ( size_t i = 0; i < tsz; ++i ) {
+        size_t shle = i * 8;
+        size_t shbe = (tsz - (i + 1)) * 8;
+
+        le |= D(ple[i]) <<  shle;
+        be |= D(pbe[i]) <<  shbe;
+    }
+
+    // sanity check:
+    if ( be != le ) {
+        pfeopt("failed to get little&big end field (le %lu, be %lu)\n",
+            (unsigned long)le, (unsigned long)be);
+        return false;
+    }
+
+    result = be;
+
+    return true;
+}
+
 // helper for --dry-run info output
 string&
 rtrim(string& s, const char* not_of = " \a\b\t\f\v\n\r")
@@ -893,7 +925,7 @@ ends_trim(string& s, const char* not_of = " \a\b\t\f\v\n\r")
 //   on iso9660, and which contains the info to print,
 // blocks is fs block count already calc'd in get_vol_blocks
 void
-print_volume_info(char* buf, size_t blocks)
+print_volume_info(char* buf, size_t blocks = 0)
 {
     static const struct {
         bool              bdate; // flag date fields: special
@@ -950,7 +982,18 @@ print_volume_info(char* buf, size_t blocks)
     }
 
     // print volume size in blocks
-    pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
+    if ( blocks == 0 ) {
+        uint32_t fsblocks;
+        // use unsigned char* because there is already an
+        // instantiation of get_lbe_val template for that
+        unsigned char* tbuf = (unsigned char*)buf;
+        if ( get_lbe_val(fsblocks, tbuf + 80) ) {
+            blocks = size_t(fsblocks);
+            pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
+        }
+    } else {
+        pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
+    }
 }
 
 size_t
@@ -974,24 +1017,11 @@ get_vol_blocks(int fd)
         exit(EXIT_FAILURE);
     }
 
-    // offsets into iso 9660 fs for big,little endian fs size
-    const size_t boff = 84;
+    // offset into iso 9660 fs for big,little endian fs size
     const size_t loff = 80;
-
-    unsigned char* pd;
-
-    pd = &iobuffer[loff];
-    uint32_t lblk = (uint32_t(pd[0]) <<  0) | (uint32_t(pd[1]) <<  8) |
-        (uint32_t(pd[2]) << 16) | (uint32_t(pd[3]) <<  24);
-
-    pd = &iobuffer[boff];
-    uint32_t bblk = (uint32_t(pd[0]) << 24) | (uint32_t(pd[1]) << 16) |
-        (uint32_t(pd[2]) <<  8) | (uint32_t(pd[3]) <<  0);
-
-    // sanity check:
-    if ( lblk != bblk ) {
-        pfeall("failed to get volume block count (le %lu, be %lu)\n",
-            (unsigned long)lblk, (unsigned long)bblk);
+    uint32_t fsblocks;
+    if ( get_lbe_val(fsblocks, iobuffer + loff) == false ) {
+        pfeall("%s: failed to get volume block count\n", program_name);
         exit(EXIT_FAILURE);
     }
 
@@ -999,7 +1029,7 @@ get_vol_blocks(int fd)
     // is not otherwise used -- as of 0.2.1 print other useful
     // info on stdout
     if ( dryrun ) {
-        print_volume_info((char*)iobuffer, size_t(bblk));
+        print_volume_info((char*)iobuffer);
     }
 
     ocur = lseek(fd, ocur, SEEK_SET);
@@ -1009,7 +1039,7 @@ get_vol_blocks(int fd)
         exit(EXIT_FAILURE);
     }
 
-    return size_t(bblk);
+    return size_t(fsblocks);
 }
 
 bool
