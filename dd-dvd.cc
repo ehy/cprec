@@ -989,7 +989,7 @@ get_vol_blocks(int fd)
     // is not otherwise used -- as of 0.2.1 print other useful
     // info on stdout
     if ( dryrun ) {
-        print_volume_info((const char*)iobuffer, size_t(bblk));
+        print_volume_info((char*)iobuffer, size_t(bblk));
     }
 
     ocur = lseek(fd, ocur, SEEK_SET);
