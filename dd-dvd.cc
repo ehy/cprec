@@ -936,7 +936,7 @@ print_volume_info(char* buf, size_t blocks)
         }
 
         string s(pcur, dat[i].len);
-        pfoopt("%s|%s\n", dat[i].label, ends_trim(s).c_str());
+        pfoopt("%s|%s\n", dat[i].label, (ends_trim(s) + gmo).c_str());
     }
 
     // print volume size in blocks
