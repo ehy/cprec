@@ -928,14 +928,19 @@ print_volume_info(char* buf, size_t blocks)
             size_t idx = dat[i].len - 1;
             int v = ((signed char*)pcur)[idx];
 
-            pcur[idx] = ' ';
+            pcur[idx] = '\0';
 
-            ostringstream ost;
+            if ( string(pcur).find_first_not_of("0") != string::npos ) {
+                pcur[idx] = ' ';
 
-            ost << " - GMT offset " << (std::abs(v) * 15) << " minutes"
-                << (v == 0 ? "" : (v < 0 ? " west" : " east"));
+                ostringstream ost;
 
-            gmo = ost.str();
+                ost << " - GMT offset "
+                    << (std::abs(v) * 15) << " minutes"
+                    << (v == 0 ? "" : (v < 0 ? " west" : " east"));
+
+                gmo = ost.str();
+            }
         }
 
         string s(pcur, dat[i].len);
