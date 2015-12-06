@@ -855,12 +855,36 @@ rtrim(string& s, const char* not_of = " \t\f\v\n\r")
     string::size_type pos = s.find_last_not_of(not_of);
 
     if ( pos == string::npos ) {
+        s = "";
         return s;
     }
 
     s.erase(pos + 1);
 
     return s;
+}
+
+// helper for --dry-run info output
+string&
+ltrim(string& s, const char* not_of = " \t\f\v\n\r")
+{
+    string::size_type pos = s.find_first_not_of(not_of);
+
+    if ( pos == string::npos ) {
+        s = "";
+        return s;
+    }
+
+    s.erase(0, pos);
+
+    return s;
+}
+
+// helper for --dry-run info output
+inline string&
+ends_trim(string& s, const char* not_of = " \t\f\v\n\r")
+{
+    return ltrim(rtrim(s, not_of), not_of);
 }
 
 // helper for --dry-run info output
@@ -871,7 +895,6 @@ rtrim(string& s, const char* not_of = " \t\f\v\n\r")
 void
 print_volume_info(const char* buf, size_t blocks)
 {
-    const char* fmt  = "%s|%s\n";
     static const struct {
         size_t            off;
         string::size_type len;
@@ -883,15 +906,18 @@ print_volume_info(const char* buf, size_t blocks)
         {318, 128, "publisher_id"},
         {446, 128, "data_preparer_id"},
         {574, 128, "application_id"},
-        {702,  37, "system_id"}
+        {702,  37, "copyright_id"},
+        {739,  37, "abstract_file_id"},
+        {776,  37, "bibliographical_id"},
+        {813,  17, "volume_creation_date"},
+        {830,  17, "last_modified_date"},
+        {847,  17, "expiry_date"},
+        {864,  17, "effective_date"}
     };
 
     for ( size_t i = 0; i < A_SIZE(dat); ++i ) {
-        string s = buf[dat[i].off] == ' '
-            ? string("")
-            : string(buf + dat[i].off, dat[i].len);
-
-        pfoopt(fmt, dat[i].label, rtrim(s).c_str());
+        string s(buf + dat[i].off, dat[i].len);
+        pfoopt("%s|%s\n", dat[i].label, ends_trim(s).c_str());
     }
 
     // print volume size in blocks
