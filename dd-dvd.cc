@@ -850,7 +850,7 @@ dd_ops_exec(
 
 // helper for --dry-run info output
 string&
-rtrim(string& s, const char* not_of = " \t\f\v\n\r")
+rtrim(string& s, const char* not_of = " \a\b\t\f\v\n\r")
 {
     string::size_type pos = s.find_last_not_of(not_of);
 
@@ -866,7 +866,7 @@ rtrim(string& s, const char* not_of = " \t\f\v\n\r")
 
 // helper for --dry-run info output
 string&
-ltrim(string& s, const char* not_of = " \t\f\v\n\r")
+ltrim(string& s, const char* not_of = " \a\b\t\f\v\n\r")
 {
     string::size_type pos = s.find_first_not_of(not_of);
 
@@ -882,7 +882,7 @@ ltrim(string& s, const char* not_of = " \t\f\v\n\r")
 
 // helper for --dry-run info output
 inline string&
-ends_trim(string& s, const char* not_of = " \t\f\v\n\r")
+ends_trim(string& s, const char* not_of = " \a\b\t\f\v\n\r")
 {
     return ltrim(rtrim(s, not_of), not_of);
 }
@@ -893,30 +893,49 @@ ends_trim(string& s, const char* not_of = " \t\f\v\n\r")
 //   on iso9660, and which contains the info to print,
 // blocks is fs block count already calc'd in get_vol_blocks
 void
-print_volume_info(const char* buf, size_t blocks)
+print_volume_info(char* buf, size_t blocks)
 {
     static const struct {
+        bool              bdate; // flag date fields: special
         size_t            off;
         string::size_type len;
         const char*       label;
     } dat[] = {
-        {8,    32, "system_id"},
-        {40,   32, "volume_id"},
-        {190, 128, "volume_set_id"},
-        {318, 128, "publisher_id"},
-        {446, 128, "data_preparer_id"},
-        {574, 128, "application_id"},
-        {702,  37, "copyright_id"},
-        {739,  37, "abstract_file_id"},
-        {776,  37, "bibliographical_id"},
-        {813,  17, "volume_creation_date"},
-        {830,  17, "last_modified_date"},
-        {847,  17, "expiry_date"},
-        {864,  17, "effective_date"}
+        {false, 8,    32, "system_id"},
+        {false, 40,   32, "volume_id"},
+        {false, 190, 128, "volume_set_id"},
+        {false, 318, 128, "publisher_id"},
+        {false, 446, 128, "data_preparer_id"},
+        {false, 574, 128, "application_id"},
+        {false, 702,  37, "copyright_id"},
+        {false, 739,  37, "abstract_file_id"},
+        {false, 776,  37, "bibliographical_id"},
+        {true,  813,  17, "volume_creation_date"},
+        {true,  830,  17, "last_modified_date"},
+        {true,  847,  17, "expiry_date"},
+        {true,  864,  17, "effective_date"}
     };
 
     for ( size_t i = 0; i < A_SIZE(dat); ++i ) {
-        string s(buf + dat[i].off, dat[i].len);
+        char* pcur = buf + dat[i].off;
+        // slight complication in date fields: last char is
+        // actual 8-bit integer offset from GMT
+        string gmo("");
+
+        if ( dat[i].bdate ) {
+            size_t idx = dat[i].len - 1;
+            int v = pcur[idx];
+
+            pcur[idx] = ' ';
+
+            ostringstream ost;
+
+            ost << " - GMT offset " << v;
+
+            gmo = ost.str();
+        }
+
+        string s(pcur, dat[i].len);
         pfoopt("%s|%s\n", dat[i].label, ends_trim(s).c_str());
     }
 
