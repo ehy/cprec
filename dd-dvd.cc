@@ -930,7 +930,8 @@ print_volume_info(char* buf, size_t blocks)
 
             ostringstream ost;
 
-            ost << " - GMT offset " << v;
+            ost << " - GMT offset " << (std::abs(v) * 15) << " minutes"
+                << (v == 0 ? "" : (v < 0 ? " west" : " east"));
 
             gmo = ost.str();
         }
