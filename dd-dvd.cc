@@ -940,6 +940,8 @@ print_volume_info(char* buf, size_t blocks)
                     << (v == 0 ? "" : (v < 0 ? " west" : " east"));
 
                 gmo = ost.str();
+            } else {
+                std::memset(pcur, ' ', dat[i].len);
             }
         }
 
