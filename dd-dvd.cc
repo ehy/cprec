@@ -918,13 +918,15 @@ print_volume_info(char* buf, size_t blocks)
 
     for ( size_t i = 0; i < A_SIZE(dat); ++i ) {
         char* pcur = buf + dat[i].off;
+
         // slight complication in date fields: last char is
-        // actual 8-bit integer offset from GMT
+        // actually an 8-bit signed integer offset from GMT
+        // in 15 minute units, negative west, else east
         string gmo("");
 
         if ( dat[i].bdate ) {
             size_t idx = dat[i].len - 1;
-            int v = pcur[idx];
+            int v = ((signed char*)pcur)[idx];
 
             pcur[idx] = ' ';
 
