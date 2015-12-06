@@ -849,8 +849,8 @@ dd_ops_exec(
 }
 
 // helper for --dry-run info output
-string
-rtrim(string s, const char* not_of = " \t\f\v\n\r")
+string&
+rtrim(string& s, const char* not_of = " \t\f\v\n\r")
 {
     string::size_type pos = s.find_last_not_of(not_of);
 
@@ -861,6 +861,41 @@ rtrim(string s, const char* not_of = " \t\f\v\n\r")
     s.erase(pos + 1);
 
     return s;
+}
+
+// helper for --dry-run info output
+// called by get_vol_blocks:
+// buf is 2048 bytes that was read from offset 2048*16
+//   on iso9660, and which contains the info to print,
+// blocks is fs block count already calc'd in get_vol_blocks
+void
+print_volume_info(const char* buf, size_t blocks)
+{
+    const char* fmt  = "%s|%s\n";
+    static const struct {
+        size_t            off;
+        string::size_type len;
+        const char*       label;
+    } dat[] = {
+        {8,    32, "system_id"},
+        {40,   32, "volume_id"},
+        {190, 128, "volume_set_id"},
+        {318, 128, "publisher_id"},
+        {446, 128, "data_preparer_id"},
+        {574, 128, "application_id"},
+        {702,  37, "system_id"}
+    };
+
+    for ( size_t i = 0; i < A_SIZE(dat); ++i ) {
+        string s = buf[dat[i].off] == ' '
+            ? string("")
+            : string(buf + dat[i].off, dat[i].len);
+
+        pfoopt(fmt, dat[i].label, rtrim(s).c_str());
+    }
+
+    // print volume size in blocks
+    pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
 }
 
 size_t
@@ -909,83 +944,7 @@ get_vol_blocks(int fd)
     // is not otherwise used -- as of 0.2.1 print other useful
     // info on stdout
     if ( dryrun ) {
-        string::size_type off, len;
-        string s;
-        char* buf = (char*)iobuffer;
-
-        // system id
-        off = 8;
-        len = 32;
-        if ( iobuffer[off] == ' ' ) {
-            s = "";
-        } else {
-            s = string(buf + off, len);
-        }
-        pfoopt("%s|%s\n", "system_id", rtrim(s).c_str());
-
-        // volume id
-        off = 40;
-        len = 32;
-        if ( iobuffer[off] == ' ' ) {
-            s = "";
-        } else {
-            s = string(buf + off, len);
-        }
-        pfoopt("%s|%s\n", "volume_id", rtrim(s).c_str());
-
-        // volume set id
-        off = 190;
-        len = 128;
-        if ( iobuffer[off] == ' ' ) {
-            s = "";
-        } else {
-            s = string(buf + off, len);
-        }
-        pfoopt("%s|%s\n", "volume_set_id", rtrim(s).c_str());
-
-        // publisher id
-        off = 318;
-        len = 128;
-        if ( iobuffer[off] == ' ' ) {
-            s = "";
-        } else {
-            s = string(buf + off, len);
-        }
-        pfoopt("%s|%s\n", "publisher_id", rtrim(s).c_str());
-
-        // preparer id
-        off = 446;
-        len = 128;
-        if ( iobuffer[off] == ' ' ) {
-            s = "";
-        } else {
-            s = string(buf + off, len);
-        }
-        pfoopt("%s|%s\n", "data_preparer_id", rtrim(s).c_str());
-
-        // application id
-        off = 574;
-        len = 128;
-        if ( iobuffer[off] == ' ' ) {
-            s = "";
-        } else {
-            s = string(buf + off, len);
-        }
-        pfoopt("%s|%s\n", "application_id", rtrim(s).c_str());
-
-        // copyright id
-        off = 702;
-        len = 37;
-        if ( iobuffer[off] == ' ' ) {
-            s = "";
-        } else {
-            s = string(buf + off, len);
-        }
-        pfoopt("%s|%s\n", "system_id", rtrim(s).c_str());
-
-        // print volume size in blocks
-        pfoopt("%s|%zu\n", "filesystem_block_count", size_t(bblk));
-
+        print_volume_info((const char*)iobuffer, size_t(bblk));
     }
 
     ocur = lseek(fd, ocur, SEEK_SET);
