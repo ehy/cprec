@@ -989,11 +989,15 @@ print_volume_info(char* buf, size_t blocks = 0)
         unsigned char* tbuf = (unsigned char*)buf;
         if ( get_lbe_val(fsblocks, tbuf + 80) ) {
             blocks = size_t(fsblocks);
-            pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
+        } else {
+            // Note not stderr: if front end is using this,
+            // it may detect 'FAILED'
+            pfoopt("%s|FAILED\n", "filesystem_block_count");
+            return;
         }
-    } else {
-        pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
     }
+
+    pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
 }
 
 size_t
