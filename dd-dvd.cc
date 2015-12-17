@@ -133,6 +133,8 @@ int verbose = 0;
 bool dryrun = false;
 bool bequiet = false;
 unsigned char* iobuffer;
+// for front end programs
+bool io_linebuf = false;
 
 const char vtfdir[] = "/VIDEO_TS/";
 const char vtftpl[] = "/VIDEO_TS/VTS_01_1.VOB";
@@ -1088,6 +1090,7 @@ void
 env_checkvars()
 {
     const char* ep;
+
     if ( (ep = getenv("DDD_DRYRUN")) != 0 ) {
         if ( strcasecmp(ep, "0") &&
              strcasecmp(ep, "no") &&
@@ -1095,6 +1098,15 @@ env_checkvars()
             dryrun = true;
         }
     }
+
+    if ( (ep = getenv("DDD_LINEFUF")) != 0 ) {
+        if ( strcasecmp(ep, "1") &&
+             strcasecmp(ep, "yes") &&
+             strcasecmp(ep, "true") ) {
+            io_linebuf = true;
+        }
+    }
+
     if ( (ep = getenv("DDD_VERBOSE")) != 0 ) {
         if ( !strcasecmp(ep, "0") ||
              !strcasecmp(ep, "no") ||
@@ -1112,6 +1124,7 @@ env_checkvars()
             verbose = v;
         }
     }
+
     if ( (ep = getenv("DDD_RETRYBLOCKS")) != 0 ) {
         errno = 0;
         long lv = strtol(ep, 0, 0);
@@ -1256,6 +1269,13 @@ main(int argc, char* argv[])
 
     /* get envireonment vars 1st so options override */
     env_checkvars();
+
+    /* not a commandline opt, but may be set from env */
+    if ( io_linebuf ) {
+        /* NOTE setlinebuf() is not in C++ std:: */
+        setlinebuf(stdout);
+        setlinebuf(stderr);
+    }
 
     /* options handling */
     int nopt = get_options(argc, argv);

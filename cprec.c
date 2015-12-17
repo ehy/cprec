@@ -63,6 +63,7 @@ static size_t fatal_max_path(int fail_status);
 static unsigned char* setup_global_buffer(void);
 static void get_env_vars_2nd(int* doregmask, int* regmask);
 static void get_env_vars_1st();
+static void get_env_vars_0th();
 static void usage(int status);
 static int  get_options(int argc, char* argv[]);
 /* main for recursive copy of fs hierarchy */
@@ -419,6 +420,21 @@ get_env_vars_1st()
     }
 }
 
+static void
+get_env_vars_0th()
+{
+    const char*       ep;
+
+    /* set by front end program */
+    if ( (ep = getenv("CPREC_LINEBUF")) != NULL ) {
+        if ( strcasecmp(ep, "1") &&
+             strcasecmp(ep, "yes") &&
+             strcasecmp(ep, "true") ) {
+            setlinebuf(stdout);
+            setlinebuf(stderr);
+        }
+    }
+}
 static unsigned char*
 setup_global_buffer(void)
 {
@@ -813,6 +829,7 @@ main(int argc, char* argv[])
 
     setlocale(LC_ALL, "");
 
+    get_env_vars_0th(); /* before pf_init_files()! */
     pf_init_files();
 
     pf_setup(1, 1);
