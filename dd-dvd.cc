@@ -1099,7 +1099,7 @@ env_checkvars()
         }
     }
 
-    if ( (ep = getenv("DDD_LINEFUF")) != 0 ) {
+    if ( (ep = getenv("DDD_LINEBUF")) != 0 ) {
         if ( strcasecmp(ep, "1") &&
              strcasecmp(ep, "yes") &&
              strcasecmp(ep, "true") ) {
