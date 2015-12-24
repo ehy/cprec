@@ -1100,9 +1100,9 @@ env_checkvars()
     }
 
     if ( (ep = getenv("DDD_LINEBUF")) != 0 ) {
-        if ( strcasecmp(ep, "1") &&
-             strcasecmp(ep, "yes") &&
-             strcasecmp(ep, "true") ) {
+        if ( strcasecmp(ep, "1") == 0 ||
+             strcasecmp(ep, "yes") == 0 ||
+             strcasecmp(ep, "true") == 0 ) {
             io_linebuf = true;
         }
     }
