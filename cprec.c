@@ -427,9 +427,9 @@ get_env_vars_0th()
 
     /* set by front end program */
     if ( (ep = getenv("CPREC_LINEBUF")) != NULL ) {
-        if ( strcasecmp(ep, "1") &&
-             strcasecmp(ep, "yes") &&
-             strcasecmp(ep, "true") ) {
+        if ( strcasecmp(ep, "1") == 0 ||
+             strcasecmp(ep, "yes") == 0 ||
+             strcasecmp(ep, "true") == 0 ) {
             setlinebuf(stdout);
             setlinebuf(stderr);
         }
