@@ -2576,7 +2576,8 @@ class ACoreLogiDat:
                     self.do_burn(chil, d)
                     return
                 else:
-                    self.rm_temp(d["source_file"])
+                    #self.rm_temp(d["source_file"])
+                    self.cleanup_run()
             else:
                 m = "Prepared to burn backup. "
                 m = m + "Make sure a writable blank disc is ready in "
@@ -2587,11 +2588,13 @@ class ACoreLogiDat:
                 if r == wx.OK:
                     self.do_burn(chil, d)
                     return
+                self.cleanup_run()
         elif stat != 0 and chil.get_extra_data():
-            d = chil.get_extra_data()
-            self.rm_temp(d["source_file"])
+            #d = chil.get_extra_data()
+            #self.rm_temp(d["source_file"])
+            self.cleanup_run()
         else:
-            pass
+            self.cleanup_run()
 
         self.enable_panes(True, True)
 
@@ -2717,6 +2720,7 @@ class ACoreLogiDat:
             if not quiet:
                 msg_line_INFO("Operation cancelled")
 
+        self.cleanup_run()
         self.target.set_run_label()
         self.enable_panes(True, True)
 
@@ -2785,7 +2789,7 @@ class ACoreLogiDat:
                     m = "No output file given!\nUse '%s'?" % tnam
                     r = self.dialog(m, "yesno", wx.YES_NO)
                     if r == wx.YES:
-                        self.cur_tempfile = None
+                        self.cur_tempfile = ttf
                         return (tfd, tnam)
                     else:
                         try:
@@ -2799,6 +2803,7 @@ class ACoreLogiDat:
                 self.cur_tempfile == ttf
                 return False
 
+            self.rm_temp(self.cur_tempfile)
             self.cur_tempfile = None
             st = x_lstat(outf)
 
@@ -2890,7 +2895,7 @@ class ACoreLogiDat:
                     m = "No output directory given!\nUse '%s'?" % tnam
                     r = self.dialog(m, "yesno", wx.YES_NO)
                     if r == wx.YES:
-                        self.cur_tempfile = None
+                        self.cur_tempfile = ttf
                         return tnam
                     else:
                         try:
@@ -2903,6 +2908,7 @@ class ACoreLogiDat:
                 self.cur_tempfile == ttf
                 return False
 
+            self.rm_temp(self.cur_tempfile)
             self.cur_tempfile = None
             st = x_lstat(outf, True)
 
@@ -2970,6 +2976,10 @@ class ACoreLogiDat:
             self.rm_temp(np)
 
         os.rmdir(tmp)
+
+    def cleanup_run(self):
+        self.rm_temp(self.cur_tempfile)
+        self.cur_tempfile = None
 
 
     def check_target_dev(self, target_dev):
