@@ -3076,7 +3076,7 @@ class ACoreLogiDat:
             self.last_burn_speed = False
         elif r == last_idx:
             return self.last_burn_speed
-        elif r = ent_idx:
+        elif r == ent_idx:
             m = "Enter the speed number you would like"
             sdef = self.last_burn_speed
             if not sdef:
