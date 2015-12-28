@@ -3049,6 +3049,7 @@ class ACoreLogiDat:
 
         nnumeric = len(chcs)
         ndefchoice = 3
+        inc = 0
 
         chcs.append("%s default" % procname)
         def_idx = nnumeric + inc
