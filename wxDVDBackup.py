@@ -19,7 +19,6 @@ DVD Backup fronted for cprec and dd-dvd
 
 import collections
 import errno
-eintr = errno.EINTR
 import math
 import os
 import select
@@ -593,17 +592,13 @@ class ChildTwoStreamReader:
                 pl.register(flist[0], select.POLLIN|errbits)
                 pl.register(flist[1], select.POLLIN|errbits)
 
-                #eintr = errno.EINTR
-                global eintr
-
                 while True:
                     try:
                         rl = pl.poll(None)
-                    except select.error, (errno, strerror):
-                        if errno == eintr:
+                    except select.error, (err, strerr):
+                        if err == errno.EINTR:
                             continue
-                        else:
-                            break
+                        break
 
                     if len(rl) == 0:
                         break
@@ -2676,12 +2671,12 @@ class ACoreLogiDat:
                 if not j_ok:
                     m = "Thread join() fail"
                     msg_line_ERROR(m)
-                    #slno.put_status(m)
 
             #del self.ch_thread
             self.ch_thread = None
             self.work_msg_last_idx = 0
-            if st == 0:
+
+            if stat == 0:
                 slno.put_status("Success!")
             else:
                 slno.put_status(m)
@@ -2711,6 +2706,10 @@ class ACoreLogiDat:
         if typ == "input":
             # use 'sty' argument as default text
             return wx.GetTextFromUser(msg, PROG, sty, self.topwnd)
+
+        if typ == "choiceindex":
+            # use 'sty' argument as default text
+            return wx.GetSingleChoiceIndex(msg, PROG, sty, self.topwnd)
 
     def do_cancel(self, quiet = False):
         if self.working():
@@ -3021,9 +3020,9 @@ class ACoreLogiDat:
         else:
             msg_line_ERROR("ERROR: internal inconsistency, not good")
 
-    def do_burn(self, dd_child, dat = None):
+    def do_burn(self, ch_proc, dat = None):
         if dat == None:
-            dat = dd_child.get_extra_data()
+            dat = ch_proc.get_extra_data()
         if dat == None:
             return
         if dat["in_burn"] == True:
@@ -3033,13 +3032,62 @@ class ACoreLogiDat:
         typ = dat["source_type"]
 
         if typ == "hier":
-            self.do_burn_hier(dd_child, dat)
+            self.do_burn_hier(ch_proc, dat)
         elif typ == "whole":
-            self.do_burn_whole(dd_child, dat)
+            self.do_burn_whole(ch_proc, dat)
         else:
             msg_line_ERROR(typ)
 
-    def do_burn_whole(self, dd_child, dat):
+    def get_burn_speed(self, procname):
+        chcs = []
+        chcs.append("1")
+        chcs.append("2")
+        chcs.append("4")
+        chcs.append("6")
+        chcs.append("8")
+        chcs.append("10")
+        chcs.append("12")
+        chcs.append("16")
+        chcs.append("24")
+        chcs.append("48")
+
+        nnumeric = len(chcs)
+        ndefchoice = 3
+
+        chcs.append("% default" % procname)
+        def_idx = nnumeric + inc
+        inc += 1
+        chcs.append("Enter a speed")
+        ent_idx = nnumeric + inc
+        inc += 1
+        if self.last_burn_speed:
+            chcs.append("Use same speed as last burn")
+            last_idx = nnumeric + inc
+            inc += 1
+
+        m = "Select a speed number from this list."
+        r = self.dialog(m, "choiceindex", chcs)
+
+        if r < 0:
+            self.last_burn_speed = chcs[ndefchoice]
+        elif r < nnumeric:
+            self.last_burn_speed = chcs[r]
+        elif r == def_idx:
+            self.last_burn_speed = False
+        elif r == last_idx:
+            return self.last_burn_speed
+        elif r = ent_idx:
+            m = "Enter the speed number you would like"
+            sdef = self.last_burn_speed
+            if not sdef:
+                sdef = ""
+            self.last_burn_speed = self.dialog(m, "input", sdef)
+        else:
+            self.last_burn_speed = chcs[ndefchoice]
+
+        return self.last_burn_speed
+
+    def do_burn_whole(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
         outdev  = dat["target_dev"]
         srcfile = dat["source_file"]
@@ -3051,7 +3099,11 @@ class ACoreLogiDat:
         xcmd = 'growisofs'
         xcmdargs = []
         xcmdargs.append(xcmd)
-        xcmdargs.append("-speed=6")
+
+        spd = self.get_burn_speed(xcmd)
+        if spd:
+            xcmdargs.append("-speed=%s" % spd)
+
         xcmdargs.append("-dvd-video")
         xcmdargs.append("-dvd-compat")
 
@@ -3061,13 +3113,13 @@ class ACoreLogiDat:
         stmsg.put_status("Running %s for %s" % (xcmd, srcfile))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs)
-        dd_child.reset_read_lists()
-        dd_child.get_status(True)
-        dd_child.set_command_params(parm_obj)
+        ch_proc.reset_read_lists()
+        ch_proc.get_status(True)
+        ch_proc.set_command_params(parm_obj)
 
-        self.child_go(dd_child)
+        self.child_go(ch_proc)
 
-    def do_burn_hier(self, dd_child, dat):
+    def do_burn_hier(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
         outdev = dat["target_dev"]
         srcdir = dat["source_file"]
@@ -3079,7 +3131,11 @@ class ACoreLogiDat:
         xcmd = 'growisofs'
         xcmdargs = []
         xcmdargs.append(xcmd)
-        xcmdargs.append("-speed=6")
+
+        spd = self.get_burn_speed(xcmd)
+        if spd:
+            xcmdargs.append("-speed=%s" % spd)
+
         xcmdargs.append("-dvd-compat")
 
         xcmdargs.append("-Z")
@@ -3114,11 +3170,11 @@ class ACoreLogiDat:
         stmsg.put_status("Running %s for %s" % (xcmd, srcdir))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs)
-        dd_child.reset_read_lists()
-        dd_child.get_status(True)
-        dd_child.set_command_params(parm_obj)
+        ch_proc.reset_read_lists()
+        ch_proc.get_status(True)
+        ch_proc.set_command_params(parm_obj)
 
-        self.child_go(dd_child)
+        self.child_go(ch_proc)
 
 
     def do_cprec_run(self, target_dev, dev = None):
@@ -3201,7 +3257,7 @@ class ACoreLogiDat:
         stmsg.put_status("Running %s for %s" % (xcmd, origdev))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
-        dd_child = ChildTwoStreamReader(parm_obj, self)
+        ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         if to_dev:
             """Set data so that writer may be run if this succeeds
@@ -3212,9 +3268,9 @@ class ACoreLogiDat:
             dat["source_type"] = "hier"
             dat["in_burn"] = False
             dat["vol_info"] = self.vol_wnd.get_fields()
-            dd_child.set_extra_data(dat)
+            ch_proc.set_extra_data(dat)
 
-        self.child_go(dd_child)
+        self.child_go(ch_proc)
 
 
     def do_dd_dvd_run(self, target_dev, dev = None):
@@ -3258,7 +3314,7 @@ class ACoreLogiDat:
             self.enable_panes(True, True)
             return
 
-        devname = os.path.split(dev)[1]
+        devname = os.path.split(origdev)[1]
         stmsg.put_status("")
 
         to_dev = self.get_is_dev_tmp_target()
@@ -3293,7 +3349,7 @@ class ACoreLogiDat:
         stmsg.put_status("Running %s for %s" % (xcmd, dev))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
-        dd_child = ChildTwoStreamReader(parm_obj, self)
+        ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         if to_dev:
             """Set data so that writer may be run if this succeeds
@@ -3303,18 +3359,18 @@ class ACoreLogiDat:
             dat["source_file"] = outf
             dat["source_type"] = "whole"
             dat["in_burn"] = False
-            dd_child.set_extra_data(dat)
+            ch_proc.set_extra_data(dat)
 
-        self.child_go(dd_child)
+        self.child_go(ch_proc)
 
         if ofd > -1:
             os.close(ofd)
 
 
-    def child_go(self, dd_child):
-        fpid, rfd = dd_child.go()
+    def child_go(self, ch_proc, is_check_op = False, cb = None):
+        fpid, rfd = ch_proc.go()
 
-        if not dd_child.go_return_ok(fpid, rfd):
+        if not ch_proc.go_return_ok(fpid, rfd):
             if isinstance(rfd, str) and isinstance(fpid, int):
                 ei = fpid
                 es = rfd
@@ -3327,17 +3383,19 @@ class ACoreLogiDat:
             self.enable_panes(True, True)
             return
 
+        if cb == None:
+            cb = self.read_child_in_thread
+
         try:
             thr = AChildThread(
-                self.topwnd, self.topwnd_id,
-                self.read_child_in_thread,
-                (fpid, rfd, dd_child))
+                self.topwnd, self.topwnd_id, cb,
+                (fpid, rfd, ch_proc))
             thr.start()
             self.ch_thread = thr
-            self.in_check_op = False
+            self.in_check_op = is_check_op
         except:
             # USR1 is handle specially in child obj class
-            dd_child.kill_wait(signal.SIGUSR1, 3)
+            ch_proc.kill_wait(signal.SIGUSR1, 3)
             msg_line_ERROR("ERROR: could not make or run thread")
 
 
@@ -3361,7 +3419,12 @@ class ACoreLogiDat:
             self.enable_panes(True, True)
             return
 
-        devname = os.path.split(dev)[1]
+        origdev = dev
+        realdev = os.path.realpath(dev)
+        if realdev and realdev != dev:
+            dev = realdev
+            msg_line_INFO('using source node "%s" for "%s"' % (
+                dev, origdev))
 
         st = x_lstat(dev, True)
         m = None
@@ -3382,6 +3445,8 @@ class ACoreLogiDat:
             self.enable_panes(True, True)
             return
 
+        devname = os.path.split(origdev)[1]
+
         xcmd = 'dd-dvd'
         xcmdargs = []
         xcmdargs.append("%s-%s" % (xcmd, devname))
@@ -3394,54 +3459,29 @@ class ACoreLogiDat:
         stmsg.put_status("Checking %s with %s" % (dev, xcmd))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
-        dd_child = ChildTwoStreamReader(parm_obj, self)
+        ch_proc = ChildTwoStreamReader(parm_obj, self)
 
-        fpid, rfd = dd_child.go()
-        if not dd_child.go_return_ok(fpid, rfd):
-            if isinstance(rfd, str) and isinstance(fpid, int):
-                ei = fpid
-                es = rfd
-                m = "cannot execute child because '%s' (%d)" % (es, ei)
-            else:
-                m = "ERROR: child process failure"
-
-            msg_line_ERROR(m)
-            self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
-            self.enable_panes(True, True)
-            return
-
-        try:
-            thr = AChildThread(
-                self.topwnd, self.topwnd_id,
-                self.read_child_in_thread,
-                (fpid, rfd, dd_child))
-            thr.start()
-            self.ch_thread = thr
-            self.in_check_op = True
-        except:
-            # USR1 is handle specially in child obj class
-            dd_child.kill_wait(signal.SIGUSR1, 3)
-            msg_line_ERROR("ERROR: could not make or run thread")
+        self.child_go(ch_proc, True, self.read_child_in_thread)
 
     # child thread callback -- don't invoke directly
     def read_child_in_thread(self, pid_fd_tuple):
-        fpid, rfd, dd_child = pid_fd_tuple
+        fpid, rfd, ch_proc = pid_fd_tuple
 
-        r = dd_child.read_curchild(rfd, self.cb_go_and_read)
+        r = ch_proc.read_curchild(rfd, self.cb_go_and_read)
         if r:
-            dd_child.wait(4, 20)
+            ch_proc.wait(4, 20)
             return 0
         else:
-            dd_child.kill_wait(4, 20)
+            ch_proc.kill_wait(4, 20)
 
         return 1
 
-    def do_read_child_result(self, dd_child):
+    def do_read_child_result(self, ch_proc):
         # to use message object methods
         msgo = self.get_msg_wnd()
 
         dev  = self.source.dev
-        xcmd = dd_child.xcmd
+        xcmd = ch_proc.xcmd
 
         # lines with these tokens in rlin2 (below)
         # are excluded from output
@@ -3451,11 +3491,11 @@ class ACoreLogiDat:
 
         msg_line_("\nChecked device '%s':\n" % dev)
 
-        stat = dd_child.get_status()
+        stat = ch_proc.get_status()
 
         if stat < 60 and stat > -1:
             # print what is available even if stat > 0
-            rlin1, rlin2, rlinx = dd_child.get_read_lists()
+            rlin1, rlin2, rlinx = ch_proc.get_read_lists()
             for l in rlin2:
                 cont = False
                 for tok in excl:
