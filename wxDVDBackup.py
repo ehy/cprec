@@ -2304,6 +2304,7 @@ class ACoreLogiDat:
 
         self.cur_tempfile = None
         self.all_tempfile = []
+        self.last_burn_speed = None
 
         self.ch_thread = None
 
@@ -3054,16 +3055,19 @@ class ACoreLogiDat:
         nnumeric = len(chcs)
         ndefchoice = 3
 
-        chcs.append("% default" % procname)
+        chcs.append("%s default" % procname)
         def_idx = nnumeric + inc
         inc += 1
         chcs.append("Enter a speed")
         ent_idx = nnumeric + inc
         inc += 1
-        if self.last_burn_speed:
+        if self.last_burn_speed != False:
             chcs.append("Use same speed as last burn")
             last_idx = nnumeric + inc
             inc += 1
+        chcs.append("Cancel burm")
+        cnc_idx = nnumeric + inc
+        inc += 1
 
         m = "Select a speed number from this list."
         r = self.dialog(m, "choiceindex", chcs)
@@ -3073,7 +3077,7 @@ class ACoreLogiDat:
         elif r < nnumeric:
             self.last_burn_speed = chcs[r]
         elif r == def_idx:
-            self.last_burn_speed = False
+            self.last_burn_speed = None
         elif r == last_idx:
             return self.last_burn_speed
         elif r == ent_idx:
@@ -3082,6 +3086,8 @@ class ACoreLogiDat:
             if not sdef:
                 sdef = ""
             self.last_burn_speed = self.dialog(m, "input", sdef)
+        elif r == cnc_idx:
+            return False
         else:
             self.last_burn_speed = chcs[ndefchoice]
 
@@ -3101,6 +3107,9 @@ class ACoreLogiDat:
         xcmdargs.append(xcmd)
 
         spd = self.get_burn_speed(xcmd)
+        if spd == False:
+            self.do_cancel(True)
+            return
         if spd:
             xcmdargs.append("-speed=%s" % spd)
 
@@ -3133,6 +3142,9 @@ class ACoreLogiDat:
         xcmdargs.append(xcmd)
 
         spd = self.get_burn_speed(xcmd)
+        if spd == False:
+            self.do_cancel(True)
+            return
         if spd:
             xcmdargs.append("-speed=%s" % spd)
 
