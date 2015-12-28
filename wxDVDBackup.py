@@ -2572,7 +2572,6 @@ class ACoreLogiDat:
                     self.do_burn(chil, d)
                     return
                 else:
-                    #self.rm_temp(d["source_file"])
                     self.cleanup_run()
             else:
                 m = "Prepared to burn backup. "
@@ -2586,8 +2585,6 @@ class ACoreLogiDat:
                     return
                 self.cleanup_run()
         elif stat != 0 and chil.get_extra_data():
-            #d = chil.get_extra_data()
-            #self.rm_temp(d["source_file"])
             self.cleanup_run()
         else:
             self.cleanup_run()
@@ -2803,8 +2800,7 @@ class ACoreLogiDat:
                 self.cur_tempfile == ttf
                 return False
 
-            self.rm_temp(self.cur_tempfile)
-            self.cur_tempfile = None
+            self.cleanup_run()
             st = x_lstat(outf)
 
             if st:
@@ -2908,8 +2904,7 @@ class ACoreLogiDat:
                 self.cur_tempfile == ttf
                 return False
 
-            self.rm_temp(self.cur_tempfile)
-            self.cur_tempfile = None
+            self.cleanup_run()
             st = x_lstat(outf, True)
 
             if st and not stat.S_ISDIR(st.st_mode):
@@ -3065,7 +3060,7 @@ class ACoreLogiDat:
             chcs.append("Use same speed as last burn")
             last_idx = nnumeric + inc
             inc += 1
-        chcs.append("Cancel burm")
+        chcs.append("Cancel burn")
         cnc_idx = nnumeric + inc
         inc += 1
 
