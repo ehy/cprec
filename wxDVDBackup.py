@@ -3051,6 +3051,7 @@ class ACoreLogiDat:
         xcmd = 'growisofs'
         xcmdargs = []
         xcmdargs.append(xcmd)
+        xcmdargs.append("-speed=6")
         xcmdargs.append("-dvd-video")
         xcmdargs.append("-dvd-compat")
 
@@ -3078,6 +3079,7 @@ class ACoreLogiDat:
         xcmd = 'growisofs'
         xcmdargs = []
         xcmdargs.append(xcmd)
+        xcmdargs.append("-speed=6")
         xcmdargs.append("-dvd-compat")
 
         xcmdargs.append("-Z")
