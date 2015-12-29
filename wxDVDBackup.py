@@ -19,6 +19,10 @@ DVD Backup fronted for cprec and dd-dvd
 
 import collections
 import errno
+# seems errno module is buggy: use errno.ECONSTANT in a method, and
+# get:
+#"UnboundLocalError: local variable 'errno' referenced before assignment"
+eintr = errno.EINTR
 import math
 import os
 import select
@@ -592,7 +596,7 @@ class ChildTwoStreamReader:
                 pl.register(flist[0], select.POLLIN|errbits)
                 pl.register(flist[1], select.POLLIN|errbits)
 
-                eintr = errno.EINTR
+                global eintr
 
                 while True:
                     try:
