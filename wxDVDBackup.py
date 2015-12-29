@@ -592,11 +592,13 @@ class ChildTwoStreamReader:
                 pl.register(flist[0], select.POLLIN|errbits)
                 pl.register(flist[1], select.POLLIN|errbits)
 
+                eintr = errno.EINTR
+
                 while True:
                     try:
                         rl = pl.poll(None)
-                    except select.error, (err, strerr):
-                        if err == errno.EINTR:
+                    except select.error, (errno, strerror):
+                        if err == eintr:
                             continue
                         break
 
@@ -1244,7 +1246,7 @@ class AVolInfPanePanel(wx.Panel):
                 else:
                     c.SetValue('')
 
-    def set_source_info(self, voldict):
+    def set_source_info(self, voldict, force = False):
         self.dict_source = {}
         dict_source = self.dict_source
         idx = self.type_opt.GetSelection()
@@ -1256,7 +1258,7 @@ class AVolInfPanePanel(wx.Panel):
 
             val = voldict[key]
             dict_source[key] = val
-            if idx == 0:
+            if idx == 0 or force:
                 c.SetValue(val)
 
     def get_fields(self):
@@ -3107,7 +3109,7 @@ class ACoreLogiDat:
 
         spd = self.get_burn_speed(xcmd)
         if spd == False:
-            self.do_cancel(True)
+            self.do_cancel()
             return
         if spd:
             xcmdargs.append("-speed=%s" % spd)
@@ -3142,7 +3144,7 @@ class ACoreLogiDat:
 
         spd = self.get_burn_speed(xcmd)
         if spd == False:
-            self.do_cancel(True)
+            self.do_cancel()
             return
         if spd:
             xcmdargs.append("-speed=%s" % spd)
@@ -3185,9 +3187,10 @@ class ACoreLogiDat:
                     return
                 elif r != wx.YES:
                     s = ""
-                    break
+                    continue
                 m = "Please make value length no more than %d" % lmax
                 s = self.dialog(m, "input", s)
+                self.get_volinfo_ctl().set_source_info({k, s}, True)
             if not s:
                 if len(i[3]) > 0:
                     xcmdargs.append(i[2])
