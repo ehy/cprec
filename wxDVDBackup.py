@@ -802,10 +802,11 @@ class AMsgWnd(wx.TextCtrl):
         self.SetDefaultStyle(self.default_text_style)
 
 
-    def conditional_scroll_adjust(self):
-        if self.scroll_end == True:
+    def conditional_scroll_adjust(self, lastval = ""):
+        subt = lastval.rfind("\n")
+        if self.scroll_end == True and subt >= 0:
             self.SetInsertionPointEnd()
-            self.showpos = self.GetLastPosition()
+            self.showpos = self.GetLastPosition() - subt
 
         self.ShowPosition(self.showpos)
 
@@ -819,7 +820,7 @@ class AMsgWnd(wx.TextCtrl):
 
     def SetValue(self, val):
         wx.TextCtrl.SetValue(self, val)
-        self.conditional_scroll_adjust()
+        self.conditional_scroll_adjust(val)
 
     def SetValueColored(self, val, clr):
         # Oy, GetDefaultStyle() does not return
@@ -832,7 +833,7 @@ class AMsgWnd(wx.TextCtrl):
 
     def AppendText(self, val):
         wx.TextCtrl.AppendText(self, val)
-        self.conditional_scroll_adjust()
+        self.conditional_scroll_adjust(val)
 
     def AppendTextColored(self, val, clr):
         # Ouch, GetDefaultStyle() does not return
