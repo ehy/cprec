@@ -3194,7 +3194,9 @@ class ACoreLogiDat:
                     continue
                 m = "Please make value length no more than %d" % lmax
                 s = self.dialog(m, "input", s)
-                self.get_volinfo_ctl().set_source_info({k, s}, True)
+                dic = {}
+                dic[k] = s
+                self.get_volinfo_ctl().set_source_info(dic, True)
             if not s:
                 if len(i[3]) > 0:
                     xcmdargs.append(i[2])
