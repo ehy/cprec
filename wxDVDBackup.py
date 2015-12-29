@@ -3169,10 +3169,29 @@ class ACoreLogiDat:
                     xcmdargs.append(i[2])
                     xcmdargs.append(i[3])
                 continue
+            s = xlst[k]
+            lmax = i[1]
+            while len(s) > lmax:
+                m = "%s '%s' has max length %d\n'%s'\n%s %d\n%s" % (
+                    "Volume data field", i[4], lmax,
+                    s, "has length", len(s),
+                    "Edit field, or cancel burn?")
+                r = self.dialog(
+                    m, "yesno", wx.YES_NO|wx.CANCEL|wx.ICON_QUESTION)
+                if r != wx.YES:
+                    self.do_cancel(True)
+                    return
+                m = "Please make value length no more than %d" % lmax
+                s = self.dialog(m, "input", s)
+            if not s:
+                if len(i[3]) > 0:
+                    xcmdargs.append(i[2])
+                    xcmdargs.append(i[3])
+                continue
             xcmdargs.append(i[2])
-            xcmdargs.append(xlst[k])
+            xcmdargs.append(s)
             msg_line_INFO("add iso fs option %s '%s'" % (
-                i[2], xlst[k]))
+                i[2], s))
 
         xcmdargs.append(srcdir)
 
