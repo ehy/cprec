@@ -2715,8 +2715,10 @@ class ACoreLogiDat:
             ch = self.get_child_from_thread()
             ch.kill(signal.SIGUSR1)
 
-            if not quiet:
-                msg_line_INFO("Operation cancelled")
+        if not quiet:
+            m = "Operation cancelled"
+            msg_line_INFO(m)
+            self.get_stat_wnd().put_status(m)
 
         self.cleanup_run()
         self.target.set_run_label()
@@ -3178,9 +3180,12 @@ class ACoreLogiDat:
                     "Edit field, or cancel burn?")
                 r = self.dialog(
                     m, "yesno", wx.YES_NO|wx.CANCEL|wx.ICON_QUESTION)
-                if r != wx.YES:
-                    self.do_cancel(True)
+                if r == wx.CANCEL:
+                    self.do_cancel()
                     return
+                elif r != wx.YES:
+                    s = ""
+                    break
                 m = "Please make value length no more than %d" % lmax
                 s = self.dialog(m, "input", s)
             if not s:
