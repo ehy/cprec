@@ -2712,6 +2712,12 @@ class ACoreLogiDat:
             # use 'sty' argument as default text
             return wx.GetTextFromUser(msg, PROG, sty, self.topwnd)
 
+        if typ == "intinput":
+            # use 'sty' argument as tuple w/ addl. args
+            prmt, mn, mx, dflt = sty
+            return wx.GetNumberFromUser(
+                msg, prmt, PROG, dflt, mn, mx, self.topwnd)
+
         if typ == "choiceindex":
             # use 'sty' argument as default text
             return wx.GetSingleChoiceIndex(msg, PROG, sty, self.topwnd)
@@ -3044,20 +3050,15 @@ class ACoreLogiDat:
             msg_line_ERROR(typ)
 
     def get_burn_speed(self, procname):
+        nnumeric = 0
+        spds = (2, 4, 6, 8, 12, 16)
         chcs = []
-        chcs.append("1")
-        chcs.append("2")
-        chcs.append("4")
-        chcs.append("6")
-        chcs.append("8")
-        chcs.append("10")
-        chcs.append("12")
-        chcs.append("16")
-        chcs.append("24")
-        chcs.append("48")
 
-        nnumeric = len(chcs)
-        ndefchoice = 3
+        for s in spds:
+            chcs.append("%u (~ %uKB/s)" % (s, s * 1385))
+            nnumeric += 1
+
+        ndefchoice = 2
         inc = 0
 
         chcs.append("%s default" % procname)
@@ -3078,9 +3079,9 @@ class ACoreLogiDat:
         r = self.dialog(m, "choiceindex", chcs)
 
         if r < 0:
-            self.last_burn_speed = chcs[ndefchoice]
+            self.last_burn_speed = "%u" % spds[ndefchoice]
         elif r < nnumeric:
-            self.last_burn_speed = chcs[r]
+            self.last_burn_speed = "%u" % spds[r]
         elif r == def_idx:
             self.last_burn_speed = None
         elif r == last_idx:
@@ -3089,12 +3090,17 @@ class ACoreLogiDat:
             m = "Enter the speed number you would like"
             sdef = self.last_burn_speed
             if not sdef:
-                sdef = ""
-            self.last_burn_speed = self.dialog(m, "input", sdef)
+                sdef = "%u" % spds[ndefchoice]
+            mn = 1
+            mx = 256
+            pmt_def = ("Min %u, max %u:" % (mn,mx), mn, mx, int(sdef))
+            self.last_burn_speed = self.dialog(m, "intinput", pmt_def)
+            if self.last_burn_speed < 1:
+                self.last_burn_speed = "%u" % spds[ndefchoice]
         elif r == cnc_idx:
             return False
         else:
-            self.last_burn_speed = chcs[ndefchoice]
+            self.last_burn_speed = "%u" % spds[ndefchoice]
 
         return self.last_burn_speed
 
