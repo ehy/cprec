@@ -3470,6 +3470,10 @@ class ACoreLogiDat:
                     target_dev = outf
                     ofd, outf = self.get_tempfile()
             elif is_direct:
+                outdev = self.check_target_dev(target_dev)
+                if not outdev:
+                    self.enable_panes(True, True)
+                    return
                 outf = self.get_outfile(target_dev)
             else:
                 ofd, outf = self.get_outfile(target_dev)
