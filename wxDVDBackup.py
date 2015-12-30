@@ -22,7 +22,10 @@ import errno
 # seems errno module is buggy: use errno.ECONSTANT in a method, and
 # get:
 #"UnboundLocalError: local variable 'errno' referenced before assignment"
-eintr = errno.EINTR
+eintr  = errno.EINTR
+echild = errno.ECHILD
+efault = errno.EFAULT
+einval = errno.EINVAL
 import math
 import os
 import select
@@ -43,9 +46,9 @@ from wx.lib.embeddedimage import PyEmbeddedImage
 
 PROG = os.path.split(sys.argv[0])[1]
 
-if "DBG" in sys.argv:
-    _fdbg_name = "/tmp/_DBG_dd"
-    _fdbg = open(_fdbg_name, "w", 0)
+if "-DBG" in sys.argv:
+    ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-py")
+    _fdbg = os.fdopen(ofd, "w", 0)
 else:
     _fdbg = None
 
@@ -253,6 +256,7 @@ class ChildTwoStreamReader:
     fork_err_status = 69
     exec_err_status = 66
     exec_wtf_status = 67
+    pgrp_err_status = 68
 
     catch_sigs = (
         signal.SIGINT,
@@ -301,6 +305,7 @@ class ChildTwoStreamReader:
         self.error_tuple = None
         self.prockilled = False
         self.procstat = -1
+        # careful with curchild: -1 uninited, but < -1 pgid
         self.curchild = -1
         self.inpchild = []
 
@@ -339,7 +344,7 @@ class ChildTwoStreamReader:
     def _child_sigs_handle(self, sig, frame):
         _dbg("handler pid %d, child pid %d with signal %d" %
             (os.getpid(), self.curchild, sig))
-        if self.curchild > 0:
+        if self.curchild > 0 or self.curchild < -1:
             # USR1 used by this prog
             if sig == signal.SIGUSR1:
                 self.kill(signal.SIGINT)
@@ -355,7 +360,7 @@ class ChildTwoStreamReader:
     """
     def kill(self, sig = 0):
         _dbg("kill pid %d with signal %d" % (self.curchild, sig))
-        if self.curchild > 0:
+        if self.curchild > 0 or self.curchild < -1:
             try:
                 os.kill(self.curchild, sig)
                 return 0
@@ -371,51 +376,71 @@ class ChildTwoStreamReader:
     -- note that for non-blocking, call as wait(1, 0) -- see opts
     """
     def wait(self, mx = 1, nsl = 1, fpid = None):
-        if fpid == None:
-            fpid = self.curchild
+        wpid = fpid
+        if wpid == None:
+            wpid = self.curchild
 
-        if fpid in (-1, 0):
+        if wpid in (-1, 0):
             return -1
 
-        _dbg("wait pid %d with mx %d" % (fpid, mx))
+        _dbg("wait pid %d with mx %d" % (wpid, mx))
 
         opts = 0
         if nsl < 1:
             opts = opts | os.WNOHANG
 
+        global eintr, echild, efault, einval
+
+        # a return val, may be modified
+        cooked = 0
+
         while mx > 0:
             mx = mx - 1
             try:
-                pid, stat = os.waitpid(fpid, opts)
+                pid, stat = os.waitpid(wpid, opts)
                 if os.WIFSIGNALED(stat):
                     cooked = os.WTERMSIG(stat)
-                    if fpid == self.curchild:
+                    if wpid == self.curchild:
                         self.curchild = -1
                         self.prockilled = True
                         self.procstat = cooked
                     _dbg("wait signalled %d with  %d" %
-                        (fpid, cooked))
-                    return cooked
+                        (wpid, cooked))
+                    # if wpid < -1, don't return; go until ECHILD
+                    if wpid > 0:
+                        return cooked
 
                 if os.WIFEXITED(stat):
                     cooked = os.WEXITSTATUS(stat)
-                    if fpid == self.curchild:
+                    if wpid == self.curchild:
                         self.curchild = -1
                         self.prockilled = False
                         self.procstat = cooked
                     _dbg("wait exited %d with  %d" %
-                        (fpid, cooked))
-                    return cooked
+                        (wpid, cooked))
+                    # if wpid < -1, don't return; go until ECHILD
+                    if wpid > 0:
+                        return cooked
 
             except OSError, (errno, strerror):
-               return -1
+                if errno  == eintr:
+                    continue
+                if errno  == einval:
+                    opts = 0
+                    continue
+                if errno  == echild:
+                    # id children to wait on > 1, cooked is last
+                    self.curchild = -1
+                    self.procstat = cooked
+                    return cooked
+                return -1
 
             if mx > 0:
                 _dbg("wait sleep(%u) pid %d with mx %d"
-                    % (nsl, fpid, mx))
+                    % (nsl, wpid, mx))
                 time.sleep(nsl)
 
-        _dbg("wait pid %d FAILURE" % fpid)
+        _dbg("wait pid %d FAILURE" % wpid)
         return -1
 
     """
@@ -551,6 +576,20 @@ class ChildTwoStreamReader:
             return self.error_tuple
 
         if fpid == 0:
+            # start new group
+            mpid = os.getpid()
+            try:
+                pgrp = os.getpgrp()
+                if pgrp != mgid:
+                    os.setpgrp()
+                pgrp = os.getpgrp()
+            except OSError, (errno, strerror):
+                os._exit(self.pgrp_err_status)
+
+            # success?
+            if mpid != pgrp:
+                os._exit(self.pgrp_err_status)
+
             self._child_sigs_setup()
 
             os.close(rfd)
@@ -692,6 +731,8 @@ class ChildTwoStreamReader:
         else:
             os.close(wfd)
             self.error_tuple = None
+            # 1st level child will setpgid, and this will deal w/ pgrp
+            self.curchild = 0 - self.curchild
             return (fpid, rfd)
 
 
