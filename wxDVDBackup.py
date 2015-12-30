@@ -717,7 +717,7 @@ class ChildTwoStreamReader:
             fd = parms.infd
             if isinstance(fd, int) and fd > -1:
                 if fd != 0:
-                    os.dup2(self.params.infd, 0)
+                    os.dup2(fd, 0)
                     parms.close_infd()
             elif isinstance(fd, ChildProcParams):
                 ifd = self._mk_input_proc(exwfd1, exwfd2)
