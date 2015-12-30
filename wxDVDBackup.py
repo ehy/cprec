@@ -728,10 +728,12 @@ class ChildTwoStreamReader:
                     os.close(ifd)
 
             os.dup2(wfd, 1)
-            os.dup2(exwfd2, 2)
-            os.close(wfd)
-            os.close(exwfd1)
-            os.close(exwfd2)
+            os.dup2(fd2, 2)
+            if wfd != 1:
+                os.close(wfd)
+            os.close(fd1)
+            if fd2 != 2:
+                os.close(fd2)
 
             try:
                 for envtuple in xcmdenv:
