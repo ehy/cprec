@@ -300,6 +300,7 @@ class ChildTwoStreamReader:
         self.prockilled = False
         self.procstat = -1
         self.curchild = -1
+        self.inpchild = []
 
         self.rlin1 = []
         self.rlin2 = []
@@ -688,6 +689,64 @@ class ChildTwoStreamReader:
             self.error_tuple = None
             return (fpid, rfd)
 
+
+    def _mk_input_proc(fd1, fd2):
+        parms = self.params.infd
+        xcmd = parms.xcmd
+        xcmdargs = parms.xcmdargs
+        xcmdenv = parms.xcmdenv
+
+        try:
+            rfd, wfd = os.pipe()
+        except OSError, (errno, strerror):
+            self.error_tuple = (errno, strerror)
+            return -1
+
+        try:
+            fpid = os.fork()
+            self.inpchild.append(fpid)
+        except OSError, (errno, strerror):
+            os.close(rfd)
+            os.close(wfd)
+            return -1
+
+        if fpid == 0:
+
+            # do stdin if param is present
+            fd = parms.infd
+            if isinstance(fd, int) and fd > -1:
+                os.dup2(self.params.infd, 0)
+                parms.close_infd()
+            elif isinstance(fd, ChildProcParams):
+                ifd = self._mk_input_proc(exwfd1, exwfd2)
+                if ifd < 0:
+                    os._exit(self.exec_err_status)
+                if ifd != 0:
+                    os.dup2(ifd, 0)
+                    os.close(ifd)
+
+            os.dup2(wfd, 1)
+            os.dup2(exwfd2, 2)
+            os.close(wfd)
+            os.close(exwfd1)
+            os.close(exwfd2)
+
+            try:
+                for envtuple in xcmdenv:
+                    os.environ[envtuple[0]] = envtuple[1]
+                if is_path:
+                    os.execv(xcmd, xcmdargs)
+                else:
+                    os.execvp(xcmd, xcmdargs)
+                os._exit(self.exec_wtf_status)
+            except OSError, (errno, strerror):
+                os._exit(self.exec_err_status)
+
+        # parent
+        else:
+            os.close(wfd)
+
+        return rfd
 
     def null_cb_go_and_read(self, n, s):
         """Default callback for go_and_read()
@@ -3432,14 +3491,39 @@ class ACoreLogiDat:
         xcmdargs.append("%s-%s" % (xcmd, devname))
         xcmdargs.append("-vv")
         xcmdargs.append(dev)
-        xcmdargs.append(outf)
+        if not is_direct:
+            xcmdargs.append(outf)
         xcmdenv = []
         xcmdenv.append( ('CPREC_LINEBUF', 'true') )
         xcmdenv.append( ('DDD_LINEBUF', 'true') )
 
-        stmsg.put_status("Running %s for %s" % (xcmd, dev))
+        if not is_direct:
+            stmsg.put_status("Running %s for %s" % (xcmd, dev))
+            parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
+        else:
+            stmsg.put_status("Running %s for %s" % (xcmd, dev))
+            inp_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
+            ddcmd = xcmd
+            xcmd = 'growisofs'
+            xcmdargs = []
+            xcmdargs.append(xcmd)
 
-        parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
+            spd = self.get_burn_speed(xcmd)
+            if spd == False:
+                self.do_cancel()
+                return
+            if spd:
+                xcmdargs.append("-speed=%s" % spd)
+
+            xcmdargs.append("-dvd-video")
+            xcmdargs.append("-dvd-compat")
+
+            xcmdargs.append("-Z")
+            xcmdargs.append("%s=%s" % (outdev, outf))
+
+            stmsg.put_status("Running %s for %s" % (xcmd, outf))
+            parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv, inp_obj)
+
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         if to_dev:
