@@ -207,11 +207,19 @@ class ChildProcParams:
         if isinstance(stdin_fd, str):
             self.infd = os.open(stdin_fd, os.O_RDONLY)
             self.infd_opened = True
+            self.proc_input  = False
         elif isinstance(stdin_fd, int):
             self.infd = stdin_fd
+            self.infd_opened = False
+            self.proc_input  = False
+        elif isinstance(stdin_fd, ChildProcParams):
+            self.infd = stdin_fd
+            self.infd_opened = False
+            self.proc_input  = True
         else:
             self.infd = os.open(os.devnull, os.O_RDONLY)
             self.infd_opened = True
+            self.proc_input  = False
 
     def __del__(self):
         if self.infd_opened and self.infd > -1:
@@ -558,9 +566,19 @@ class ChildTwoStreamReader:
                 os.close(wfd)
 
                 # do stdin if param is present
-                if self.params != None and self.params.infd > -1:
-                    os.dup2(self.params.infd, 0)
-                    self.params.close_infd()
+                if self.params != None:
+                    fd = self.params.infd
+                    if isinstance(fd, int) and fd > -1:
+                        os.dup2(self.params.infd, 0)
+                        self.params.close_infd()
+                    elif isinstance(fd, ChildProcParams):
+                        ifd = self._mk_input_proc(exwfd1, exwfd2)
+                        if ifd < 0:
+                            os._exit(self.exec_err_status)
+                        if ifd != 0:
+                            os.dup2(ifd, 0)
+                            os.close(ifd)
+
                 os.dup2(exwfd1, 1)
                 os.dup2(exwfd2, 2)
                 os.close(exwfd1)
@@ -2307,6 +2325,9 @@ class ACoreLogiDat:
         self.topwnd = None
         self.topwnd_id = -1
 
+        # do set in 1st OnIdle -- just once, and set this true
+        self.iface_init = False
+
         self.target_force_idx = -1
 
         self.cur_tempfile = None
@@ -2364,9 +2385,6 @@ class ACoreLogiDat:
         ov = self.opt_values
         self.topwnd = wnd
         self.topwnd_id = wnd.GetId()
-
-        self.source.type_opt.SetSelection(ov.s_whole)
-        self.source.do_opt_id_change(ov.s_whole)
 
     def target_opt_id_change(self, t_id):
         self.target_force_idx = -1
@@ -2526,7 +2544,11 @@ class ACoreLogiDat:
             self.working_msg(stat_wnd)
 
     def do_idle(self, event):
-        pass
+        if self.iface_init == False:
+            ov = self.opt_values
+            self.source.type_opt.SetSelection(ov.s_whole)
+            self.source.do_opt_id_change(ov.s_whole)
+            self.iface_init = True
 
     def do_quit(self, event):
         try:
@@ -2793,7 +2815,21 @@ class ACoreLogiDat:
 
     # must call this in try: block, it return single, tuple or False
     def get_outfile(self, outf):
-        if self.get_is_fs_target() and self.get_is_whole_backup():
+        is_direct = self.get_is_dev_direct_target()
+
+        if is_direct and self.get_is_whole_backup():
+            tof = ("/dev/fd/0", "/dev/stdin")
+            for f in tof:
+                st = x_lstat(f, True, True)
+                if st:
+                    return f
+            # TODO: make fifo e.g.
+            #tnam = self.get_tempdir()
+            #f = os.path.join(tnam, "wxDVDBackup")
+            #try os.mkfifo(f, 0700)
+            # etc.
+            return False
+        elif self.get_is_fs_target() and self.get_is_whole_backup():
             if not outf:
                 ttf = self.cur_tempfile
                 try:
@@ -3366,12 +3402,16 @@ class ACoreLogiDat:
         stmsg.put_status("")
 
         to_dev = self.get_is_dev_tmp_target()
+        is_direct = self.get_is_dev_direct_target()
+
         try:
             if to_dev:
                 outf = self.check_target_dev(target_dev)
                 if outf:
                     target_dev = outf
                     ofd, outf = self.get_tempfile()
+            elif is_direct:
+                outf = self.get_outfile(target_dev)
             else:
                 ofd, outf = self.get_outfile(target_dev)
                 self.target.set_target_text(outf)
@@ -3382,7 +3422,10 @@ class ACoreLogiDat:
             self.enable_panes(True, True)
             return
 
-        msg_line_INFO('using target fs image file "%s"' % outf)
+        if not is_direct:
+            msg_line_INFO('using target fs image file "%s"' % outf)
+        else:
+            msg_line_INFO('target direct to burner (%s)' % outf)
 
         xcmd = 'dd-dvd'
         xcmdargs = []
