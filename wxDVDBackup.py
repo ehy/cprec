@@ -43,9 +43,11 @@ from wx.lib.embeddedimage import PyEmbeddedImage
 
 PROG = os.path.split(sys.argv[0])[1]
 
-_fdbg = None
-#_fdbg_name = "/tmp/_DBG_dd"
-#_fdbg = open(_fdbg_name, "w", 0)
+if "DBG" in sys.argv:
+    _fdbg_name = "/tmp/_DBG_dd"
+    _fdbg = open(_fdbg_name, "w", 0)
+else:
+    _fdbg = None
 
 def _dbg(msg):
     if not _fdbg:
@@ -574,17 +576,19 @@ class ChildTwoStreamReader:
                             os.dup2(self.params.infd, 0)
                             self.params.close_infd()
                     elif isinstance(fd, ChildProcParams):
-                        ifd = self._mk_input_proc(exwfd1, exwfd2)
+                        ifd = self._mk_input_proc(fd, exwfd1, exwfd2)
                         if ifd < 0:
                             os._exit(self.exec_err_status)
                         if ifd != 0:
                             os.dup2(ifd, 0)
                             os.close(ifd)
 
-                os.dup2(exwfd1, 1)
-                os.dup2(exwfd2, 2)
-                os.close(exwfd1)
-                os.close(exwfd2)
+                if exwfd1 != 1:
+                    os.dup2(exwfd1, 1)
+                    os.close(exwfd1)
+                if exwfd2 != 2:
+                    os.dup2(exwfd2, 2)
+                    os.close(exwfd2)
 
                 try:
                     for envtuple in self.xcmdenv:
@@ -691,11 +695,17 @@ class ChildTwoStreamReader:
             return (fpid, rfd)
 
 
-    def _mk_input_proc(self, fd1, fd2):
-        parms = self.params.infd
+    def _mk_input_proc(self, paramobj, fd1, fd2):
+        parms = paramobj
         xcmd = parms.xcmd
         xcmdargs = parms.xcmdargs
         xcmdenv = parms.xcmdenv
+
+        is_path = os.path.split(xcmd)
+        if len(is_path[0]) > 0:
+            is_path = True
+        else:
+            is_path = False
 
         try:
             rfd, wfd = os.pipe()
@@ -712,6 +722,7 @@ class ChildTwoStreamReader:
             return -1
 
         if fpid == 0:
+            os.close(rfd)
 
             # do stdin if param is present
             fd = parms.infd
@@ -720,19 +731,21 @@ class ChildTwoStreamReader:
                     os.dup2(fd, 0)
                     parms.close_infd()
             elif isinstance(fd, ChildProcParams):
-                ifd = self._mk_input_proc(exwfd1, exwfd2)
+                ifd = self._mk_input_proc(fd, exwfd1, exwfd2)
                 if ifd < 0:
                     os._exit(self.exec_err_status)
                 if ifd != 0:
                     os.dup2(ifd, 0)
                     os.close(ifd)
 
-            os.dup2(wfd, 1)
-            os.dup2(fd2, 2)
             if wfd != 1:
+                os.dup2(wfd, 1)
                 os.close(wfd)
+
             os.close(fd1)
+
             if fd2 != 2:
+                os.dup2(fd2, 2)
                 os.close(fd2)
 
             try:
@@ -2701,8 +2714,9 @@ class ACoreLogiDat:
         m = ''
         try:
             m = dat.rstrip(' \n\r\t')
+            _dbg("%s: %s" % (typ, m))
         except:
-            pass
+            _dbg("%s: <no data>" % typ)
 
         if mth and typ == 'time period':
             if not self.in_check_op:
@@ -3512,26 +3526,27 @@ class ACoreLogiDat:
         else:
             stmsg.put_status("Running %s for %s" % (xcmd, dev))
             inp_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
-            ddcmd = xcmd
-            xcmd = 'growisofs'
-            xcmdargs = []
-            xcmdargs.append(xcmd)
 
-            spd = self.get_burn_speed(xcmd)
+            ycmd = 'growisofs'
+            ycmdargs = []
+            ycmdargs.append(ycmd)
+
+            spd = self.get_burn_speed(ycmd)
             if spd == False:
                 self.do_cancel()
                 return
             if spd:
-                xcmdargs.append("-speed=%s" % spd)
+                ycmdargs.append("-speed=%s" % spd)
 
-            xcmdargs.append("-dvd-video")
-            xcmdargs.append("-dvd-compat")
+            ycmdargs.append("-dvd-video")
+            ycmdargs.append("-dvd-compat")
 
-            xcmdargs.append("-Z")
-            xcmdargs.append("%s=%s" % (outdev, outf))
+            ycmdargs.append("-Z")
+            ycmdargs.append("%s=%s" % (outdev, outf))
 
-            stmsg.put_status("Running %s for %s" % (xcmd, outf))
-            parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv, inp_obj)
+            stmsg.put_status(
+                "Running %s for %s=%s" % (ycmd, outdev, outf))
+            parm_obj = ChildProcParams(ycmd, ycmdargs, xcmdenv, inp_obj)
 
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
