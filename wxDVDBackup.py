@@ -3467,6 +3467,7 @@ class ACoreLogiDat:
         to_dev = self.get_is_dev_tmp_target()
         is_direct = self.get_is_dev_direct_target()
 
+        ofd = -1
         try:
             if to_dev:
                 outf = self.check_target_dev(target_dev)
