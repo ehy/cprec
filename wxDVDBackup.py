@@ -690,7 +690,7 @@ class ChildTwoStreamReader:
             return (fpid, rfd)
 
 
-    def _mk_input_proc(fd1, fd2):
+    def _mk_input_proc(self, fd1, fd2):
         parms = self.params.infd
         xcmd = parms.xcmd
         xcmdargs = parms.xcmdargs
