@@ -580,7 +580,7 @@ class ChildTwoStreamReader:
             mpid = os.getpid()
             try:
                 pgrp = os.getpgrp()
-                if pgrp != mgid:
+                if pgrp != mpid:
                     os.setpgrp()
                 pgrp = os.getpgrp()
             except OSError, (errno, strerror):
