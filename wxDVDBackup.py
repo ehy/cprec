@@ -307,7 +307,12 @@ class ChildTwoStreamReader:
         self.procstat = -1
         # careful with curchild: -1 uninited, but < -1 pgid
         self.curchild = -1
-        self.inpchild = []
+        self.ch_pgrp = []
+        # flag necessitated by growisofs signal handling:
+        # blocks/unblocks sigs, and will exit(EINTR) on interrupted call
+        # so cannot assume cancellation yields signalled status --
+        # caller should call set_growisofs() when needed
+        self.growisofs = False
 
         self.rlin1 = []
         self.rlin2 = []
@@ -318,6 +323,13 @@ class ChildTwoStreamReader:
         """FPO
         """
         pass
+
+
+    def set_growisofs(self):
+        self.growisofs = True
+
+    def is_growisofs(self):
+        return self.growisofs
 
 
     """
@@ -342,31 +354,36 @@ class ChildTwoStreamReader:
     protected: handle signals in children
     """
     def _child_sigs_handle(self, sig, frame):
-        _dbg("handler pid %d, child pid %d with signal %d" %
-            (os.getpid(), self.curchild, sig))
-        if self.curchild > 0 or self.curchild < -1:
+        mpid = os.getpid()
+        _dbg("handler pid %d, with signal %d" % (mpid, sig))
+        # are we 1st child. grouper leader w/ children?
+        if self.ch_pgrp:
             # USR1 used by this prog
             if sig == signal.SIGUSR1:
-                self.kill(signal.SIGINT)
+                sig = signal.SIGINT
+                for p in self.ch_pgrp:
+                    _dbg("handler kill %d, with signal %d" % (p, sig))
+                    self.kill(sig, p)
             else:
                 self.kill(sig)
+            return
         if sig in self._exit_sigs:
-            _dbg("handler:exit pid %d, child pid %d with signal %d" %
-                (os.getpid(), self.curchild, sig))
+            _dbg("handler:exit pid %d, with signal %d" % (mpid, sig))
             os._exit(1)
 
     """
     public: kill (signal) current child
     """
-    def kill(self, sig = 0):
-        _dbg("kill pid %d with signal %d" % (self.curchild, sig))
-        if self.curchild > 0 or self.curchild < -1:
+    def kill(self, sig = 0, pid = None):
+        if pid == None:
+            pid = self.curchild
+        if pid > 0 or pid < -1:
             try:
-                os.kill(self.curchild, sig)
+                os.kill(pid, sig)
                 return 0
             except:
                 _dbg("kill exception pid %d -- signal %d" %
-                    (self.curchild, sig))
+                    (pid, sig))
                 return -1
 
         return -1
@@ -394,33 +411,57 @@ class ChildTwoStreamReader:
         # a return val, may be modified
         cooked = 0
 
+        # What are we waiting for? if array self.ch_pgrp
+        # is empty then just self.curchild, else any in
+        # self.ch_pgrp, so just use self.ch_pgrp
+        if not self.ch_pgrp:
+            p = wpid
+            _dbg("wait adding pid %d to ch_pgrp" % p)
+            self.ch_pgrp.append(p)
+        else:
+            p = wpid
+            _dbg("wait with pid %d to len ch_pgrp == %d" %
+                (p, len(self.ch_pgrp)))
+
         while mx > 0:
-            mx = mx - 1
+            mx -= 1
             try:
                 pid, stat = os.waitpid(wpid, opts)
                 if os.WIFSIGNALED(stat):
                     cooked = os.WTERMSIG(stat)
-                    if wpid == self.curchild:
+                    if pid in self.ch_pgrp:
                         self.curchild = -1
                         self.prockilled = True
                         self.procstat = cooked
-                    _dbg("wait signalled %d with  %d" %
-                        (wpid, cooked))
+                        self.ch_pgrp.remove(pid)
+                        _dbg("wait signalled known pid %d with %d" %
+                            (pid, cooked))
+                    else:
+                        _dbg("wait signalled unknown pid %d with %d" %
+                            (pid, cooked))
                     # if wpid < -1, don't return; go until ECHILD
-                    if wpid > 0:
+                    if len(self.ch_pgrp) == 0:
                         return cooked
+                    else:
+                        continue
 
                 if os.WIFEXITED(stat):
                     cooked = os.WEXITSTATUS(stat)
-                    if wpid == self.curchild:
+                    if pid in self.ch_pgrp:
                         self.curchild = -1
                         self.prockilled = False
                         self.procstat = cooked
-                    _dbg("wait exited %d with  %d" %
-                        (wpid, cooked))
+                        self.ch_pgrp.remove(pid)
+                        _dbg("wait exited known pid %d with %d" %
+                            (pid, cooked))
+                    else:
+                        _dbg("wait exited unknown pid %d with %d" %
+                            (pid, cooked))
                     # if wpid < -1, don't return; go until ECHILD
-                    if wpid > 0:
+                    if len(self.ch_pgrp) == 0:
                         return cooked
+                    else:
+                        continue
 
             except OSError, (errno, strerror):
                 if errno  == eintr:
@@ -432,6 +473,8 @@ class ChildTwoStreamReader:
                     # id children to wait on > 1, cooked is last
                     self.curchild = -1
                     self.procstat = cooked
+                    _dbg("wait exiting ECHILD %d with %d (%d remain)" %
+                        (wpid, cooked, len(self.ch_pgrp)))
                     return cooked
                 return -1
 
@@ -597,8 +640,27 @@ class ChildTwoStreamReader:
             exrfd1, exwfd1 = os.pipe()
             exrfd2, exwfd2 = os.pipe()
 
+            # do stdin if param is present
+            if self.params != None:
+                fd = self.params.infd
+                if isinstance(fd, int) and fd > -1:
+                    if fd != 0:
+                        os.dup2(self.params.infd, 0)
+                        self.params.close_infd()
+                elif isinstance(fd, ChildProcParams):
+                    ifd = self._mk_input_proc(fd, exwfd1, exwfd2)
+                    if ifd < 0:
+                        os._exit(self.exec_err_status)
+                    if ifd != 0:
+                        os.dup2(ifd, 0)
+                        os.close(ifd)
+
             try:
                 self.curchild = fpid = os.fork()
+                if fpid > 0:
+                    self.ch_pgrp.append(fpid)
+                    _dbg("go %d add pid %d, inp len %d" %
+                        (os.getpid(), fpid, len(self.ch_pgrp)))
             except OSError, (errno, strerror):
                 os._exit(self.fork_err_status)
 
@@ -607,21 +669,6 @@ class ChildTwoStreamReader:
                 os.close(exrfd2)
                 os.close(wfd)
 
-                # do stdin if param is present
-                if self.params != None:
-                    fd = self.params.infd
-                    if isinstance(fd, int) and fd > -1:
-                        if fd != 0:
-                            os.dup2(self.params.infd, 0)
-                            self.params.close_infd()
-                    elif isinstance(fd, ChildProcParams):
-                        ifd = self._mk_input_proc(fd, exwfd1, exwfd2)
-                        if ifd < 0:
-                            os._exit(self.exec_err_status)
-                        if ifd != 0:
-                            os.dup2(ifd, 0)
-                            os.close(ifd)
-
                 if exwfd1 != 1:
                     os.dup2(exwfd1, 1)
                     os.close(exwfd1)
@@ -629,6 +676,7 @@ class ChildTwoStreamReader:
                     os.dup2(exwfd2, 2)
                     os.close(exwfd2)
 
+                self._child_sigs_defaults()
                 try:
                     for envtuple in self.xcmdenv:
                         os.environ[envtuple[0]] = envtuple[1]
@@ -641,6 +689,10 @@ class ChildTwoStreamReader:
                     os._exit(self.exec_err_status)
 
             else:
+                # we setpgid, and will deal w/ kids in new pgrp,
+                # as stored in self.ch_pgrp[]
+                self.curchild = 0 - mpid
+
                 os.close(exwfd1)
                 os.close(exwfd2)
                 # The FILE* equivalents are opened with 0 third arg to
@@ -665,7 +717,7 @@ class ChildTwoStreamReader:
                     try:
                         rl = pl.poll(None)
                     except select.error, (errno, strerror):
-                        if err == eintr:
+                        if errno == eintr:
                             continue
                         break
 
@@ -710,6 +762,7 @@ class ChildTwoStreamReader:
                 _dbg("In go() after wait")
 
                 if stat < 0:
+                    _dbg("In go() do stat < 0 exit %d"  % self.procstat)
                     # bad failure, like pid n.g.
                     os._exit(1)
                 else:
@@ -731,8 +784,6 @@ class ChildTwoStreamReader:
         else:
             os.close(wfd)
             self.error_tuple = None
-            # 1st level child will setpgid, and this will deal w/ pgrp
-            self.curchild = 0 - self.curchild
             return (fpid, rfd)
 
 
@@ -756,7 +807,10 @@ class ChildTwoStreamReader:
 
         try:
             fpid = os.fork()
-            self.inpchild.append(fpid)
+            if fpid > 0:
+                self.ch_pgrp.append(fpid)
+                _dbg("_mk_input_proc %d add pid %d, inp len %d" %
+                    (os.getpid(), fpid, len(self.ch_pgrp)))
         except OSError, (errno, strerror):
             os.close(rfd)
             os.close(wfd)
@@ -764,20 +818,6 @@ class ChildTwoStreamReader:
 
         if fpid == 0:
             os.close(rfd)
-
-            # do stdin if param is present
-            fd = parms.infd
-            if isinstance(fd, int) and fd > -1:
-                if fd != 0:
-                    os.dup2(fd, 0)
-                    parms.close_infd()
-            elif isinstance(fd, ChildProcParams):
-                ifd = self._mk_input_proc(fd, exwfd1, exwfd2)
-                if ifd < 0:
-                    os._exit(self.exec_err_status)
-                if ifd != 0:
-                    os.dup2(ifd, 0)
-                    os.close(ifd)
 
             if wfd != 1:
                 os.dup2(wfd, 1)
@@ -789,6 +829,7 @@ class ChildTwoStreamReader:
                 os.dup2(fd2, 2)
                 os.close(fd2)
 
+            self._child_sigs_defaults()
             try:
                 for envtuple in xcmdenv:
                     os.environ[envtuple[0]] = envtuple[1]
@@ -2821,8 +2862,13 @@ class ACoreLogiDat:
             self.ch_thread = None
             self.work_msg_last_idx = 0
 
+            global eintr
+
             if stat == 0:
                 slno.put_status("Success!")
+            elif stat == eintr and ch.is_growisofs():
+                # see comment in class ChildTwoStreamReader
+                slno.put_status("Cancelled!")
             else:
                 slno.put_status(m)
 
@@ -2863,14 +2909,22 @@ class ACoreLogiDat:
             return wx.GetSingleChoiceIndex(msg, PROG, sty, self.topwnd)
 
     def do_cancel(self, quiet = False):
+        is_gr = False
+
         if self.working():
             ch = self.get_child_from_thread()
             ch.kill(signal.SIGUSR1)
+            is_gr = ch.is_growisofs()
 
         if not quiet:
             m = "Operation cancelled"
             msg_line_INFO(m)
             self.get_stat_wnd().put_status(m)
+            if is_gr:
+                m = "Please give burn process (growisofs) time "
+                m = m + "to exit cleanly -- do not kill it\nor burner"
+                m = m + "might be left unusable until reboot"
+                msg_line_INFO(m)
 
         self.cleanup_run()
         self.target.set_run_label()
@@ -3290,6 +3344,7 @@ class ACoreLogiDat:
         ch_proc.reset_read_lists()
         ch_proc.get_status(True)
         ch_proc.set_command_params(parm_obj)
+        ch_proc.set_growisofs()
 
         self.child_go(ch_proc)
 
@@ -3375,6 +3430,7 @@ class ACoreLogiDat:
         ch_proc.reset_read_lists()
         ch_proc.get_status(True)
         ch_proc.set_command_params(parm_obj)
+        ch_proc.set_growisofs()
 
         self.child_go(ch_proc)
 
@@ -3590,6 +3646,7 @@ class ACoreLogiDat:
             parm_obj = ChildProcParams(ycmd, ycmdargs, xcmdenv, inp_obj)
 
         ch_proc = ChildTwoStreamReader(parm_obj, self)
+        ch_proc.set_growisofs()
 
         if to_dev:
             """Set data so that writer may be run if this succeeds
