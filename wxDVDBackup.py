@@ -2922,8 +2922,9 @@ class ACoreLogiDat:
             self.get_stat_wnd().put_status(m)
             if is_gr:
                 m = "Please give burn process (growisofs) time "
-                m = m + "to exit cleanly -- do not kill it\nor burner "
-                m = m + "might be left unusable until reboot"
+                m = m + "to exit cleanly -- do not kill it\nor "
+                m = m + "the burner drive might be left unusable "
+                m = m + "until reboot"
                 msg_line_INFO(m)
 
         self.cleanup_run()
@@ -3287,7 +3288,7 @@ class ACoreLogiDat:
         r = self.dialog(m, "choiceindex", chcs)
 
         if r < 0:
-            self.last_burn_speed = "%u" % spds[ndefchoice]
+            return False
         elif r < nnumeric:
             self.last_burn_speed = "%u" % spds[r]
         elif r == def_idx:
@@ -3579,6 +3580,8 @@ class ACoreLogiDat:
         is_direct = self.get_is_dev_direct_target()
 
         ofd = -1
+        is_gr = True
+
         try:
             if to_dev:
                 outf = self.check_target_dev(target_dev)
@@ -3594,6 +3597,7 @@ class ACoreLogiDat:
             else:
                 ofd, outf = self.get_outfile(target_dev)
                 self.target.set_target_text(outf)
+                is_gr = False
             if outf == False:
                 self.enable_panes(True, True)
                 return
@@ -3646,7 +3650,9 @@ class ACoreLogiDat:
             parm_obj = ChildProcParams(ycmd, ycmdargs, xcmdenv, inp_obj)
 
         ch_proc = ChildTwoStreamReader(parm_obj, self)
-        ch_proc.set_growisofs()
+
+        if is_gr:
+            ch_proc.set_growisofs()
 
         if to_dev:
             """Set data so that writer may be run if this succeeds
