@@ -2922,13 +2922,13 @@ class ACoreLogiDat:
             self.get_stat_wnd().put_status(m)
             if is_gr:
                 m = "Please give burn process (growisofs) time "
-                m = m + "to exit cleanly -- do not kill it\nor burner"
+                m = m + "to exit cleanly -- do not kill it\nor burner "
                 m = m + "might be left unusable until reboot"
                 msg_line_INFO(m)
 
         self.cleanup_run()
         self.target.set_run_label()
-        self.enable_panes(True, True)
+        #self.enable_panes(True, True)
 
 
     #
