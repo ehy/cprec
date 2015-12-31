@@ -83,6 +83,12 @@ SmallDnArrow = PyEmbeddedImage(
     Global procedures
 """
 
+msg_red_color = wx.RED
+msg_green_color = wx.Colour(0, 227, 0)
+msg_blue_color = wx.BLUE
+#msg_yellow_color = wx.Colour(227, 227, 0)
+msg_yellow_color = wx.Colour(202, 145, 42)
+
 def msg_(msg, clr = wx.BLACK):
     if _msg_obj_init_is_done == True:
         if clr == None:
@@ -95,24 +101,24 @@ def msg_(msg, clr = wx.BLACK):
 def err_(msg, clr = None):
     if _msg_obj_init_is_done == True:
         if clr == None:
-            _msg_obj.AppendTextColored(msg, wx.RED)
+            _msg_obj.AppendTextColored(msg, msg_red_color)
         else:
             _msg_obj.AppendTextColored(msg, clr)
     else:
         sys.stderr.write(msg)
 
 def msg_red(msg):
-    msg_(msg, wx.RED)
+    msg_(msg, msg_red_color)
 
 def msg_green(msg):
-    msg_(msg, wx.Colour(0, 227, 0))
+    msg_(msg, msg_green_color)
     #msg_(msg, wx.GREEN)
 
 def msg_blue(msg):
-    msg_(msg, wx.BLUE)
+    msg_(msg, msg_blue_color)
 
 def msg_yellow(msg):
-    msg_(msg, wx.Colour(227, 227, 0))
+    msg_(msg, msg_yellow_color)
 
 
 def msg_ERROR(msg):
@@ -143,17 +149,17 @@ def err_line_(msg, clr = None):
         err_(m + "\n", clr)
 
 def msg_line_red(msg):
-    msg_line_(msg, wx.RED)
+    msg_line_(msg, msg_red_color)
 
 def msg_line_green(msg):
-    msg_line_(msg, wx.Colour(0, 227, 0))
+    msg_line_(msg, msg_green_color)
     #msg_line_(msg, wx.GREEN)
 
 def msg_line_blue(msg):
-    msg_line_(msg, wx.BLUE)
+    msg_line_(msg, msg_blue_color)
 
 def msg_line_yellow(msg):
-    msg_line_(msg, wx.Colour(227, 227, 0))
+    msg_line_(msg, msg_yellow_color)
 
 
 def msg_line_ERROR(msg):
@@ -1157,17 +1163,17 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
     def add_dir(self, path, idx = -1):
         if idx < 0:
             idx = self.GetItemCount()
-        return self.add_item_color(path, idx, wx.BLUE)
+        return self.add_item_color(path, idx, msg_blue_color)
 
     def add_slink(self, path, idx = -1):
         if idx < 0:
             idx = self.GetItemCount()
-        return self.add_item_color(path, idx, wx.Colour(0, 227, 0))
+        return self.add_item_color(path, idx, msg_green_color)
 
     def add_spcl(self, path, idx = -1):
         if idx < 0:
             idx = self.GetItemCount()
-        return self.add_item_color(path, idx, wx.Colour(227, 227, 0))
+        return self.add_item_color(path, idx, msg_yellow_color)
 
 
     def add_multi_dirs(self, paths, idx = -1):
@@ -1648,6 +1654,19 @@ class ATargetPanePanel(wx.Panel):
         self.dev = self.input_select_node.GetValue()
         msg_line_INFO("set target to %s" % self.dev)
 
+    def set_button_select_node_label(self):
+        typ = self.type_opt.GetSelection()
+        tit = "Select burner device node"
+
+        # to fs:
+        if typ == 0:
+            if self.core_ld.get_is_whole_backup():
+                tit = "Select file name"
+            else:
+                tit = "Select directory name"
+
+        self.button_select_node.SetLabel(tit)
+
     def on_button_select_node(self, event):
         typ = self.type_opt.GetSelection()
         tit = "Select burner device node"
@@ -1751,8 +1770,10 @@ class ASourcePanePanel(wx.Panel):
         self.bSizer1.SetMinSize(size)
 
         type_optChoices = []
-        type_optChoices.append("whole filesystem")
-        type_optChoices.append("filesystem hierarchy")
+        #type_optChoices.append("whole filesystem")
+        #type_optChoices.append("filesystem hierarchy")
+        type_optChoices.append("whole in one file")
+        type_optChoices.append("filesystem directory")
 
         self.type_opt = wx.RadioBox(
             self, wx.ID_ANY, "backup type",
@@ -2546,6 +2567,7 @@ class ACoreLogiDat:
 
     def target_opt_id_change(self, t_id):
         self.target_force_idx = -1
+        self.target.set_button_select_node_label()
 
     def source_opt_id_change(self, s_id):
         if not self.target:
@@ -2583,6 +2605,8 @@ class ACoreLogiDat:
 
             self.target.type_opt.EnableItem(ov.t_direct, False)
             self.get_volinfo_wnd().Enable(True)
+
+        self.target.set_button_select_node_label()
 
 
     def get_new_idval(self):
