@@ -19,15 +19,15 @@ DVD Backup fronted for cprec and dd-dvd
 
 import collections
 import errno
-# seems errno module is buggy: use errno.ECONSTANT in a method, and
-# get:
-#"UnboundLocalError: local variable 'errno' referenced before assignment"
+# use errno.ECONSTANT in a exception handler, and get:
+#UnboundLocalError: local variable 'errno' referenced before assignment
 eintr  = errno.EINTR
 echild = errno.ECHILD
 efault = errno.EFAULT
 einval = errno.EINVAL
 import math
 import os
+import re
 import select
 import signal
 import stat
@@ -47,8 +47,8 @@ from wx.lib.embeddedimage import PyEmbeddedImage
 PROG = os.path.split(sys.argv[0])[1]
 
 if "-DBG" in sys.argv:
-    ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-py")
-    _fdbg = os.fdopen(ofd, "w", 0)
+    _ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-py")
+    _fdbg = os.fdopen(_ofd, "w", 0)
 else:
     _fdbg = None
 
@@ -99,6 +99,7 @@ def msg_(msg, clr = wx.BLACK):
         sys.stdout.write(msg)
 
 def err_(msg, clr = None):
+    _dbg(msg)
     if _msg_obj_init_is_done == True:
         if clr == None:
             _msg_obj.AppendTextColored(msg, msg_red_color)
@@ -112,7 +113,6 @@ def msg_red(msg):
 
 def msg_green(msg):
     msg_(msg, msg_green_color)
-    #msg_(msg, wx.GREEN)
 
 def msg_blue(msg):
     msg_(msg, msg_blue_color)
@@ -183,10 +183,11 @@ def x_lstat(path, quiet = False, use_l = True):
         else:
             return os.stat(path)
     except OSError, (errno, strerror):
+        m = "Error: cannot stat '%s': '%s' (errno %d)" % (
+            path, strerror, errno)
+        _dbg(m)
         if not quiet:
-            msg_line_ERROR(
-                "Error: cannot stat '%s': '%s' (errno %d)"
-                % (path, strerror, errno))
+            msg_line_ERROR(m)
         return None
 
 
@@ -214,7 +215,6 @@ class ChildProcParams:
         else:
             self.xcmdenv = []
 
-        self.infd_opened = False
         if isinstance(stdin_fd, str):
             self.infd = os.open(stdin_fd, os.O_RDONLY)
             self.infd_opened = True
@@ -316,7 +316,7 @@ class ChildTwoStreamReader:
         self.ch_pgrp = []
         # flag necessitated by growisofs signal handling:
         # blocks/unblocks sigs, and will exit(EINTR) on interrupted call
-        # so cannot assume cancellation yields signalled status --
+        # so cannot assume cancel signal yields signalled status --
         # caller should call set_growisofs() when needed
         self.growisofs = False
 
@@ -330,12 +330,6 @@ class ChildTwoStreamReader:
         """
         pass
 
-
-    def set_growisofs(self):
-        self.growisofs = True
-
-    def is_growisofs(self):
-        return self.growisofs
 
 
     """
@@ -381,16 +375,16 @@ class ChildTwoStreamReader:
     public: kill (signal) current child
     """
     def kill(self, sig = 0, pid = None):
-        if pid == None:
+        if not isinstance(pid, int):
             pid = self.curchild
         if pid > 0 or pid < -1:
             try:
                 os.kill(pid, sig)
                 return 0
-            except:
-                _dbg("kill exception pid %d -- signal %d" %
-                    (pid, sig))
-                return -1
+            except OSError, (errno, strerror):
+                _dbg("kill exception pid %d -- signal %d -- %s" %
+                    (pid, sig, "error '%s' (%d)" (strerror, errno)))
+                self.error_tuple = (pid, sig, errno, strerror)
 
         return -1
 
@@ -400,7 +394,7 @@ class ChildTwoStreamReader:
     """
     def wait(self, mx = 1, nsl = 1, fpid = None):
         wpid = fpid
-        if wpid == None:
+        if not isinstance(wpid, int):
             wpid = self.curchild
 
         if wpid in (-1, 0):
@@ -445,7 +439,6 @@ class ChildTwoStreamReader:
                     else:
                         _dbg("wait signalled unknown pid %d with %d" %
                             (pid, cooked))
-                    # if wpid < -1, don't return; go until ECHILD
                     if len(self.ch_pgrp) == 0:
                         return cooked
                     else:
@@ -463,7 +456,6 @@ class ChildTwoStreamReader:
                     else:
                         _dbg("wait exited unknown pid %d with %d" %
                             (pid, cooked))
-                    # if wpid < -1, don't return; go until ECHILD
                     if len(self.ch_pgrp) == 0:
                         return cooked
                     else:
@@ -511,6 +503,18 @@ class ChildTwoStreamReader:
     """
     def get_extra_data(self):
         return self.extra_data
+
+    """
+    when instantiated for growisofs, this should be set: see __init__()
+    """
+    def set_growisofs(self, it_is_so = True):
+        self.growisofs = it_is_so
+
+    """
+    get the growisofs flag
+    """
+    def is_growisofs(self):
+        return self.growisofs
 
     """
     command may be set after object init
@@ -2457,6 +2461,149 @@ class AChildProcEvent(wx.PyCommandEvent):
         return (self.ev_type, self.ev_data)
 
 
+# class to get wanted data from verbose output of "dvd+rw-mediainfo"
+# -- a utility from dvd+rw-tools, along with growisofs -- feed lines
+# to rx_add() method, get data items with get_data_item(key) (see
+# class def for keys) or whole map with get_data()
+class MediaDrive:
+    #re_flags = 0
+    re_flags = re.I
+
+    regx = {}
+
+    regx["drive"] = re.compile(
+        '^\s*INQUIRY:\s*\[([^\]]+)\]'
+        '\s*\[([^\]]+)\]'
+        '\s*\[([^\]]+)\].*$',
+        re_flags)
+    regx["medium"] = re.compile(
+        '^\s*Mounted\s+Media:\s*(\S+),\s+((\S+)(\s+(\S.*\S))?)\s*$',
+        re_flags)
+    regx["medium id"] = re.compile(
+        '^\s*Media\s+ID:\s*(\S.*\S)\s*',
+        re_flags)
+    regx["medium book"] = re.compile(
+        '^\s*Media\s+Book\s+Type:\s*'
+        '(\S+),\s+(\S+)(\s+(\S.*\S))?\s*$',
+        re_flags)
+    regx["medium freespace"] = re.compile(
+        '^\s*Free\s+Blocks:\s*(\S+)\s*\*.*$',
+        re_flags)
+    regx["write speed"] = re.compile(
+        '^\s*Write\s+Speed\s*#?([0-9]+):\s*'
+        '([0-9]+(\.[0-9]+)?)\s*x.*$',
+        re_flags)
+    regx["current write speed"] = re.compile(
+        '^\s*Current\s+Write\s+Speed:\s*([0-9]+(\.[0-9]+)?)\s*x.*$',
+        re_flags)
+    regx["write performance"] = re.compile(
+        '^\s*Write\s+Performance:\s*(\S.*\S)\s*',
+        re_flags)
+    regx["speed descriptor"] = re.compile(
+        '^\s*Speed\s+Descriptor\s*#?([0-9]+):\s*'
+        '([0-9]+)/[0-9]+\s+R@([0-9]+(\.[0-9]+)?)\s*x.*'
+        '\sW@([0-9]+(\.[0-9]+)?)\s*x.*$',
+        re_flags)
+    regx["presence"] = re.compile(
+        '((^\s*|.*\s)(no|non-DVD)\s+media)\s+mounted.*$',
+        re_flags)
+
+    def __init__(self, name = None):
+        if name:
+            self.name = name
+        else:
+            self.name = "[no name]"
+
+        self.data = {}
+
+        self.data["drive"] = []
+        for i in (1, 2, 3):
+            self.data["drive"].append("unknown")
+        self.data["medium"] = {}
+        self.data["medium id"] = ""
+        self.data["medium book"] = ""
+        self.data["medium freespace"] = 0
+        self.data["write speed"] = []
+        self.data["current write speed"] = -1
+        self.data["write performance"] = ""
+        self.data["speed descriptor"] = []
+        self.data["presence"] = ""
+
+    def rx_add(self, lin):
+        for k in self.regx:
+            m = self.regx[k].match(lin)
+            if m:
+                if k == "drive":
+                    for i in (1, 2, 3):
+                        if m.group(i):
+                            self.data[k][i - 1] = m.group(i).strip()
+                elif k == "medium id":
+                    self.data[k] = m.group(1)
+                elif k == "medium":
+                    self.data[k]["id"] = m.group(1)
+                    self.data[k]["type"] = m.group(3)
+                    if m.group(5):
+                        self.data[k]["type_ext"] = m.group(5)
+                    else:
+                        self.data[k]["type_ext"] = ""
+                    self.data[k]["type_all"] = m.group(2)
+                elif k == "medium book":
+                    self.data[k] = m.group(2)
+                elif k == "medium freespace":
+                    self.data[k] = int(m.group(1))
+                elif k == "write speed":
+                    self.data[k].append(float(m.group(2)))
+                elif k == "current write speed":
+                    self.data[k] = float(m.group(1))
+                elif k == "write performance":
+                    self.data[k] = m.group(1)
+                elif k == "presence":
+                    self.data[k] = m.group(1)
+                elif k == "speed descriptor":
+                    self.data[k].append(
+                        (
+                            float(m.group(3)),
+                            float(m.group(5)),
+                            int(m.group(2))
+                        ) )
+                else:
+                    err_(
+                        "Internal mechanism jammed: please service"
+                        "the nocturnal emissions valve"
+                    )
+                    return False
+
+                return True
+
+        return False
+
+    # return array of write speeds *but* use "Speed Descriptor#N"
+    # if no "Write Speed #N" found: dvd+rw-mediainfo source says
+    # "Some DVD+units return CD-R descriptors here" and if so the
+    # speed descriptors are not printed
+    def get_write_speeds(self):
+        ra = []
+        d = self.get_data_item("write speed")
+        if d:
+            for s in d:
+                ra.append(s)
+        else:
+            d = self.get_data_item("speed descriptor")
+            for s in d:
+                ra.append(s[1])
+
+        return ra
+
+
+    def get_data(self):
+        return self.data
+
+    def get_data_item(self, key):
+        if key in self.data:
+            return self.data[key]
+        return None
+
+
 # The gist of it: much of the code in this file concerns
 # GUI setup and logic -- that's unavoidable -- but the GUI
 # classes should have little or no general logic, most of
@@ -2508,6 +2655,7 @@ class ACoreLogiDat:
         self.iface_init = False
 
         self.target_force_idx = -1
+        self.target_data = None
 
         self.cur_tempfile = None
         self.all_tempfile = []
@@ -3241,6 +3389,9 @@ class ACoreLogiDat:
                 return self.check_target_dev(target_dev)
             return False
 
+        if not self.do_target_medium_check(target_dev):
+            return False
+
         return target_dev
 
     #
@@ -3284,7 +3435,10 @@ class ACoreLogiDat:
 
     def get_burn_speed(self, procname):
         nnumeric = 0
-        spds = (2, 4, 6, 8, 12, 16)
+        if self.target_data:
+            spds = self.target_data.get_write_speeds()
+        else:
+            spds = (2, 4, 6, 8, 12, 16)
         chcs = []
 
         for s in spds:
@@ -3725,6 +3879,52 @@ class ACoreLogiDat:
             ch_proc.kill_wait(signal.SIGUSR1, 3)
             msg_line_ERROR("ERROR: could not make or run thread")
 
+
+    def do_target_medium_check(self, target_dev):
+        self.target_data = None
+
+        if self.working():
+            stmsg.put_status("Already busy!")
+            self.enable_panes(True, True)
+            return False
+
+        xcmd = 'dvd+rw-mediainfo'
+        xcmdargs = []
+        xcmdargs.append(xcmd)
+        xcmdargs.append(target_dev)
+        xcmdenv = []
+        xcmdenv.append( ('CPREC_LINEBUF', 'true') )
+        xcmdenv.append( ('DDD_LINEBUF', 'true') )
+
+        m = "Checking %s with %s" % (target_dev, xcmd)
+        msg_line_WARN(m)
+        stmsg.put_status(m)
+
+        parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
+        ch_proc = ChildTwoStreamReader(parm_obj, self)
+
+        is_ok = ch_proc.go_and_read()
+        if not is_ok:
+            m = "Failed media check of %s with %s" % (target_dev, xcmd)
+            msg_line_ERROR(m)
+            stmsg.put_status(m)
+            return False
+
+        l1, l2, lx = ch_proc.get_read_lists()
+        self.target_data = MediaDrive(target_dev)
+
+        for lin in l2:
+            self.target_data.rx_add(lin)
+
+        e = self.target_data.get_data_item("presence")
+        if e:
+            m = "Failed: %s says \"%s\" for %s" % (xcmd, e, target_dev)
+            msg_line_ERROR(m)
+            stmsg.put_status(m)
+            return False
+
+        for lin in l1:
+            self.target_data.rx_add(lin)
 
     def do_dd_dvd_check(self, dev = None):
         self.enable_panes(False, False)
