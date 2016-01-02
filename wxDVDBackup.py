@@ -3438,6 +3438,15 @@ class ACoreLogiDat:
         if self.target_data == None:
             return "Select a speed or action from the list:"
 
+        mis = self.get_drive_medium_info_string("        ")
+        pmt = "Select a speed or action from the list for drive:\n"
+
+        return pmt + mis
+
+    def get_drive_medium_info_string(self, prefix = ""):
+        if self.target_data == None:
+            return "Select a speed or action from the list:"
+
         d = self.target_data
 
         drv = d.get_data_item("drive")
@@ -3468,11 +3477,11 @@ class ACoreLogiDat:
         fr = d.get_data_item("medium freespace")
         fr = "freespace %u bytes, (%u blocks)" % (fr * 2048, fr)
 
-        ret = "Select a speed or action from the list for drive:\n"
-        ret += "    %s, model %s (firmware %s)\nwith disc:\n" % (
-            drv, model, fw)
-        ret += "    %s\n" % medi
-        ret += "    %s\n" % fr
+        ret  = "%s%s, model %s (firmware %s)\n" % (
+            prefix, drv, model, fw)
+        ret += "%swith disc:\n" % prefix
+        ret += "%s%s\n" % (prefix, medi)
+        ret += "%s%s\n" % (prefix, fr)
 
         return ret
 
@@ -3481,11 +3490,11 @@ class ACoreLogiDat:
         if self.target_data:
             spds = self.target_data.get_write_speeds()
         else:
-            spds = (2, 4, 6, 8, 12, 16)
+            spds = (2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 18.0)
         chcs = []
 
         for s in spds:
-            chcs.append("%u (~ %uKB/s)" % (s, s * 1385))
+            chcs.append("%g (~ %gKB/s)" % (s, s * 1385))
             nnumeric += 1
 
         ndefchoice = 2
@@ -3946,6 +3955,8 @@ class ACoreLogiDat:
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         is_ok = ch_proc.go_and_read()
+        ch_proc.wait()
+
         if not is_ok:
             m = "Failed media check of %s with %s" % (target_dev, xcmd)
             msg_line_ERROR(m)
@@ -3953,13 +3964,15 @@ class ACoreLogiDat:
             return False
         else:
             stmsg.put_status("Waiting for %s" % xcmd)
-            ch_proc.wait()
 
         is_ok = ch_proc.get_status()
         if is_ok:
             m = "%s status %d for %s" % (xcmd, is_ok, target_dev)
             msg_line_ERROR(m)
             stmsg.put_status(m)
+            is_ok = False
+        else:
+            is_ok = True
 
         l1, l2, lx = ch_proc.get_read_lists()
         self.target_data = MediaDrive(target_dev)
@@ -3982,7 +3995,10 @@ class ACoreLogiDat:
             self.target_data.rx_add(lin)
             msg_line_GOOD(lin)
 
-        return True
+        if not is_ok:
+            self.target_data = None
+
+        return is_ok
 
     def do_dd_dvd_check(self, dev = None):
         self.enable_panes(False, False)
