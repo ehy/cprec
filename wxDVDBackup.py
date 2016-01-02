@@ -3926,6 +3926,8 @@ class ACoreLogiDat:
         for lin in l1:
             self.target_data.rx_add(lin)
 
+        return True
+
     def do_dd_dvd_check(self, dev = None):
         self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
