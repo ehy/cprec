@@ -921,6 +921,7 @@ class ChildTwoStreamReader:
             else:
                 break
 
+        fr.close()
         return True
 
 
@@ -3433,6 +3434,48 @@ class ACoreLogiDat:
         else:
             msg_line_ERROR(typ)
 
+    def get_speed_select_prompt(self):
+        if self.target_data == None:
+            return "Select a speed or action from the list:"
+
+        d = self.target_data
+
+        drv = d.get_data_item("drive")
+        fw = drv[2]
+        model = drv[1]
+        drv = drv[0]
+
+        b = d.get_data_item("medium book")
+        if not b:
+            b = '[no medium book type found]'
+
+        m = d.get_data_item("medium")
+        if m:
+            i = int(m["id"].rstrip("hH"), 16)
+            ext = ""
+            if m["type_ext"]:
+                ext = " (%s)" % m["type_ext"]
+            m = '%s%s [%02X], booktype %s' % (m["type"], ext, i, b)
+        else:
+            m = '[no medium type description found]'
+
+        mi = d.get_data_item("medium id")
+        if not mi:
+            mi = '[no medium id found] - booktype %s' % b
+
+        medi = "%s - %s" % (mi, m)
+
+        fr = d.get_data_item("medium freespace")
+        fr = "freespace %u bytes, (%u blocks)" % (fr * 2048, fr)
+
+        ret = "Select a speed or action from the list for drive:\n"
+        ret += "    %s, model %s (firmware %s)\nwith disc:\n" % (
+            drv, model, fw)
+        ret += "    %s\n" % medi
+        ret += "    %s\n" % fr
+
+        return ret
+
     def get_burn_speed(self, procname):
         nnumeric = 0
         if self.target_data:
@@ -3462,7 +3505,7 @@ class ACoreLogiDat:
         cnc_idx = nnumeric + inc
         inc += 1
 
-        m = "Select a speed number from this list."
+        m = self.get_speed_select_prompt()
         r = self.dialog(m, "choiceindex", chcs)
 
         if r < 0:
@@ -3881,6 +3924,7 @@ class ACoreLogiDat:
 
 
     def do_target_medium_check(self, target_dev):
+        stmsg = self.get_stat_wnd()
         self.target_data = None
 
         if self.working():
@@ -3893,8 +3937,6 @@ class ACoreLogiDat:
         xcmdargs.append(xcmd)
         xcmdargs.append(target_dev)
         xcmdenv = []
-        xcmdenv.append( ('CPREC_LINEBUF', 'true') )
-        xcmdenv.append( ('DDD_LINEBUF', 'true') )
 
         m = "Checking %s with %s" % (target_dev, xcmd)
         msg_line_WARN(m)
@@ -3909,22 +3951,36 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             return False
+        else:
+            stmsg.put_status("Waiting for %s" % xcmd)
+            ch_proc.wait()
+
+        is_ok = ch_proc.get_status()
+        if is_ok:
+            m = "%s status %d for %s" % (xcmd, is_ok, target_dev)
+            msg_line_ERROR(m)
+            stmsg.put_status(m)
 
         l1, l2, lx = ch_proc.get_read_lists()
         self.target_data = MediaDrive(target_dev)
 
         for lin in l2:
+            lin = lin.rstrip()
             self.target_data.rx_add(lin)
+            msg_line_WARN(lin)
 
         e = self.target_data.get_data_item("presence")
         if e:
             m = "Failed: %s says \"%s\" for %s" % (xcmd, e, target_dev)
             msg_line_ERROR(m)
             stmsg.put_status(m)
+            self.target_data = None
             return False
 
         for lin in l1:
+            lin = lin.rstrip()
             self.target_data.rx_add(lin)
+            msg_line_GOOD(lin)
 
         return True
 
