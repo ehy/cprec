@@ -3497,7 +3497,6 @@ class ACoreLogiDat:
                 #    % (m, st, ms, stat))
                 m = ("Child process %s %d" % (ms, stat))
                 msg_line_INFO(m)
-                slno.put_status(m)
 
                 if not j_ok:
                     m = "Thread join() fail"
@@ -3514,6 +3513,8 @@ class ACoreLogiDat:
             elif stat == eintr and ch.is_growisofs():
                 # see comment in class ChildTwoStreamReader
                 slno.put_status("Cancelled!")
+            else:
+                slno.put_status("Failed!")
 
             self.do_child_status(stat, ch)
 
