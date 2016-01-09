@@ -4563,12 +4563,13 @@ class ACoreLogiDat:
 
         if is_ok:
             m = "%s failed status %d for %s" % (xcmd, is_ok, target_dev)
+            msg_line_ERROR(m)
             is_ok = False
         else:
             m = "%s succeeded for %s" % (xcmd, target_dev)
+            msg_line_INFO(m)
             is_ok = True
 
-        msg_line_ERROR(m)
         stmsg.put_status(m)
 
         l1, l2, lx = ch_proc.get_read_lists()
