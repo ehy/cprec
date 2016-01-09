@@ -4550,7 +4550,7 @@ class ACoreLogiDat:
         is_ok = ch_proc.get_status()
 
         if is_ok:
-            m = "%s status %d for %s" % (xcmd, is_ok, target_dev)
+            m = "%s failed status %d for %s" % (xcmd, is_ok, target_dev)
             is_ok = False
         else:
             m = "%s succeeded for %s" % (xcmd, target_dev)
