@@ -2967,18 +2967,22 @@ class ACoreLogiDat:
 
         g = self.get_gauge_wnd()
 
-        if self.cur_task_items["taskname"] == 'blanking':
-            self.update_working_blanking(g)
-        elif self.cur_task_items["taskname"] == 'cprec':
-            self.update_working_cprec(g)
-        elif self.cur_task_items["taskname"] == 'dd-dvd':
-            self.update_working_dd_dvd(g)
-        elif self.cur_task_items["taskname"] == 'growisofs-hier':
-            self.update_working_growisofs_hier(g)
-        elif self.cur_task_items["taskname"] == 'growisofs-whole':
-            self.update_working_growisofs(g)
-        elif self.cur_task_items["taskname"] == 'growisofs-direct':
-            self.update_working_growisofs(g)
+        try:
+            nm = self.cur_task_items["taskname"]
+            if nm == 'blanking':
+                self.update_working_blanking(g)
+            elif nm == 'cprec':
+                self.update_working_cprec(g)
+            elif nm == 'dd-dvd':
+                self.update_working_dd_dvd(g)
+            elif nm == 'growisofs-hier':
+                self.update_working_growisofs_hier(g)
+            elif nm == 'growisofs-whole':
+                self.update_working_growisofs(g)
+            elif nm == 'growisofs-direct':
+                self.update_working_growisofs(g)
+        except:
+            g.Pulse()
 
     def update_working_blanking(self, gauge_wnd):
         gauge_wnd.Pulse()
@@ -3011,7 +3015,7 @@ class ACoreLogiDat:
         try:
             rx = self.cur_task_items["growisofs-hier-rx"]
         except:
-            rx = re.compile('^\s*([0-9]+\.[0-9]+/)\s*%\s+.*$')
+            rx = re.compile('^\s*([0-9]+\.[0-9]+)\s*%\s+.*$')
             self.cur_task_items["growisofs-hier-rx"] = rx
 
         m = rx.match(ln)
