@@ -2415,7 +2415,9 @@ class APeriodThread(threading.Thread):
     # NetBSD and Linux use SIGALRM says manual -- others unknown --
     # use of python's time.sleep() vs. the others here is not
     # inconsequential: the others are causing yet another thread
-    # to be created (by python, not here), and sleep is not
+    # to be created (by python, not here), and sleep is not.
+    # Of course, python time.sleep() is not just a wrapped call
+    # of libc sleep(3); in fact it will take a float argument.
     th_sleep_ok = ("FreeBSD", "OpenBSD")
 
     def __init__(self, topwnd, topwnd_id, interval = 1, msg = None):
@@ -2661,7 +2663,7 @@ class ACoreLogiDat:
         ['s_whole', 's_hier', 't_disk', 't_dev', 't_direct'])(
         0, 1, 0, 1, 2)
 
-    work_msg_interval = 2 #5
+    work_msg_interval = 5
     work_msg_last_int = 0
     work_msg_last_idx = 0
     work_msgs = (
@@ -3434,12 +3436,12 @@ class ACoreLogiDat:
 
         if mth and typ == 'time period':
             if not self.in_check_op:
-                if dat and dat == "pulse":
-                    if self.gauge_wnd:
-                        self.gauge_wnd.Pulse()
-                else:
-                    self.update_working_gauge()
-                    self.update_working_msg(slno)
+                self.update_working_gauge()
+                self.update_working_msg(slno)
+
+            if dat and dat == "pulse":
+                if self.gauge_wnd:
+                    self.gauge_wnd.Pulse()
 
         elif mth and typ == 'l1':
             if not self.in_check_op:
