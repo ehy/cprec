@@ -1289,6 +1289,8 @@ class ABasePane(wx.ScrolledWindow):
     # call wx Window->Enable(benabled) on all of self.child_wnds
     # that are not excluded by presence in tuple not_these
     def enable_all(self, benabled = True, not_these = ()):
+        _dbg("IN enable_all arg %d" % int(benabled))
+
         for c in self.child_wnds:
             self.child_wnds_prev_state[c] = c.IsEnabled()
             if c in not_these:
@@ -1657,6 +1659,7 @@ class ATargetPanePanel(wx.Panel):
 
     def on_select_node(self, event):
         self.dev = self.input_select_node.GetValue()
+        self.core_ld.target_select_node(self.dev)
         msg_line_INFO("set target to %s" % self.dev)
 
     def set_button_select_node_label(self):
@@ -1711,14 +1714,11 @@ class ATargetPanePanel(wx.Panel):
         self.core_ld.target_opt_id_change(t_id)
 
     def on_check_button(self, event):
-        self.do_dd_dvd_check()
+        self.core_ld.do_check(None)
 
     def on_run_button(self, event):
         self.dev = self.input_select_node.GetValue()
         self.core_ld.do_run(self.dev)
-
-    def do_dd_dvd_check(self, dev = None):
-        self.core_ld.do_dd_dvd_check(dev)
 
     def set_run_label(self):
         self.cancel_mode = False
@@ -1736,7 +1736,8 @@ class ATargetPanePanel(wx.Panel):
 
     def set_target_text(self, target_text):
         self.input_select_node.SetValue(target_text)
-        self.on_select_node(None)
+        self.dev = target_text
+        msg_line_INFO("set target to %s" % self.dev)
 
 
 
@@ -2043,12 +2044,32 @@ class ASourcePanePanel(wx.Panel):
     def on_button_addl_rmsel(self, event):
         self.addl_list_ctrl.rm_selected()
 
-
     def on_button_addl_clear(self, event):
         self.addl_list_ctrl.rm_all()
 
     def get_all_addl_items(self):
         return self.addl_list_ctrl.get_all_items()
+
+
+"""
+AProgBarPanel -- small class for wxGauge progress bar
+"""
+class AProgBarPanel(wx.Panel):
+    def __init__(self, parent, gist, ID = -1, rang = 1000):
+        wx.Panel.__init__(self, parent, ID)
+
+        self.gist = gist
+        self.gauge = wx.Gauge(
+            self, gist.get_new_idval(), rang,
+            style = wx.GA_HORIZONTAL | wx.GA_SMOOTH)
+
+        szr = wx.BoxSizer(wx.HORIZONTAL)
+        szr.Add(self.gauge, 1, wx.EXPAND | wx.ALL, 1)
+        self.SetSizer(szr)
+        self.Layout()
+
+    def get_gauge(self):
+        return self.gauge
 
 
 """
@@ -2201,21 +2222,36 @@ class ASashWnd(wx.SashWindow):
 
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (30, 30),
+                self, -1, wx.DefaultPosition, (30, 20),
                 wx.NO_BORDER|wx.SW_3D
             ))
-        self.swnd[1].SetDefaultSize((sz.width, self.msg_inith))
+        self.swnd[1].SetDefaultSize((sz.width, 20))
         self.swnd[1].SetOrientation(wx.LAYOUT_HORIZONTAL)
         self.swnd[1].SetAlignment(wx.LAYOUT_TOP)
         self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
         self.swnd[1].SetSashVisible(wx.SASH_BOTTOM, True)
-        self.swnd[1].SetExtraBorderSize(1)
+        self.swnd[1].SetExtraBorderSize(0)
+
+        self.swnd.append(
+            wx.SashLayoutWindow(
+                self, -1, wx.DefaultPosition, (30, 30),
+                wx.NO_BORDER|wx.SW_3D
+            ))
+        self.swnd[2].SetDefaultSize((sz.width, self.msg_inith))
+        self.swnd[2].SetOrientation(wx.LAYOUT_HORIZONTAL)
+        self.swnd[2].SetAlignment(wx.LAYOUT_TOP)
+        self.swnd[2].SetBackgroundColour(wx.Colour(240, 240, 240))
+        self.swnd[2].SetSashVisible(wx.SASH_BOTTOM, True)
+        self.swnd[2].SetExtraBorderSize(1)
 
         self.child1_maxw = 16000
         self.child1_maxh = 16000
 
         self.child2_maxw = 16000
-        self.child2_maxh = 16000
+        self.child2_maxh = 20
+
+        self.child3_maxw = 16000
+        self.child3_maxh = 16000
 
         self.w0adj = 20
         sz1 = wx.Size(sz.width, sz.height - 20)
@@ -2223,15 +2259,20 @@ class ASashWnd(wx.SashWindow):
             self.swnd[0], sz1, parent, -1,
             "Source and Destination", gist
             )
-        self.child2 = AMsgWnd(self.swnd[1], 400, self.msg_inith)
-        self.core_ld.set_msg_wnd(self.child2)
-        self.child2.set_scroll_to_end(True)
 
-        self.remainingSpace = self.swnd[1]
+        self.child2 = AProgBarPanel(self.swnd[1], gist)
+        self.core_ld.set_gauge_wnd(self.child2)
+
+        self.child3 = AMsgWnd(self.swnd[2], 400, self.msg_inith)
+        self.core_ld.set_msg_wnd(self.child3)
+        self.child3.set_scroll_to_end(True)
+
+        self.remainingSpace = self.swnd[2]
 
         ids = []
         ids.append(self.swnd[0].GetId())
         ids.append(self.swnd[1].GetId())
+        ids.append(self.swnd[2].GetId())
         ids.sort()
 
         self.Bind(
@@ -2252,18 +2293,18 @@ class ASashWnd(wx.SashWindow):
             hi = min(self.child1_maxh, event.GetDragRect().height)
             self.swnd[0].SetDefaultSize((self.child1_maxw, hi))
 
-        elif eobj is self.swnd[1]:
-            hi = min(self.child2_maxh, event.GetDragRect().height)
-            self.swnd[1].SetDefaultSize((self.child2_maxw, hi))
+        elif eobj is self.swnd[2]:
+            hi = min(self.child3_maxh, event.GetDragRect().height)
+            self.swnd[2].SetDefaultSize((self.child3_maxw, hi))
 
         wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
         self.remainingSpace.Refresh()
-        self.child2.conditional_scroll_adjust()
+        self.child3.conditional_scroll_adjust()
 
     def OnSize(self, event):
         ssz = self.GetSize()
         sz  = self.swnd[0].GetSize()
-        sz1 = self.swnd[1].GetSize()
+        sz1 = self.swnd[2].GetSize()
         h1 = sz.height
 
         wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
@@ -2281,10 +2322,10 @@ class ASashWnd(wx.SashWindow):
             self.swnd[0].SetDefaultSize((sz.width, h1))
             wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
 
-        self.child2.conditional_scroll_adjust()
+        self.child3.conditional_scroll_adjust()
 
     def get_msg_obj(self):
-        return self.child2
+        return self.child3
 
 
 class AFrame(wx.Frame):
@@ -2374,10 +2415,10 @@ class APeriodThread(threading.Thread):
     # NetBSD and Linux use SIGALRM says manual -- others unknown --
     # use of python's time.sleep() vs. the others here is not
     # inconsequential: the others are causing yet another thread
-    # to be created (by python, not here), and sleep ain't doin' dat
+    # to be created (by python, not here), and sleep is not
     th_sleep_ok = ("FreeBSD", "OpenBSD")
 
-    def __init__(self, topwnd, topwnd_id, interval = 1):
+    def __init__(self, topwnd, topwnd_id, interval = 1, msg = None):
         threading.Thread.__init__(self)
 
         self.topwnd = topwnd
@@ -2385,7 +2426,7 @@ class APeriodThread(threading.Thread):
         self.got_stop = False
         self.intvl = interval
         self.tid = 0
-        self.tmsg = None
+        self.tmsg = msg
 
         if os.name == 'posix':
             self.run_internal = self.run_posix
@@ -2400,7 +2441,8 @@ class APeriodThread(threading.Thread):
 
     def run(self):
         self.tid = threading.current_thread().ident
-        self.tmsg = "tid %d" % self.tid
+        if not self.tmsg:
+            self.tmsg = "tid %d" % self.tid
         self.run_internal()
 
     def run_posix(self):
@@ -2570,7 +2612,6 @@ class MediaDrive:
                 else:
                     err_(
                         "Internal mechanism jammed: please service"
-                        "the nocturnal emissions valve"
                     )
                     return False
 
@@ -2620,10 +2661,47 @@ class ACoreLogiDat:
         ['s_whole', 's_hier', 't_disk', 't_dev', 't_direct'])(
         0, 1, 0, 1, 2)
 
-    work_msg_interval = 5
+    work_msg_interval = 2 #5
     work_msg_last_int = 0
     work_msg_last_idx = 0
     work_msgs = (
+        "Working",
+        ".",
+        ". .",
+        ". . .",
+        ". . . .",
+        ". . . . .",
+        ". . . . . .",
+        ". . . . . . .",
+        ". . . . . . . .",
+        ". . . . . . . . .",
+        ". . . . . . . . . .",
+        ". . . . . . . . . . .",
+        ". . . . . . . . . . . .",
+        ". . . . . . . . . . . . .",
+        ". . . . . . . . . . . . . .",
+        ". . . . . . . . . . . . . . .",
+        ". . . . . . . . . . . . . . . .",
+        "--------------------------------",
+        ". . . . . . . . . . . . . . . .",
+        ". . . . . . . . . . . . . . .",
+        ". . . . . . . . . . . . . .",
+        ". . . . . . . . . . . . .",
+        ". . . . . . . . . . . .",
+        ". . . . . . . . . . .",
+        ". . . . . . . . . .",
+        ". . . . . . . . .",
+        ". . . . . . . .",
+        ". . . . . . .",
+        ". . . . . .",
+        ". . . . .",
+        ". . . .",
+        ". . .",
+        ". .",
+        ".",
+        "Hey Now!"
+        )
+    work_msgs_silly = (
         "Working", "Still working", "Yet more working",
         "Be patient", "You know, this is time consuming . . .",
         ". . . I mean, a long process . . .",
@@ -2642,6 +2720,7 @@ class ACoreLogiDat:
         self.source = None
         self.target = None
 
+        self.gauge_wnd = None
         self.msg_wnd = None
         self.statwnd = None
         self.vol_wnd = None
@@ -2656,8 +2735,10 @@ class ACoreLogiDat:
         self.iface_init = False
 
         self.target_force_idx = -1
-        self.target_data = None
 
+        self.cur_task_items = {}
+
+        self.cur_out_file = None
         self.cur_tempfile = None
         self.all_tempfile = []
         self.last_burn_speed = None
@@ -2671,7 +2752,6 @@ class ACoreLogiDat:
         self.uname = os.uname()
         sys = self.uname[0]
 
-        global PROG
         # tuple of tuples each item being:
         # key printed to stdout by dd-dvd -vn re. DVD volume info,
         # length (space padded) of the field,
@@ -2698,6 +2778,18 @@ class ACoreLogiDat:
             self.v_inf_map[it[0]] = i
             self.v_inf_vec.append(it)
 
+        # settings per task
+        self.checked_input_blocks  = 0
+        self.checked_input_arg     = ''
+        self.checked_input_devnode = ''
+        self.checked_input_mountpt = ''
+        self.checked_input_devstat = None
+        self.target_data = None
+        self.checked_media_blocks   = 0
+        self.checked_output_arg     = ''
+        self.checked_output_devnode = ''
+        self.checked_output_devstat = None
+
 
     def enable_panes(self, benable, rest = False):
         non = (self.target.run_button, None)
@@ -2710,9 +2802,17 @@ class ACoreLogiDat:
             self.target.enable_all(benable, non)
 
     def set_ready_topwnd(self, wnd):
-        ov = self.opt_values
+        #ov = self.opt_values
         self.topwnd = wnd
         self.topwnd_id = wnd.GetId()
+
+    def target_select_node(self, node):
+        if node != self.checked_output_arg:
+            self.target_data = None
+            self.checked_media_blocks  = 0
+            self.checked_output_arg     = ''
+            self.checked_output_devnode = ''
+            self.checked_output_devstat = None
 
     def target_opt_id_change(self, t_id):
         self.target_force_idx = -1
@@ -2772,11 +2872,17 @@ class ACoreLogiDat:
     def set_target_wnd(self, wnd):
         self.target = wnd
 
+    def set_gauge_wnd(self, wnd):
+        self.gauge_wnd = wnd.get_gauge()
+
     def set_msg_wnd(self, wnd):
         self.msg_wnd = wnd
 
     def set_vol_wnd(self, wnd):
         self.vol_wnd = wnd
+
+    def get_gauge_wnd(self):
+        return self.gauge_wnd
 
     def get_msg_wnd(self):
         return self.msg_wnd
@@ -2853,6 +2959,144 @@ class ACoreLogiDat:
             return True
         return False
 
+    def update_working_gauge(self):
+        if not self.cur_task_items:
+            return
+
+        g = self.get_gauge_wnd()
+
+        if self.cur_task_items["taskname"] == 'blanking':
+            self.update_working_blanking(g)
+        elif self.cur_task_items["taskname"] == 'cprec':
+            self.update_working_cprec(g)
+        elif self.cur_task_items["taskname"] == 'dd-dvd':
+            self.update_working_dd_dvd(g)
+        elif self.cur_task_items["taskname"] == 'growisofs-hier':
+            self.update_working_growisofs_hier(g)
+        elif self.cur_task_items["taskname"] == 'growisofs-whole':
+            self.update_working_growisofs(g)
+        elif self.cur_task_items["taskname"] == 'growisofs-direct':
+            self.update_working_growisofs(g)
+
+    def update_working_blanking(self, gauge_wnd):
+        gauge_wnd.Pulse()
+
+    def update_working_dd_dvd(self, gauge_wnd):
+        g = gauge_wnd
+
+        try:
+            st = os.stat(self.cur_out_file)
+        except:
+            g.Pulse()
+            return
+
+        rng = g.GetRange()
+
+        tot = self.checked_input_blocks * 2048
+
+        val = st.st_size * rng / tot
+        g.SetValue(val)
+
+    def update_working_growisofs_hier(self, gauge_wnd):
+        g = gauge_wnd
+
+        try:
+            ln = self.cur_task_items["line"]
+        except:
+            g.Pulse()
+            return
+
+        try:
+            rx = self.cur_task_items["growisofs-hier-rx"]
+        except:
+            rx = re.compile('^\s*([0-9]+\.[0-9]+/)\s*%\s+.*$')
+            self.cur_task_items["growisofs-hier-rx"] = rx
+
+        m = rx.match(ln)
+
+        if not m:
+            g.Pulse()
+            return
+
+        cur = float(m.group(1)) / 100.00
+
+        rng = float(g.GetRange())
+
+        val = int(cur * rng)
+        g.SetValue(val)
+
+    def update_working_growisofs(self, gauge_wnd):
+        g = gauge_wnd
+
+        try:
+            ln = self.cur_task_items["line"]
+        except:
+            g.Pulse()
+            return
+
+        try:
+            rx = self.cur_task_items["growisofs-rx"]
+        except:
+            rx = re.compile('^\s*([0-9]+)/([0-9]+)\s.*$')
+            self.cur_task_items["growisofs-rx"] = rx
+
+        m = rx.match(ln)
+
+        if not m:
+            g.Pulse()
+            return
+
+        cur = int(m.group(1))
+        sz  = int(m.group(2))
+        # paranoia
+        if sz < 1:
+            g.Pulse()
+            return
+
+        rng = g.GetRange()
+
+        val = cur * rng / sz
+        g.SetValue(val)
+
+
+    def update_working_cprec(self, gauge_wnd):
+        g = gauge_wnd
+
+        try:
+            ln = self.cur_task_items["line"]
+        except:
+            g.Pulse()
+            return
+
+        try:
+            rx = self.cur_task_items["cprec-rx"]
+        except:
+            rx = re.compile('^\s*X\s+(\S.*\S)\s+size\s+([0-9]+)\s*$')
+            self.cur_task_items["cprec-rx"] = rx
+
+        m = rx.match(ln)
+
+        if not m:
+            g.Pulse()
+            return
+
+        fn = m.group(1)
+        sz = int(m.group(2))
+        # paranoia
+        if sz < 1:
+            g.Pulse()
+            return
+
+        st = x_lstat(fn)
+        if not st:
+            g.Pulse()
+            return
+
+        rng = g.GetRange()
+
+        val = st.st_size * rng / sz
+        g.SetValue(val)
+
     def working_msg(self, stat_wnd = None):
         if not self.working():
             return
@@ -2874,11 +3118,181 @@ class ACoreLogiDat:
             self.work_msg_last_int = cur
             self.working_msg(stat_wnd)
 
+    # stat dev and compare time with time tuple (mtime, ctime)
+    def do_devtime_check(self, dev, stato):
+        st = x_lstat(dev)
+        if st and stato:
+            mt = stato.st_mtime
+            ct = stato.st_ctime
+            if st.st_mtime == mt and st.st_ctime == ct:
+                return True
+
+        return False
+
+    # stat dev and compare time with time tuple (mtime, ctime)
+    def do_devstat_check(self, dev, stato):
+        chkdev = os.path.realpath(dev)
+        st = x_lstat(chkdev, False, False)
+        if st and stato:
+            if (st.st_ino == stato.st_ino and
+                st.st_dev == stato.st_dev and
+                st.st_mtime == stato.st_mtime and
+                st.st_ctime == stato.st_ctime
+                ):
+                return True
+
+        return False
+
+    # stat dev and compare time with time tuple (mtime, ctime)
+    def do_burn_pre_check(self, dat = None):
+        stmsg = self.get_stat_wnd()
+
+        if dat:
+            outdev = dat["target_dev"]
+        else:
+            outdev = self.checked_output_devnode
+
+        if not outdev:
+            self.do_target_check()
+            outdev = self.checked_output_devnode
+
+        if not outdev:
+            return False
+
+        eq = self.do_devstat_check(outdev, self.checked_output_devstat)
+        if not eq:
+            #m = "Target medium was changed"
+            #msg_line_WARN(m)
+            #stmsg.put_status(m)
+            if not self.do_target_medium_check(outdev):
+                m = "Target medium check failed"
+                msg_line_ERROR(m)
+                stmsg.put_status(m)
+                return False
+
+        if not self.do_in_out_size_check():
+            return False
+
+        return True
+
+    # compare input size to capacity *after* data members are set
+    def do_in_out_size_check(self, blank_async = False):
+        stmsg = self.get_stat_wnd()
+
+        d = self.target_data
+        mm = d.get_data_item("medium")
+        if mm["type_ext"]:
+            m = mm["type_ext"]
+        else:
+            m = mm["type"]
+        dbl = re.search('(DL|Dual|Double)', m, re.I)
+
+        m = mm["type"]
+        if mm["type_ext"]:
+            m = m + " " + mm["type_ext"]
+        rw = re.search('([\+-]\s*RW|re-?write)', m, re.I)
+
+        if self.checked_input_blocks > self.checked_media_blocks:
+            m = "Target medium needs %u free blocks, found only %u." % (
+                self.checked_input_blocks, self.checked_media_blocks)
+            msg_line_ERROR(m)
+            stmsg.put_status(m)
+
+            if rw:
+                m += "\nMedium appears re-writable. Attempt blanking?"
+                r = self.dialog(m, "yesno", wx.YES_NO)
+                if r == wx.YES:
+                    self.do_blank(d.name, blank_async)
+                    if blank_async:
+                        return True
+
+                    self.do_target_check(reset = True)
+                    if self.checked_output_arg:
+                        return True
+
+            return False
+
+        if dbl:
+            hbl = self.checked_media_blocks / 2
+            if self.checked_input_blocks <= hbl:
+                m = "Target %s capacity %u blocks, only need %u%s" % (
+                    m,
+                    self.checked_media_blocks,
+                    self.checked_input_blocks,
+                    " -- use a single layer DVD blank disc.")
+                msg_line_ERROR(m)
+                stmsg.put_status(m)
+                return False
+
+        m = "Good: burn needs %u free blocks, medium has %u." % (
+            self.checked_input_blocks, self.checked_media_blocks)
+        msg_line_GOOD(m)
+        stmsg.put_status(m)
+
+        return True
+
+
+    def do_check(self, dev):
+        self.reset_source_data()
+        self.do_dd_dvd_check(dev)
+
+
+    def do_target_check(self,
+                        target_dev = None,
+                        async_blank = False,
+                        reset = False):
+        if self.get_is_fs_target():
+            return
+
+        if reset:
+            self.reset_target_data()
+
+        if not target_dev:
+            target_dev = self.target.input_select_node.GetValue()
+
+        if target_dev:
+            st = self.checked_output_devstat
+            if not st:
+                #self.reset_source_data()
+                if self.do_target_medium_check(target_dev):
+                    if self.do_in_out_size_check(async_blank):
+                        if async_blank:
+                            return
+                        st = self.checked_output_devstat
+                else:
+                    st = False
+
+            if st and self.do_devstat_check(target_dev, st):
+                self.checked_output_arg = target_dev
+                return
+
+        self.reset_target_data()
+
+
+    def reset_source_data(self):
+        self.checked_input_blocks  = 0
+        self.checked_input_arg     = ''
+        self.checked_input_devnode = ''
+        self.checked_input_mountpt = ''
+        self.checked_input_devstat = None
+
+
+    def reset_target_data(self):
+        self.target_data = None
+        self.checked_media_blocks   = 0
+        self.checked_output_arg     = ''
+        self.checked_output_devnode = ''
+        self.checked_output_devstat = None
+
+
     def do_idle(self, event):
         if self.iface_init == False:
             ov = self.opt_values
             self.source.type_opt.SetSelection(ov.s_whole)
             self.source.do_opt_id_change(ov.s_whole)
+            self.target.type_opt.SetSelection(ov.t_dev)
+            self.target.do_opt_id_change(ov.t_dev)
+            self.target_opt_id_change(ov.t_dev)
             self.iface_init = True
 
     def do_quit(self, event):
@@ -2903,24 +3317,31 @@ class ACoreLogiDat:
     # called with status of a child process
     def do_child_status(self, stat, chil):
         self.target.set_run_label()
+        self.get_gauge_wnd().SetValue(0)
 
         if self.in_check_op:
-            self.do_read_child_result(chil)
+            self.read_check_inp_op_result(chil)
             if stat == 0:
                 self.target.run_button.Enable(True)
             else:
                 self.target.run_button.Enable(False)
             self.in_check_op = False
+            if stat == 0:
+                self.do_target_check(async_blank = True)
         elif stat == 0 and chil.get_extra_data():
-            """With success of read task, ready for burn task:
-            chil.get_extra_data() returns None if user option
-            was backup to local storage, else it returns a dict
-            with data needed to proceed with burn.
-            """
+            #"""With success of read task, ready for burn task:
+            #chil.get_extra_data() returns None if user option
+            #was backup to local storage, else it returns a dict
+            #with data needed to proceed with burn.
+            #"""
             d = chil.get_extra_data()
             outf = d["target_dev"]
+            mdone = None
+            merr  = None
+
             if d["in_burn"] == True:
                 # this means burn was just done
+                self.reset_target_data()
                 m = "Burn succeeded!. Would you like to burn another? "
                 m = m + "If yes, put a new burnable blank in "
                 m = m + "the burner addressed by node '%s'." % outf
@@ -2929,10 +3350,16 @@ class ACoreLogiDat:
                     wx.YES_NO|wx.ICON_QUESTION)
                 if r == wx.YES:
                     d["in_burn"] = False
-                    self.do_burn(chil, d)
-                    return
-                else:
-                    self.cleanup_run()
+                    self.do_target_check(outf, reset = True)
+                    if self.checked_output_devnode:
+                        d["target_dev"] = self.checked_output_arg
+                        if self.do_burn(chil, d):
+                            return
+                    else:
+                        merr = "Media Error"
+
+                _dbg("CHILD STATUS another declined")
+
             else:
                 m = "Prepared to burn backup. "
                 m = m + "Make sure a writable blank disc is ready in "
@@ -2941,15 +3368,47 @@ class ACoreLogiDat:
                     m, "sty",
                     wx.OK|wx.CANCEL|wx.ICON_INFORMATION)
                 if r == wx.OK:
-                    self.do_burn(chil, d)
-                    return
-                self.cleanup_run()
+                    self.do_target_check(outf, reset = True)
+                    if self.checked_output_devnode:
+                        d["target_dev"] = self.checked_output_arg
+                        if self.do_burn(chil, d):
+                            msg_line_GOOD("Burn started.")
+                            return
+                        else:
+                            merr = "Burn Failed"
+                    else:
+                        merr = "Media Error"
+
+            _dbg("CHILD STATUS another declined -- past if/else")
+            if merr:
+                msg_line_ERROR(merr)
+                self.get_stat_wnd().put_status(merr)
+            elif mdone:
+                msg_line_GOOD(mdone)
+                self.get_stat_wnd().put_status(mdone)
+
         elif stat != 0 and chil.get_extra_data():
-            self.cleanup_run()
-        else:
-            self.cleanup_run()
+            pass
+
+        _dbg("CHILD STATUS near end")
+        self.cleanup_run()
+        _dbg("CHILD STATUS near end after self.cleanup_run()")
 
         self.enable_panes(True, True)
+        _dbg("CHILD STATUS near end after self.enable_panes(True,True)")
+
+    # for a msg_*() invocation using monospace face -- static
+    def mono_message(
+            self, prefunc = None, monofunc = None, postfunc = None):
+        if prefunc:
+            prefunc()
+        if monofunc:
+            mw = self.get_msg_wnd()
+            mw.set_mono_font()
+            monofunc()
+            mw.set_default_font()
+        if postfunc:
+            postfunc()
 
     def do_child_message(self, event):
         # mth: boolean 'in main thread'
@@ -2975,29 +3434,38 @@ class ACoreLogiDat:
 
         if mth and typ == 'time period':
             if not self.in_check_op:
-                #msg_line_ERROR(m)
-                self.update_working_msg(slno)
+                if dat and dat == "pulse":
+                    if self.gauge_wnd:
+                        self.gauge_wnd.Pulse()
+                else:
+                    self.update_working_gauge()
+                    self.update_working_msg(slno)
 
         elif mth and typ == 'l1':
             if not self.in_check_op:
-                msg_line_INFO('1:')
-                msgo.set_mono_font()
-                msg_(" %s" % m)
-                msgo.set_default_font()
+                self.mono_message(
+                    prefunc = lambda : msg_line_INFO('1:'),
+                    monofunc = lambda : msg_(" %s" % m))
+
+            if self.cur_task_items:
+                self.cur_task_items["linelevel"] = 1
+                self.cur_task_items["line"] = m
 
         elif mth and typ == 'l2':
             if not self.in_check_op:
-                msg_line_WARN('2:')
-                msgo.set_mono_font()
-                msg_(" %s" % m)
-                msgo.set_default_font()
+                self.mono_message(
+                    prefunc = lambda : msg_line_WARN('2:'),
+                    monofunc = lambda : msg_(" %s" % m))
+
+            if self.cur_task_items:
+                self.cur_task_items["linelevel"] = 2
+                self.cur_task_items["line"] = m
 
         elif mth and typ == 'l-1':
             if not self.in_check_op:
-                msg_line_ERROR('ERROR')
-                msgo.set_mono_font()
-                msg_(" %s" % m)
-                msgo.set_default_font()
+                self.mono_message(
+                    prefunc = lambda : msg_line_ERROR('ERROR'),
+                    monofunc = lambda : msg_(" %s" % m))
 
         elif mth and typ == 'enter run':
             self.target.set_cancel_label()
@@ -3023,8 +3491,9 @@ class ACoreLogiDat:
                 if bsig:
                     ms = "cancelled, signal"
 
-                m = ("Child thread %s status %d, process %s %d"
-                    % (m, st, ms, stat))
+                #m = ("Child thread %s status %d, process %s %d"
+                #    % (m, st, ms, stat))
+                m = ("Child status %d" % stat)
                 msg_line_INFO(m)
 
                 if not j_ok:
@@ -3370,7 +3839,10 @@ class ACoreLogiDat:
         os.rmdir(tmp)
 
     def cleanup_run(self):
-        self.rm_temp(self.cur_tempfile)
+        try:
+            self.rm_temp(self.cur_tempfile)
+        except:
+            _dbg("cleanup_run: exeption from rm_temp(self.cur_tempfile)")
         self.cur_tempfile = None
 
 
@@ -3410,6 +3882,9 @@ class ACoreLogiDat:
             return
 
         if self.get_is_whole_backup():
+            if self.get_is_dev_direct_target():
+                if not self.do_burn_pre_check():
+                    return
             self.do_dd_dvd_run(target_dev)
         elif self.get_is_hier_backup():
             self.do_cprec_run(target_dev)
@@ -3417,13 +3892,21 @@ class ACoreLogiDat:
             msg_line_ERROR("ERROR: internal inconsistency, not good")
 
     def do_burn(self, ch_proc, dat = None):
-        if dat == None:
+        do_it = True
+
+        if do_it and dat == None:
             dat = ch_proc.get_extra_data()
-        if dat == None:
-            return
-        if dat["in_burn"] == True:
+        if do_it and dat == None:
+            do_it = False
+        if do_it and dat["in_burn"] == True:
             # this means burn was just done
-            return
+            do_it = False
+
+        if do_it and not self.do_burn_pre_check(dat):
+            do_it = False
+
+        if not do_it:
+            return False
 
         typ = dat["source_type"]
 
@@ -3433,6 +3916,9 @@ class ACoreLogiDat:
             self.do_burn_whole(ch_proc, dat)
         else:
             msg_line_ERROR(typ)
+            return False
+
+        return True
 
     def get_speed_select_prompt(self):
         if self.target_data == None:
@@ -3486,7 +3972,6 @@ class ACoreLogiDat:
         return ret
 
     def get_burn_speed(self, procname):
-        nnumeric = 0
         if self.target_data:
             spds = self.target_data.get_write_speeds()
         else:
@@ -3495,8 +3980,8 @@ class ACoreLogiDat:
 
         for s in spds:
             chcs.append("%g (~ %gKB/s)" % (s, s * 1385))
-            nnumeric += 1
 
+        nnumeric = len(chcs)
         ndefchoice = 2
         inc = 0
 
@@ -3545,12 +4030,18 @@ class ACoreLogiDat:
 
     def do_burn_whole(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
+        self.cur_task_items = {}
         outdev  = dat["target_dev"]
         srcfile = dat["source_file"]
         dat["in_burn"] = True
 
         msg_line_INFO('\nburn from temporary fs image "%s" to %s' % (
             srcfile, outdev))
+
+        self.cur_out_file = None
+        self.cur_task_items["taskname"] = 'growisofs-whole'
+        self.cur_task_items["taskfile"] = None
+        self.cur_task_items["taskdirect"] = False
 
         xcmd = 'growisofs'
         xcmdargs = []
@@ -3581,12 +4072,18 @@ class ACoreLogiDat:
 
     def do_burn_hier(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
+        self.cur_task_items = {}
         outdev = dat["target_dev"]
         srcdir = dat["source_file"]
         dat["in_burn"] = True
 
         msg_line_INFO('\nburn from temporary directory "%s" to %s' % (
             srcdir, outdev))
+
+        self.cur_out_file = None
+        self.cur_task_items["taskname"] = 'growisofs-hier'
+        self.cur_task_items["taskfile"] = None
+        self.cur_task_items["taskdirect"] = False
 
         xcmd = 'growisofs'
         xcmdargs = []
@@ -3669,6 +4166,7 @@ class ACoreLogiDat:
     def do_cprec_run(self, target_dev, dev = None):
         self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
+        self.cur_task_items = {}
 
         if not dev and self.source and self.source.dev:
             dev = self.source.dev
@@ -3726,6 +4224,11 @@ class ACoreLogiDat:
 
         msg_line_INFO('using target directory "%s"' % outf)
 
+        self.cur_out_file = outf
+        self.cur_task_items["taskname"] = 'cprec'
+        self.cur_task_items["taskfile"] = outf
+        self.cur_task_items["taskdirect"] = False
+
         xcmd = 'cprec'
         xcmdargs = []
         xcmdargs.append("%s-%s" % (xcmd, devname))
@@ -3765,6 +4268,7 @@ class ACoreLogiDat:
     def do_dd_dvd_run(self, target_dev, dev = None):
         self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
+        self.cur_task_items = {}
 
         if not dev and self.source and self.source.dev:
             dev = self.source.dev
@@ -3840,6 +4344,10 @@ class ACoreLogiDat:
         else:
             msg_line_INFO('target direct to burner (%s)' % outf)
 
+        self.cur_out_file = outf
+        self.cur_task_items["taskname"] = 'dd-dvd'
+        self.cur_task_items["taskfile"] = outf
+
         xcmd = 'dd-dvd'
         xcmdargs = []
         xcmdargs.append("%s-%s" % (xcmd, devname))
@@ -3852,9 +4360,15 @@ class ACoreLogiDat:
         xcmdenv.append( ('DDD_LINEBUF', 'true') )
 
         if not is_direct:
+            self.cur_task_items["taskdirect"] = False
             stmsg.put_status("Running %s for %s" % (xcmd, dev))
             parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
         else:
+            self.cur_out_file = None
+            self.cur_task_items["taskname"] = 'growisofs-direct'
+            self.cur_task_items["taskfile"] = None
+            self.cur_task_items["taskdirect"] = True
+
             stmsg.put_status("Running %s for %s" % (xcmd, dev))
             inp_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
 
@@ -3932,13 +4446,78 @@ class ACoreLogiDat:
             msg_line_ERROR("ERROR: could not make or run thread")
 
 
+    def do_blank(self, dev, blank_async = False, do_panes = False):
+        if do_panes or blank_async:
+            self.enable_panes(False, False)
+        stmsg = self.get_stat_wnd()
+        outdev  = os.path.realpath(dev)
+
+        msg_line_INFO('\nblanking disc in "%s" (%s)' % (dev, outdev))
+
+        xcmd = 'dvd+rw-format'
+        xcmdargs = []
+        xcmdargs.append(xcmd)
+
+        xcmdargs.append("-blank")
+        xcmdargs.append(outdev)
+
+        stmsg.put_status("Running %s for %s" % (xcmd, outdev))
+
+        parm_obj = ChildProcParams(xcmd, xcmdargs)
+        ch_proc = ChildTwoStreamReader(parm_obj, self)
+
+        if blank_async:
+            self.cur_task_items = {}
+            self.cur_task_items["taskname"] = 'blanking'
+            self.child_go(ch_proc)
+            return True
+
+        # no thread
+        is_ok = ch_proc.go_and_read()
+
+        if not is_ok:
+            m = "Failed media blank of %s with %s" % (outdev, xcmd)
+            msg_line_ERROR(m)
+            stmsg.put_status(m)
+            if do_panes:
+                self.enable_panes(True, True)
+            return False
+        else:
+            stmsg.put_status("Waiting for %s" % xcmd)
+
+        plsth = APeriodThread(
+            self.topwnd, self.topwnd_id, interval = 1, msg = "pulse")
+        plsth.start()
+
+        ch_proc.wait()
+        is_ok = ch_proc.get_status()
+
+        plsth.do_stop()
+        plsth.join()
+
+        if do_panes:
+            self.enable_panes(True, True)
+
+        if is_ok == 0:
+            m = "%s succeeded blanking %s" % (xcmd, outdev)
+            msg_line_GOOD(m)
+            stmsg.put_status(m)
+        else:
+            m = "Failed media blank of %s with %s - status %d" % (
+                outdev, xcmd, is_ok)
+            msg_line_ERROR(m)
+            stmsg.put_status(m)
+            return False
+
+        return True
+
+
     def do_target_medium_check(self, target_dev):
         stmsg = self.get_stat_wnd()
         self.target_data = None
 
         if self.working():
             stmsg.put_status("Already busy!")
-            self.enable_panes(True, True)
             return False
 
         xcmd = 'dvd+rw-mediainfo'
@@ -3955,7 +4534,6 @@ class ACoreLogiDat:
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         is_ok = ch_proc.go_and_read()
-        ch_proc.wait()
 
         if not is_ok:
             m = "Failed media check of %s with %s" % (target_dev, xcmd)
@@ -3965,14 +4543,18 @@ class ACoreLogiDat:
         else:
             stmsg.put_status("Waiting for %s" % xcmd)
 
+        ch_proc.wait()
         is_ok = ch_proc.get_status()
+
         if is_ok:
             m = "%s status %d for %s" % (xcmd, is_ok, target_dev)
-            msg_line_ERROR(m)
-            stmsg.put_status(m)
             is_ok = False
         else:
+            m = "%s succeeded for %s" % (xcmd, target_dev)
             is_ok = True
+
+        msg_line_ERROR(m)
+        stmsg.put_status(m)
 
         l1, l2, lx = ch_proc.get_read_lists()
         self.target_data = MediaDrive(target_dev)
@@ -3993,21 +4575,32 @@ class ACoreLogiDat:
         for lin in l1:
             lin = lin.rstrip()
             self.target_data.rx_add(lin)
-            msg_line_GOOD(lin)
+            if is_ok:
+                msg_line_GOOD(lin)
+            else:
+                msg_line_ERROR(lin)
 
         if not is_ok:
             self.target_data = None
+        else:
+            self.checked_media_blocks = self.target_data.get_data_item(
+                "medium freespace")
+            msg_line_INFO("Medium free blocks: %d" %
+                self.checked_media_blocks)
+            self.checked_output_devnode = os.path.realpath(target_dev)
+            st = x_lstat(self.checked_output_devnode)
+            self.checked_output_devstat = st
 
         return is_ok
 
     def do_dd_dvd_check(self, dev = None):
-        self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
 
         if self.working():
             stmsg.put_status("Already busy!")
-            self.enable_panes(True, True)
             return
+
+        self.enable_panes(False, False)
 
         if not dev and self.source and self.source.dev:
             dev = self.source.dev
@@ -4017,10 +4610,11 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
+            self.checked_input_arg = ''
             self.enable_panes(True, True)
             return
 
-        origdev = dev
+        self.checked_input_arg = origdev = dev
         realdev = os.path.realpath(dev)
         if realdev and realdev != dev:
             dev = realdev
@@ -4077,11 +4671,12 @@ class ACoreLogiDat:
 
         return 1
 
-    def do_read_child_result(self, ch_proc):
+    def read_check_inp_op_result(self, ch_proc):
         # to use message object methods
         msgo = self.get_msg_wnd()
 
         dev  = self.source.dev
+        nod  = dev
         xcmd = ch_proc.xcmd
 
         # lines with these tokens in rlin2 (below)
@@ -4106,34 +4701,45 @@ class ACoreLogiDat:
 
                 if cont:
                     continue
-                msg_INFO("VIDEO data, ops:")
-                msgo.set_mono_font()
-                msg_(" %s" % l)
-                msgo.set_default_font()
 
-            tmpdev = dev + "\n"
+                self.mono_message(
+                    prefunc = lambda : msg_INFO("VIDEO data, ops:"),
+                    monofunc = lambda : msg_(" %s" % l))
+
             voldict = {}
+
+            self.checked_input_mountpt = ''
 
             for l in rlin1:
                 lbl, sep, val = l.partition('|')
 
+                if val:
+                    val = val.rstrip(' \n\r\t')
+
                 if lbl == 'input_arg':
                     mnt, sep, nod = val.partition('|')
                     lbl = 'device node'
-                    if tmpdev == nod:
+                    self.checked_input_arg = dev
+                    if dev == nod:
                         val = nod
                     else:
-                        val = '%s is %s' % (dev, nod)
+                        if dev == mnt:
+                            val = '%s is %s' % (dev, nod)
+                        else:
+                            val = '%s (%s) is %s' % (mnt, dev, nod)
+                        self.checked_input_mountpt = mnt
                 else:
-                    voldict[lbl] = val.rstrip(' \n\r\t')
+                    voldict[lbl] = val
 
-                if val == "\n":
-                    val = "[field is not set]\n"
+                if lbl == 'filesystem_block_count':
+                    self.checked_input_blocks = int(val.strip())
 
-                msg_GOOD("DVD volume info:")
-                msgo.set_mono_font()
-                msg_(" %s: %s" % (lbl, val))
-                msgo.set_default_font()
+                if val == "":
+                    val = "[field is not set]"
+
+                self.mono_message(
+                    prefunc = lambda : msg_GOOD("DVD volume info:"),
+                    monofunc = lambda : msg_(" %s: %s\n" % (lbl, val)))
 
             # give volume info pane new data
             self.vol_wnd.set_source_info(voldict)
@@ -4145,6 +4751,10 @@ class ACoreLogiDat:
                 msg_line_ERROR(
                     "!!! %s check of '%s' FAILED code %d"
                     % (xcmd, dev, stat))
+            else:
+                self.checked_input_devnode = nod
+                st = x_lstat(self.checked_input_devnode)
+                self.checked_input_devstat = st
 
         elif stat >= 60:
             msg_line_ERROR(
