@@ -3330,7 +3330,13 @@ class ACoreLogiDat:
                 self.target.run_button.Enable(False)
             self.in_check_op = False
             if stat == 0:
-                self.do_target_check(async_blank = True)
+                target_dev = self.target.input_select_node.GetValue()
+                try:
+                    rpth = os.path.realpath(target_dev)
+                    s1 = os.stat(rpth)
+                    s2 = os.stat(self.checked_input_devnode)
+                    if s1.st_rdev != s2.st_rdev:
+                        self.do_target_check(async_blank = True)
         elif stat == 0 and chil.get_extra_data():
             # With success of read task, ready for burn task:
             # chil.get_extra_data() returns None if user option
