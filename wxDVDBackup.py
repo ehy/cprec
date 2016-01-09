@@ -3089,8 +3089,9 @@ class ACoreLogiDat:
             g.Pulse()
             return
 
-        st = x_lstat(fn)
-        if not st:
+        try:
+            st = os.stat(fn)
+        except:
             g.Pulse()
             return
 
@@ -3289,13 +3290,13 @@ class ACoreLogiDat:
 
     def do_idle(self, event):
         if self.iface_init == False:
+            self.iface_init = True
             ov = self.opt_values
             self.source.type_opt.SetSelection(ov.s_whole)
             self.source.do_opt_id_change(ov.s_whole)
             self.target.type_opt.SetSelection(ov.t_dev)
             self.target.do_opt_id_change(ov.t_dev)
             self.target_opt_id_change(ov.t_dev)
-            self.iface_init = True
 
     def do_quit(self, event):
         try:
@@ -3360,7 +3361,8 @@ class ACoreLogiDat:
                     else:
                         merr = "Media Error"
 
-                _dbg("CHILD STATUS another declined")
+                #else:
+                #    msg_line_INFO("Burn done: success")
 
             else:
                 m = "Prepared to burn backup. "
@@ -3381,7 +3383,9 @@ class ACoreLogiDat:
                     else:
                         merr = "Media Error"
 
-            _dbg("CHILD STATUS another declined -- past if/else")
+                #else:
+                #    msg_line_INFO("Burn cancelled")
+
             if merr:
                 msg_line_ERROR(merr)
                 self.get_stat_wnd().put_status(merr)
@@ -3392,12 +3396,8 @@ class ACoreLogiDat:
         elif stat != 0 and chil.get_extra_data():
             pass
 
-        _dbg("CHILD STATUS near end")
         self.cleanup_run()
-        _dbg("CHILD STATUS near end after self.cleanup_run()")
-
         self.enable_panes(True, True)
-        _dbg("CHILD STATUS near end after self.enable_panes(True,True)")
 
     # for a msg_*() invocation using monospace face -- static
     def mono_message(
@@ -3495,8 +3495,9 @@ class ACoreLogiDat:
 
                 #m = ("Child thread %s status %d, process %s %d"
                 #    % (m, st, ms, stat))
-                m = ("Child status %d" % stat)
+                m = ("Child process %s %d" % (ms, stat))
                 msg_line_INFO(m)
+                slno.put_status(m)
 
                 if not j_ok:
                     m = "Thread join() fail"
@@ -3513,8 +3514,6 @@ class ACoreLogiDat:
             elif stat == eintr and ch.is_growisofs():
                 # see comment in class ChildTwoStreamReader
                 slno.put_status("Cancelled!")
-            else:
-                slno.put_status(m)
 
             self.do_child_status(stat, ch)
 
@@ -3844,8 +3843,9 @@ class ACoreLogiDat:
         try:
             self.rm_temp(self.cur_tempfile)
         except:
-            _dbg("cleanup_run: exeption from rm_temp(self.cur_tempfile)")
+            _dbg("cleanup_run: exeption in rm_temp(self.cur_tempfile)")
         self.cur_tempfile = None
+        self.get_gauge_wnd().SetValue(0)
 
 
     def check_target_dev(self, target_dev):
