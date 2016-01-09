@@ -2994,7 +2994,7 @@ class ACoreLogiDat:
 
         rng = g.GetRange()
 
-        tot = self.checked_input_blocks * 2048
+        tot = self.checked_input_blocks << 11 # * 2048
 
         val = st.st_size * rng / tot
         g.SetValue(val)
@@ -3332,11 +3332,11 @@ class ACoreLogiDat:
             if stat == 0:
                 self.do_target_check(async_blank = True)
         elif stat == 0 and chil.get_extra_data():
-            #"""With success of read task, ready for burn task:
-            #chil.get_extra_data() returns None if user option
-            #was backup to local storage, else it returns a dict
-            #with data needed to proceed with burn.
-            #"""
+            # With success of read task, ready for burn task:
+            # chil.get_extra_data() returns None if user option
+            # was backup to local storage, else it returns a dict
+            # with data needed to proceed with burn.
+            #
             d = chil.get_extra_data()
             outf = d["target_dev"]
             mdone = None
