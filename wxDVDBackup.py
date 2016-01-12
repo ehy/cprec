@@ -197,7 +197,34 @@ def x_lstat(path, quiet = False, use_l = True):
 
 
 """
-Parameter holding object to simplify interface to child-proc classes
+ChildProcParams:
+Parameter holding object to simplify interface to ChildTwoStreamReader
+
+# ChildTwoStreamReader builds a pipeline if ChildProcParams is in fact
+# a list where ChildProcParams.fd is another ChildProcParams and so on.
+#
+# For example, like this . . .
+pipecmds = []
+pipecmds.append( ("cat", (infile,)) )
+pipecmds.append( ("sed",
+    ('-e', 's/lucy/& IN THE SKY/g', '-e', 's/kingbee/IM A & BABY/g')))
+pipecmds.append( ("tr", ('#', '*')) )
+pipecmds.append( ("tac", (None,)) )
+pipecmds.append( ("grep", ('-E', '-v', rxpatt)) )
+
+parm_obj = None
+
+for cmd, aargs in pipecmds:
+    cmdargs = []
+    cmdargs.append(cmd)
+    for arg in aargs:
+        if arg:
+            cmdargs.append(arg)
+    parm_obj = ChildProcParams(cmd, cmdargs, [], parm_obj)
+
+if parm_obj:
+    ch_proc = ChildTwoStreamReader(parm_obj)
+    is_ok = ch_proc.go_and_read()
 """
 class ChildProcParams:
     def __init__(
@@ -650,14 +677,26 @@ class ChildTwoStreamReader:
             exrfd1, exwfd1 = os.pipe()
             exrfd2, exwfd2 = os.pipe()
 
-            # do stdin if param is present
+            # do stdin, making pipeline as needed
             if self.params != None:
                 fd = self.params.infd
-                if isinstance(fd, int) and fd > -1:
-                    if fd != 0:
-                        os.dup2(self.params.infd, 0)
-                        self.params.close_infd()
-                elif isinstance(fd, ChildProcParams):
+                lastparams = self.params
+
+                # ChildProcParams may be a linked list with
+                # member infd as the next-pointer, but they
+                # need to be handled tail-first, so collect
+                # them in a list[] using .insert(0,) to reverse
+                pipelist = []
+                while isinstance(fd, ChildProcParams):
+                    pipelist.insert(0, fd)
+                    lastparams = fd
+                    fd = fd.infd
+
+                if isinstance(fd, int) and fd > 0:
+                    os.dup2(fd, 0)
+                    lastparams.close_infd()
+
+                for fd in pipelist:
                     ifd = self._mk_input_proc(fd, exwfd1, exwfd2)
                     if ifd < 0:
                         os._exit(self.exec_err_status)
@@ -3168,9 +3207,6 @@ class ACoreLogiDat:
 
         eq = self.do_devstat_check(outdev, self.checked_output_devstat)
         if not eq:
-            #m = "Target medium was changed"
-            #msg_line_WARN(m)
-            #stmsg.put_status(m)
             if not self.do_target_medium_check(outdev):
                 m = "Target medium check failed"
                 msg_line_ERROR(m)
@@ -4046,7 +4082,11 @@ class ACoreLogiDat:
     def do_burn_whole(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
         self.cur_task_items = {}
-        outdev  = dat["target_dev"]
+
+        try:
+            outdev  = os.path.realpath(dat["target_dev"])
+        except:
+            outdev  = dat["target_dev"]
         srcfile = dat["source_file"]
         dat["in_burn"] = True
 
@@ -4088,7 +4128,11 @@ class ACoreLogiDat:
     def do_burn_hier(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
         self.cur_task_items = {}
-        outdev = dat["target_dev"]
+
+        try:
+            outdev  = os.path.realpath(dat["target_dev"])
+        except:
+            outdev  = dat["target_dev"]
         srcdir = dat["source_file"]
         dat["in_burn"] = True
 
