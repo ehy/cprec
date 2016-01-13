@@ -198,7 +198,22 @@ def x_lstat(path, quiet = False, use_l = True):
 
 """
 ChildProcParams:
-Parameter holding object to simplify interface to ChildTwoStreamReader
+Parameter holding object to simplify interface to ChildTwoStreamReader.
+Arguments to constructor:
+    cmd = string, name of command; may or not be path or a simple name,
+    cmdargs = a list object with args -- [0] must be set as usual,
+    cmdenv = any environment variables to be set for the process:
+        this may be a map ('dict') with the variable as key and value
+        as the value, or either a tuple or list of 2-tuples, each
+        of which has the variable at the zero index and value at one,
+    stdin_fd = if present and not None this may be a readable integer
+        file descriptor that will serve as input for the process, or
+        another ChildProcParams object as part of a linked list that
+        will create a process pipline (see below), or a string with a
+        filename to be opened for reading (unchecked); if this is not
+        given or is None then /dev/null will be opened for use;
+        finally, the ChildProcParams object will only close descriptors
+        opened herein -- i.e., a name string or None or not given.
 
 # ChildTwoStreamReader builds a pipeline if ChildProcParams is in fact
 # a list where ChildProcParams.fd is another ChildProcParams and so on.
@@ -214,35 +229,47 @@ pipecmds.append( ("grep", ('-E', '-v', rxpatt), {}) )
 pipecmds.append( ("sort", (), {"LC_ALL":"C"}) )
 pipecmds.append( ("uniq", (), {}) )
 
-# 1st input; os.close() is handled so don't do that
-parm_obj = os.open(infile, os.O_RDONLY)
+parm_obj = in_fd = os.open(infile, os.O_RDONLY)
 
 for cmd, aargs, envmap in pipecmds:
-    cmdargs = []
-    cmdargs.append(cmd)
+    cmdargs = [cmd]
     for arg in aargs:
         cmdargs.append(arg)
-    parm_obj = ChildProcParams(cmd, cmdargs, envmap, parm_obj)
+    try:
+        parm_obj = ChildProcParams(cmd, cmdargs, cmdenv, parm_obj)
+    except ChildProcParams.BadParam, strmsg:
+        PutMsgLineERROR("Exception '%s'" % strmsg)
+        exit(1)
 
 if parm_obj:
     ch_proc = ChildTwoStreamReader(parm_obj)
     is_ok = ch_proc.go_and_read()
+    status = ch_proc.wait()
+os.close(in_fd)
 """
 class ChildProcParams:
     def __init__(
-        self, cmd = None, cmdargs = None, cmdenv = None, stdin_fd = None
+        self, cmd, cmdargs = None, cmdenv = None, stdin_fd = None
         ):
         self.xcmd = cmd
 
-        if cmdargs != None:
+        if isinstance(cmdargs, list):
             self.xcmdargs = cmdargs
+        elif cmdargs == None:
+            self.xcmdargs = [cmd]
         else:
-            self.xcmdargs = []
+            self.__except_init()
+            raise ChildProcParams.BadParam, "cmdargs is wrong type"
 
-        if cmdenv != None:
+        if (isinstance(cmdenv, list) or
+            isinstance(cmdenv, dict) or
+            isinstance(cmdenv, tuple)):
             self.xcmdenv = cmdenv
-        else:
+        elif cmdenv == None:
             self.xcmdenv = []
+        else:
+            self.__except_init()
+            raise ChildProcParams.BadParam, "cmdenv is wrong type"
 
         if isinstance(stdin_fd, str):
             self.infd = os.open(stdin_fd, os.O_RDONLY)
@@ -256,20 +283,35 @@ class ChildProcParams:
             self.infd = stdin_fd
             self.infd_opened = False
             self.proc_input  = True
-        else:
+        elif stdin_fd == None:
             self.infd = os.open(os.devnull, os.O_RDONLY)
             self.infd_opened = True
             self.proc_input  = False
+        else:
+            self.__except_init()
+            raise ChildProcParams.BadParam, "stdin_fd is wrong type"
 
     def __del__(self):
         if self.infd_opened and self.infd > -1:
             os.close(self.infd)
+
+    def __except_init(self):
+        self.xcmd = None
+        self.xcmdargs = None
+        self.xcmdenv = None
+        self.infd = None
+        self.infd_opened = False
+        self.proc_input  = False
 
     def close_infd(self):
         if self.infd_opened and self.infd > -1:
             os.close(self.infd)
         self.infd_opened = False
         self.infd = -1
+
+    class BadParam(Exception):
+        def __init__(self, args):
+            Exception.__init__(self, args)
 
 
 """
