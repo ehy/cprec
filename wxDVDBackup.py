@@ -205,22 +205,24 @@ Parameter holding object to simplify interface to ChildTwoStreamReader
 #
 # For example, like this . . .
 pipecmds = []
-pipecmds.append( ("cat", (infile,)) )
+pipecmds.append( ("cat", (), {}) )
 pipecmds.append( ("sed",
-    ('-e', 's/lucy/& IN THE SKY/g', '-e', 's/kingbee/IM A & BABY/g')))
-pipecmds.append( ("tr", ('#', '*')) )
-pipecmds.append( ("tac", (None,)) )
-pipecmds.append( ("grep", ('-E', '-v', rxpatt)) )
+    ('-e', 's/lucy/& IN THE SKY/g', '-e', 's/kingbee/IM A & BABY/g'),
+     {}) )
+pipecmds.append( ("tr", ('#', '*'), {}) )
+pipecmds.append( ("grep", ('-E', '-v', rxpatt), {}) )
+pipecmds.append( ("sort", (), {"LC_ALL":"C"}) )
+pipecmds.append( ("uniq", (), {}) )
 
-parm_obj = None
+# 1st input; os.close() is handled so don't do that
+parm_obj = os.open(infile, os.O_RDONLY)
 
-for cmd, aargs in pipecmds:
+for cmd, aargs, envmap in pipecmds:
     cmdargs = []
     cmdargs.append(cmd)
     for arg in aargs:
-        if arg:
-            cmdargs.append(arg)
-    parm_obj = ChildProcParams(cmd, cmdargs, [], parm_obj)
+        cmdargs.append(arg)
+    parm_obj = ChildProcParams(cmd, cmdargs, envmap, parm_obj)
 
 if parm_obj:
     ch_proc = ChildTwoStreamReader(parm_obj)
@@ -727,8 +729,7 @@ class ChildTwoStreamReader:
 
                 self._child_sigs_defaults()
                 try:
-                    for envtuple in self.xcmdenv:
-                        os.environ[envtuple[0]] = envtuple[1]
+                    self._putenv_cntnr(self.xcmdenv)
                     if is_path:
                         os.execv(self.xcmd, self.xcmdargs)
                     else:
@@ -880,8 +881,7 @@ class ChildTwoStreamReader:
 
             self._child_sigs_defaults()
             try:
-                for envtuple in xcmdenv:
-                    os.environ[envtuple[0]] = envtuple[1]
+                self._putenv_cntnr(xcmdenv)
                 if is_path:
                     os.execv(xcmd, xcmdargs)
                 else:
@@ -895,6 +895,18 @@ class ChildTwoStreamReader:
             os.close(wfd)
 
         return rfd
+
+    def _putenv_cntnr(self, cntnr):
+        try:
+            if (isinstance(cntnr, tuple) or
+                isinstance(cntnr, list)):
+                for envtuple in cntnr:
+                    os.environ[envtuple[0]] = envtuple[1]
+            elif isinstance(cntnr, dict):
+                for k in cntnr:
+                    os.environ[k] = cntnr[k]
+        except:
+            pass
 
     def null_cb_go_and_read(self, n, s):
         """Default callback for go_and_read()
@@ -4301,9 +4313,9 @@ class ACoreLogiDat:
 
         xcmdargs.append(dev)
         xcmdargs.append(outf)
-        xcmdenv = []
-        xcmdenv.append( ('CPREC_LINEBUF', 'true') )
-        xcmdenv.append( ('DDD_LINEBUF', 'true') )
+        xcmdenv = [
+            ('CPREC_LINEBUF', 'true'), ('DDD_LINEBUF', 'true')
+            ]
 
         stmsg.put_status("Running %s for %s" % (xcmd, origdev))
 
@@ -4414,9 +4426,9 @@ class ACoreLogiDat:
         xcmdargs.append(dev)
         if not is_direct:
             xcmdargs.append(outf)
-        xcmdenv = []
-        xcmdenv.append( ('CPREC_LINEBUF', 'true') )
-        xcmdenv.append( ('DDD_LINEBUF', 'true') )
+        xcmdenv = [
+            ('CPREC_LINEBUF', 'true'), ('DDD_LINEBUF', 'true')
+            ]
 
         if not is_direct:
             self.cur_task_items["taskdirect"] = False
@@ -4506,7 +4518,7 @@ class ACoreLogiDat:
 
 
     def do_blank(self, dev, blank_async = False, do_panes = False):
-        if do_panes or blank_async:
+        if do_panes:
             self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
         outdev  = os.path.realpath(dev)
@@ -4532,6 +4544,10 @@ class ACoreLogiDat:
             return True
 
         # no thread
+        #plsth = APeriodThread(
+        #    self.topwnd, self.topwnd_id, 0.5, "pulse")
+        #plsth.start()
+
         is_ok = ch_proc.go_and_read()
 
         if not is_ok:
@@ -4540,19 +4556,17 @@ class ACoreLogiDat:
             stmsg.put_status(m)
             if do_panes:
                 self.enable_panes(True, True)
+            #plsth.do_stop()
+            #plsth.join()
             return False
         else:
             stmsg.put_status("Waiting for %s" % xcmd)
 
-        plsth = APeriodThread(
-            self.topwnd, self.topwnd_id, interval = 1, msg = "pulse")
-        plsth.start()
-
         ch_proc.wait()
         is_ok = ch_proc.get_status()
 
-        plsth.do_stop()
-        plsth.join()
+        #plsth.do_stop()
+        #plsth.join()
 
         if do_panes:
             self.enable_panes(True, True)
