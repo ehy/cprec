@@ -320,7 +320,7 @@ Exec a child process, when both its stdout and stderr are wanted --
 Method go() (see comment there) returns read fd on which child
     stdout lines have prefix "1: " and stderr has "2: " and anything
     else is a message from an auxiliary child (none at present)
-Method ForkItRead() (see comment there) invokes go() and reads and
+Method go_and_read() (see comment there) invokes go() and reads and
     stores lines of outputs in three arrays which can be retrieved
     with get_read_lists() -- after which reset_read_lists() can be
     called if object is to be used again.
@@ -358,12 +358,18 @@ class ChildTwoStreamReader:
         signal.SIGPIPE
     )
 
-    def __init__(self, child_params = None,
-                 gist = None, line_rdsize = 4096):
+    def __init__(self,
+                 child_params = None,
+                 gist = None,
+                 line_rdsize = 4096):
         # I've read that file.readline(*size*) requires a non-zero
         # *size* arg to reliably return "" *only* on EOF
         # (which is needed)
         self.szlin = line_rdsize
+
+        # If this is not None, it is invoked in dtor, e.g. for cleanup;
+        # No ctor param to set it -- use set_dtor_lambda()
+        self.dtor_lambda = None
 
         self.params = child_params
         self.core_ld = gist
@@ -397,9 +403,12 @@ class ChildTwoStreamReader:
 
 
     def __del__(self):
-        """FPO
-        """
-        pass
+        if self.dtor_lambda != None:
+            self.dtor_lambda()
+
+
+    def set_dtor_lambda(self, procobj):
+        self.dtor_lambda = procobj
 
 
 
@@ -2814,6 +2823,7 @@ class ACoreLogiDat:
     def __init__(self):
         self.source = None
         self.target = None
+        self.panes_enabled = True
 
         self.gauge_wnd = None
         self.msg_wnd = None
@@ -2887,7 +2897,11 @@ class ACoreLogiDat:
 
 
     def enable_panes(self, benable, rest = False):
-        non = (self.target.run_button, None)
+        if self.panes_enabled == benable:
+            return
+        self.panes_enabled = benable
+
+        non = (self.target.run_button, )
 
         if rest:
             self.source.restore_all(non)
@@ -3499,7 +3513,7 @@ class ACoreLogiDat:
             pass
 
         self.cleanup_run()
-        self.enable_panes(True, True)
+        #self.enable_panes(True, True)
 
     # for a msg_*() invocation using monospace face -- static
     def mono_message(
@@ -3675,7 +3689,7 @@ class ACoreLogiDat:
 
         self.cleanup_run()
         self.target.set_run_label()
-        #self.enable_panes(True, True)
+        ##self.enable_panes(True, True)
 
 
     #
@@ -4277,7 +4291,7 @@ class ACoreLogiDat:
 
 
     def do_cprec_run(self, target_dev, dev = None):
-        self.enable_panes(False, False)
+        #self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
         self.cur_task_items = {}
 
@@ -4289,7 +4303,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         origdev = dev
@@ -4312,7 +4326,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         devname = os.path.split(origdev)[1]
@@ -4329,10 +4343,10 @@ class ACoreLogiDat:
                 outf = self.get_outfile(target_dev)
                 self.target.set_target_text(outf)
             if outf == False:
-                self.enable_panes(True, True)
+                #self.enable_panes(True, True)
                 return
         except:
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         msg_line_INFO('using target directory "%s"' % outf)
@@ -4379,7 +4393,7 @@ class ACoreLogiDat:
 
 
     def do_dd_dvd_run(self, target_dev, dev = None):
-        self.enable_panes(False, False)
+        #self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
         self.cur_task_items = {}
 
@@ -4391,7 +4405,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         origdev = dev
@@ -4417,7 +4431,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         devname = os.path.split(origdev)[1]
@@ -4438,7 +4452,7 @@ class ACoreLogiDat:
             elif is_direct:
                 outdev = self.check_target_dev(target_dev)
                 if not outdev:
-                    self.enable_panes(True, True)
+                    #self.enable_panes(True, True)
                     return
                 outf = self.get_outfile(target_dev)
             else:
@@ -4446,10 +4460,10 @@ class ACoreLogiDat:
                 self.target.set_target_text(outf)
                 is_gr = False
             if outf == False:
-                self.enable_panes(True, True)
+                #self.enable_panes(True, True)
                 return
         except:
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         if not is_direct:
@@ -4540,7 +4554,7 @@ class ACoreLogiDat:
 
             msg_line_ERROR(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         if cb == None:
@@ -4561,7 +4575,8 @@ class ACoreLogiDat:
 
     def do_blank(self, dev, blank_async = False, do_panes = False):
         if do_panes:
-            self.enable_panes(False, False)
+            ##self.enable_panes(False, False)
+            pass
         stmsg = self.get_stat_wnd()
         outdev  = os.path.realpath(dev)
 
@@ -4597,7 +4612,8 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             if do_panes:
-                self.enable_panes(True, True)
+                ##self.enable_panes(True, True)
+                pass
             #plsth.do_stop()
             #plsth.join()
             return False
@@ -4611,7 +4627,8 @@ class ACoreLogiDat:
         #plsth.join()
 
         if do_panes:
-            self.enable_panes(True, True)
+            ##self.enable_panes(True, True)
+            pass
 
         if is_ok == 0:
             m = "%s succeeded blanking %s" % (xcmd, outdev)
@@ -4716,7 +4733,7 @@ class ACoreLogiDat:
             stmsg.put_status("Already busy!")
             return
 
-        self.enable_panes(False, False)
+        #self.enable_panes(False, False)
 
         if not dev and self.source and self.source.dev:
             dev = self.source.dev
@@ -4727,7 +4744,7 @@ class ACoreLogiDat:
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
             self.checked_input_arg = ''
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         self.checked_input_arg = origdev = dev
@@ -4753,7 +4770,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
-            self.enable_panes(True, True)
+            #self.enable_panes(True, True)
             return
 
         devname = os.path.split(origdev)[1]
