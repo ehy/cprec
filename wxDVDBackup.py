@@ -3068,6 +3068,9 @@ class ACoreLogiDat:
             return True
         return False
 
+    # update_working* below are for busy updates to gauge
+    # and status bar
+
     def update_working_gauge(self):
         if not self.cur_task_items:
             return
@@ -3220,8 +3223,7 @@ class ACoreLogiDat:
 
         idx = self.work_msg_last_idx
         stat_wnd.put_status(self.work_msgs[idx])
-        idx = (idx + 1) % len(self.work_msgs)
-        self.work_msg_last_idx = idx
+        self.work_msg_last_idx = (idx + 1) % len(self.work_msgs)
 
     def update_working_msg(self, stat_wnd = None):
         last = self.work_msg_last_int
@@ -3231,6 +3233,8 @@ class ACoreLogiDat:
         if per >= self.work_msg_interval:
             self.work_msg_last_int = cur
             self.working_msg(stat_wnd)
+
+    # various device/medium checks:
 
     # stat dev and compare time with time tuple (mtime, ctime)
     def do_devtime_check(self, dev, stato):
@@ -3343,11 +3347,6 @@ class ACoreLogiDat:
         return True
 
 
-    def do_check(self, dev):
-        self.reset_source_data()
-        self.do_dd_dvd_check(dev)
-
-
     def do_target_check(self,
                         target_dev = None,
                         async_blank = False,
@@ -3379,6 +3378,7 @@ class ACoreLogiDat:
 
         self.reset_target_data()
 
+    # misc. procedures
 
     def reset_source_data(self):
         self.checked_input_blocks  = 0
@@ -3447,6 +3447,7 @@ class ACoreLogiDat:
                         self.do_target_check(async_blank = True)
                 except:
                     pass
+
         elif stat == 0 and chil.get_extra_data():
             # With success of read task, ready for burn task:
             # chil.get_extra_data() returns None if user option
@@ -3473,6 +3474,7 @@ class ACoreLogiDat:
                     if self.checked_output_devnode:
                         d["target_dev"] = self.checked_output_arg
                         if self.do_burn(chil, d):
+                            msg_line_INFO("Additional burn started.")
                             return
                     else:
                         merr = "Media Error"
@@ -3492,7 +3494,7 @@ class ACoreLogiDat:
                     if self.checked_output_devnode:
                         d["target_dev"] = self.checked_output_arg
                         if self.do_burn(chil, d):
-                            msg_line_GOOD("Burn started.")
+                            msg_line_INFO("Burn started.")
                             return
                         else:
                             merr = "Burn Failed"
@@ -3513,7 +3515,7 @@ class ACoreLogiDat:
             pass
 
         self.cleanup_run()
-        #self.enable_panes(True, True)
+        self.enable_panes(True, True)
 
     # for a msg_*() invocation using monospace face -- static
     def mono_message(
@@ -3626,8 +3628,7 @@ class ACoreLogiDat:
 
             if stat == 0:
                 slno.put_status("Success!")
-            elif stat == eintr and ch.is_growisofs():
-                # see comment in class ChildTwoStreamReader
+            elif bsig or (stat == eintr and ch.is_growisofs()):
                 slno.put_status("Cancelled!")
             else:
                 slno.put_status("Failed!")
@@ -3667,30 +3668,6 @@ class ACoreLogiDat:
         if typ == "choiceindex":
             # use 'sty' argument as default text
             return wx.GetSingleChoiceIndex(msg, PROG, sty, self.topwnd)
-
-    def do_cancel(self, quiet = False):
-        is_gr = False
-
-        if self.working():
-            ch = self.get_child_from_thread()
-            ch.kill(signal.SIGUSR1)
-            is_gr = ch.is_growisofs()
-
-        if not quiet:
-            m = "Operation cancelled"
-            msg_line_INFO(m)
-            self.get_stat_wnd().put_status(m)
-            if is_gr:
-                m = "Please give burn process (growisofs) time "
-                m = m + "to exit cleanly -- do not kill it\nor "
-                m = m + "the burner drive might be left unusable "
-                m = m + "until reboot"
-                msg_line_INFO(m)
-
-        self.cleanup_run()
-        self.target.set_run_label()
-        ##self.enable_panes(True, True)
-
 
     #
     # Utilities to help with files and directories
@@ -3966,7 +3943,7 @@ class ACoreLogiDat:
 
 
     def check_target_dev(self, target_dev):
-        st = x_lstat(target_dev, False, False)
+        st = x_lstat(target_dev, True, False)
         if not st or not (
                 stat.S_ISCHR(st.st_mode) or
                 stat.S_ISBLK(st.st_mode)):
@@ -3990,6 +3967,37 @@ class ACoreLogiDat:
     # Procedures to run the work tasks
     #
 
+    def do_check(self, dev):
+        self.reset_source_data()
+        self.enable_panes(False, False)
+        if not self.do_dd_dvd_check(dev):
+            self.enable_panes(True, True)
+
+
+    def do_cancel(self, quiet = False):
+        is_gr = False
+
+        if self.working():
+            ch = self.get_child_from_thread()
+            ch.kill(signal.SIGUSR1)
+            is_gr = ch.is_growisofs()
+
+        if not quiet:
+            m = "Operation cancelled"
+            msg_line_INFO(m)
+            self.get_stat_wnd().put_status(m)
+            if is_gr:
+                m = "Please give burn process (growisofs) time "
+                m = m + "to exit cleanly -- do not kill it\nor "
+                m = m + "the burner drive might be left unusable "
+                m = m + "until reboot"
+                msg_line_INFO(m)
+
+        self.cleanup_run()
+        self.target.set_run_label()
+        self.enable_panes(True, True)
+
+
     def do_run(self, target_dev):
         if self.target.get_cancel_mode():
             self.do_cancel()
@@ -4002,11 +4010,26 @@ class ACoreLogiDat:
 
         if self.get_is_whole_backup():
             if self.get_is_dev_direct_target():
-                if not self.do_burn_pre_check():
+                if not target_dev:
+                    m = "Please set a target device (with disc) " \
+                        "and click the 'Check settings' button"
+                    msg_line_ERROR(m)
+                    self.dialog(m, "msg")
                     return
-            self.do_dd_dvd_run(target_dev)
+                if not self.do_burn_pre_check():
+                    m = "Please be sure the source and target " \
+                        "do not change after the Check button"
+                    msg_line_ERROR(m)
+                    self.dialog(m, "msg")
+                    return
+
+            self.enable_panes(False, False)
+            if not self.do_dd_dvd_run(target_dev):
+                self.enable_panes(True, True)
         elif self.get_is_hier_backup():
-            self.do_cprec_run(target_dev)
+            self.enable_panes(False, False)
+            if not self.do_cprec_run(target_dev):
+                self.enable_panes(True, True)
         else:
             msg_line_ERROR("ERROR: internal inconsistency, not good")
 
@@ -4030,14 +4053,17 @@ class ACoreLogiDat:
         typ = dat["source_type"]
 
         if typ == "hier":
-            self.do_burn_hier(ch_proc, dat)
+            do_it = self.do_burn_hier(ch_proc, dat)
         elif typ == "whole":
-            self.do_burn_whole(ch_proc, dat)
+            do_it = self.do_burn_whole(ch_proc, dat)
         else:
             msg_line_ERROR(typ)
             return False
 
-        return True
+        if do_it:
+            self.enable_panes(False, False)
+
+        return do_it
 
     def get_speed_select_prompt(self):
         if self.target_data == None:
@@ -4093,7 +4119,8 @@ class ACoreLogiDat:
     def get_burn_speed(self, procname):
         if self.target_data:
             spds = self.target_data.get_write_speeds()
-        else:
+
+        if not self.target_data or len(spds) < 1:
             spds = (2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 18.0)
         chcs = []
 
@@ -4101,7 +4128,7 @@ class ACoreLogiDat:
             chcs.append("%g (~ %gKB/s)" % (s, s * 1385))
 
         nnumeric = len(chcs)
-        ndefchoice = 2
+        ndefchoice = nnumeric / 2
         inc = 0
 
         chcs.append("%s default" % procname)
@@ -4110,10 +4137,12 @@ class ACoreLogiDat:
         chcs.append("Enter a speed")
         ent_idx = nnumeric + inc
         inc += 1
-        if self.last_burn_speed != False:
+        if self.last_burn_speed:
             chcs.append("Use same speed as last burn")
             last_idx = nnumeric + inc
             inc += 1
+        else:
+            last_idx = -1
         chcs.append("Cancel burn")
         cnc_idx = nnumeric + inc
         inc += 1
@@ -4173,7 +4202,7 @@ class ACoreLogiDat:
         spd = self.get_burn_speed(xcmd)
         if spd == False:
             self.do_cancel()
-            return
+            return False
         if spd:
             xcmdargs.append("-speed=%s" % spd)
 
@@ -4192,6 +4221,7 @@ class ACoreLogiDat:
         ch_proc.set_growisofs()
 
         self.child_go(ch_proc)
+        return True
 
     def do_burn_hier(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
@@ -4219,7 +4249,7 @@ class ACoreLogiDat:
         spd = self.get_burn_speed(xcmd)
         if spd == False:
             self.do_cancel()
-            return
+            return False
         if spd:
             xcmdargs.append("-speed=%s" % spd)
 
@@ -4288,10 +4318,10 @@ class ACoreLogiDat:
         ch_proc.set_growisofs()
 
         self.child_go(ch_proc)
+        return True
 
 
     def do_cprec_run(self, target_dev, dev = None):
-        #self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
         self.cur_task_items = {}
 
@@ -4303,8 +4333,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
-            #self.enable_panes(True, True)
-            return
+            return False
 
         origdev = dev
         realdev = os.path.realpath(dev)
@@ -4326,8 +4355,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
-            #self.enable_panes(True, True)
-            return
+            return False
 
         devname = os.path.split(origdev)[1]
         stmsg.put_status("")
@@ -4343,11 +4371,9 @@ class ACoreLogiDat:
                 outf = self.get_outfile(target_dev)
                 self.target.set_target_text(outf)
             if outf == False:
-                #self.enable_panes(True, True)
-                return
+                return False
         except:
-            #self.enable_panes(True, True)
-            return
+            return False
 
         msg_line_INFO('using target directory "%s"' % outf)
 
@@ -4390,10 +4416,10 @@ class ACoreLogiDat:
             ch_proc.set_extra_data(dat)
 
         self.child_go(ch_proc)
+        return True
 
 
     def do_dd_dvd_run(self, target_dev, dev = None):
-        #self.enable_panes(False, False)
         stmsg = self.get_stat_wnd()
         self.cur_task_items = {}
 
@@ -4405,8 +4431,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
-            #self.enable_panes(True, True)
-            return
+            return False
 
         origdev = dev
         realdev = os.path.realpath(dev)
@@ -4431,8 +4456,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
-            #self.enable_panes(True, True)
-            return
+            return False
 
         devname = os.path.split(origdev)[1]
         stmsg.put_status("")
@@ -4452,19 +4476,16 @@ class ACoreLogiDat:
             elif is_direct:
                 outdev = self.check_target_dev(target_dev)
                 if not outdev:
-                    #self.enable_panes(True, True)
-                    return
+                    return False
                 outf = self.get_outfile(target_dev)
             else:
                 ofd, outf = self.get_outfile(target_dev)
                 self.target.set_target_text(outf)
                 is_gr = False
             if outf == False:
-                #self.enable_panes(True, True)
-                return
+                return False
         except:
-            #self.enable_panes(True, True)
-            return
+            return False
 
         if not is_direct:
             msg_line_INFO('using target fs image file "%s"' % outf)
@@ -4505,8 +4526,8 @@ class ACoreLogiDat:
 
             spd = self.get_burn_speed(ycmd)
             if spd == False:
-                self.do_cancel()
-                return
+                #self.do_cancel()
+                return False
             if spd:
                 ycmdargs.append("-speed=%s" % spd)
 
@@ -4523,7 +4544,8 @@ class ACoreLogiDat:
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         if is_gr:
-            ch_proc.set_growisofs()
+            #ch_proc.set_growisofs()
+            pass
 
         if to_dev:
             """Set data so that writer may be run if this succeeds
@@ -4540,6 +4562,8 @@ class ACoreLogiDat:
         if ofd > -1:
             os.close(ofd)
 
+        return True
+
 
     def child_go(self, ch_proc, is_check_op = False, cb = None):
         fpid, rfd = ch_proc.go()
@@ -4554,7 +4578,6 @@ class ACoreLogiDat:
 
             msg_line_ERROR(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
-            #self.enable_panes(True, True)
             return
 
         if cb == None:
@@ -4573,10 +4596,7 @@ class ACoreLogiDat:
             msg_line_ERROR("ERROR: could not make or run thread")
 
 
-    def do_blank(self, dev, blank_async = False, do_panes = False):
-        if do_panes:
-            ##self.enable_panes(False, False)
-            pass
+    def do_blank(self, dev, blank_async = False):
         stmsg = self.get_stat_wnd()
         outdev  = os.path.realpath(dev)
 
@@ -4611,11 +4631,6 @@ class ACoreLogiDat:
             m = "Failed media blank of %s with %s" % (outdev, xcmd)
             msg_line_ERROR(m)
             stmsg.put_status(m)
-            if do_panes:
-                ##self.enable_panes(True, True)
-                pass
-            #plsth.do_stop()
-            #plsth.join()
             return False
         else:
             stmsg.put_status("Waiting for %s" % xcmd)
@@ -4625,10 +4640,6 @@ class ACoreLogiDat:
 
         #plsth.do_stop()
         #plsth.join()
-
-        if do_panes:
-            ##self.enable_panes(True, True)
-            pass
 
         if is_ok == 0:
             m = "%s succeeded blanking %s" % (xcmd, outdev)
@@ -4731,9 +4742,7 @@ class ACoreLogiDat:
 
         if self.working():
             stmsg.put_status("Already busy!")
-            return
-
-        #self.enable_panes(False, False)
+            return False
 
         if not dev and self.source and self.source.dev:
             dev = self.source.dev
@@ -4744,8 +4753,7 @@ class ACoreLogiDat:
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
             self.checked_input_arg = ''
-            #self.enable_panes(True, True)
-            return
+            return False
 
         self.checked_input_arg = origdev = dev
         realdev = os.path.realpath(dev)
@@ -4770,8 +4778,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
-            #self.enable_panes(True, True)
-            return
+            return False
 
         devname = os.path.split(origdev)[1]
 
@@ -4790,6 +4797,7 @@ class ACoreLogiDat:
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         self.child_go(ch_proc, True, self.read_child_in_thread)
+        return True
 
     # child thread callback -- don't invoke directly
     def read_child_in_thread(self, pid_fd_tuple):
