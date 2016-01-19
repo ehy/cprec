@@ -37,8 +37,14 @@ import tempfile
 import threading
 import time
 import wx
+# from wxPython samples
 import wx.lib.mixins.listctrl as listmix
 from wx.lib.embeddedimage import PyEmbeddedImage
+try:
+    import wx.lib.agw.multidirdialog as MDD
+except:
+    pass
+# end from wxPython samples
 
 """
     Global data
@@ -1025,6 +1031,107 @@ class ChildTwoStreamReader:
 
         fr.close()
         return True
+
+
+"""
+RepairedMDDialog -- a multi-directory selection dialog, deriving
+                    from wxPython:agw.MultiDirDialog to repair
+                    broken GTK2 implementation of underlying
+                    wxTreeCtrl by removing misguided false items
+                    "Home directory" etc. -- also repairs bug
+                    in wxPython:agw.MultiDirDialog that returns
+                    items under '/' prefixed with '//'
+"""
+class RepairedMDDialog(MDD.MultiDirDialog):
+    bugstr = ('Home Directory', 'Home directory', 'Desktop',
+              'Macintosh HD')
+
+    def __init__(self, parent, prompt, defpath, agwstyle):
+        MDD.MultiDirDialog.__init__(self,
+            parent, title = prompt,
+            defaultPath = defpath,
+            agwStyle = agwstyle)
+
+        self.__repair_tree()
+
+    def __repair_tree(self):
+        if "HOME" in os.environ:
+            init_dir = os.environ["HOME"]
+        else:
+            # Give up right here
+            return
+
+        bug = self.bugstr
+        dir_ctrl = self.dirCtrl
+        treectrl = dir_ctrl.GetTreeCtrl()
+
+        item_id = treectrl.GetFirstVisibleItem()
+
+        # WTF?
+        if treectrl.GetItemText(item_id) == 'Sections':
+            (item_id, cookie) = treectrl.GetFirstChild(item_id)
+
+        rm_items = []
+
+        while item_id:
+            lbl = treectrl.GetItemText(item_id)
+            if lbl == 'Desktop':
+                rm_items.append(item_id)
+            elif lbl in bug:
+                treectrl.SetItemText(item_id, init_dir)
+            item_id = treectrl.GetNextSibling(item_id)
+
+        for item_id in rm_items:
+            treectrl.DeleteChildren(item_id)
+            treectrl.Delete(item_id)
+
+
+    def GetRepairedPaths(self):
+        if "HOME" in os.environ:
+            init_dir = os.environ["HOME"]
+        else:
+            init_dir = False
+
+        bug = self.bugstr
+        # Handle bugs and implementation flaws:
+        # wxTreeCtrl is misguidedly flawed in that it
+        # always starts with items "Home directory" and
+        # "Desktop" and actually returns those strings
+        # without translation to a real filesystem name,
+        # which is *massively* brain dead^W^WThe Wrong Thing.
+        # Also, from MDD.MultiDirDialog, full Unix
+        # paths are returned starting with '//' (rather
+        # than '/').
+        # Therefore, partially work around with replacement;
+        # but this can easily break -- in fact I guess the
+        # brain dead strings are subject to i18 translation --
+        # Ah ha, there is a 'ticket' open on this:
+        #   http://trac.wxwidgets.org/ticket/17190
+        # As of this writing, 2016/01/19, trac says "three months ago"
+        # (instead of giving a date: sheesh) and there is
+        # no sign of anyone having looked at this.
+        pts = self.GetPaths()
+        for i in range(len(pts)):
+            p = pts[i]
+            if p[:2] == '//':
+                p = p.replace('//', '/')
+            else:
+                for misguided in bug:
+                    if p[:len(misguided)] == misguided:
+                        if init_dir:
+                            p = p.replace(misguided, init_dir)
+                        else:
+                            m = "'HOME' env. var. needed; not found"
+                            raise RepairedMDDialog.Unfixable, m
+                        break
+
+            pts[i] = p
+
+        return pts
+
+    class Unfixable(Exception):
+        def __init__(self, args):
+            Exception.__init__(self, args)
 
 
 """
@@ -2130,17 +2237,51 @@ class ASourcePanePanel(wx.Panel):
 
 
     def on_button_addl_dirs(self, event):
-        dlg = wx.DirDialog(
-            self.parent,
-            "Select Additional Directories",
-            "",
-            wx.DD_DIR_MUST_EXIST
-        )
+        if "HOME" in os.environ:
+            init_dir = os.environ["HOME"]
+        else:
+            init_dir = "/"
 
-        if dlg.ShowModal() != wx.ID_OK:
-            return
+        try:
+            dlg = RepairedMDDialog(
+                self.parent,
+                "Select Additional Directories",
+                init_dir,
+                wx.DD_DIR_MUST_EXIST | MDD.DD_MULTIPLE
+            )
 
-        self.addl_list_ctrl.add_multi_files([dlg.GetPath()])
+            resp = dlg.ShowModal()
+
+            if resp != wx.ID_OK:
+                dlg.Destroy()
+                return
+
+            try:
+                pts = dlg.GetRepairedPaths()
+            except RepairedMDDialog.Unfixable, msg:
+                msg_line_WARN(msg)
+                dlg.Destroy()
+                raise Exception, msg
+
+            self.addl_list_ctrl.add_multi_files(pts)
+            dlg.Destroy()
+
+        except:
+            dlg = wx.DirDialog(
+                self.parent,
+                "Select Additional Directories",
+                init_dir,
+                wx.DD_DIR_MUST_EXIST
+            )
+
+            resp = dlg.ShowModal()
+
+            if resp != wx.ID_OK:
+                dlg.Destroy()
+                return
+
+            self.addl_list_ctrl.add_multi_files([dlg.GetPath()])
+            dlg.Destroy()
 
 
     def on_button_addl_rmsel(self, event):
@@ -4065,12 +4206,16 @@ class ACoreLogiDat:
 
         return do_it
 
-    def get_speed_select_prompt(self):
+    def get_speed_select_prompt(self, name = None):
         if self.target_data == None:
             return "Select a speed or action from the list:"
 
         mis = self.get_drive_medium_info_string("        ")
-        pmt = "Select a speed or action from the list for drive:\n"
+        pmt = "Select a speed or action from the list for"
+        if name:
+            pmt += " %s drive:\n" % name
+        else:
+            pmt += " drive:\n"
 
         return pmt + mis
 
@@ -4118,7 +4263,11 @@ class ACoreLogiDat:
 
     def get_burn_speed(self, procname):
         if self.target_data:
+            name = self.target_data.name
             spds = self.target_data.get_write_speeds()
+
+        if not name:
+            name = 'target'
 
         if not self.target_data or len(spds) < 1:
             spds = (2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 18.0)
@@ -4147,7 +4296,7 @@ class ACoreLogiDat:
         cnc_idx = nnumeric + inc
         inc += 1
 
-        m = self.get_speed_select_prompt()
+        m = self.get_speed_select_prompt(name)
         r = self.dialog(m, "choiceindex", chcs)
 
         if r < 0:
