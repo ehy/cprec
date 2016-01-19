@@ -1043,8 +1043,7 @@ RepairedMDDialog -- a multi-directory selection dialog, deriving
                     items under '/' prefixed with '//'
 """
 class RepairedMDDialog(MDD.MultiDirDialog):
-    bugstr = ('Home Directory', 'Home directory', 'Desktop',
-              'Macintosh HD')
+    bugstr = ('Home Directory', 'Home directory', 'Desktop')
 
     def __init__(self, parent, prompt, defpath, agwstyle):
         MDD.MultiDirDialog.__init__(self,
@@ -1076,7 +1075,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
         while item_id:
             lbl = treectrl.GetItemText(item_id)
             if lbl == 'Desktop':
-                rm_items.append(item_id)
+                rm_items.insert(0, item_id)
             elif lbl in bug:
                 treectrl.SetItemText(item_id, init_dir)
             item_id = treectrl.GetNextSibling(item_id)
@@ -1111,10 +1110,21 @@ class RepairedMDDialog(MDD.MultiDirDialog):
         # (instead of giving a date: sheesh) and there is
         # no sign of anyone having looked at this.
         pts = self.GetPaths()
+        str_machd = 'Macintosh HD'
+        dir_machd = str_machd + '/'
+        len_machd = len(str_machd)
+        rm_idx = []
         for i in range(len(pts)):
             p = pts[i]
             if p[:2] == '//':
                 p = p.replace('//', '/')
+            # the 'Macintosh HD' stuff is *untested*!
+            elif p[:len_machd] == str_machd:
+                if p == str_machd or p == dir_machd:
+                    rm_idx.insert(0, i)
+                    continue
+                if p[len_machd] == '/':
+                    p = p[len_machd:]
             else:
                 for misguided in bug:
                     if p[:len(misguided)] == misguided:
@@ -1126,6 +1136,9 @@ class RepairedMDDialog(MDD.MultiDirDialog):
                         break
 
             pts[i] = p
+
+        for i in rm_idx:
+            del pts[i]
 
         return pts
 
