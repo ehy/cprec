@@ -44,6 +44,7 @@ try:
     import wx.lib.agw.multidirdialog as MDD
 except:
     pass
+_ = wx.GetTranslation
 # end from wxPython samples
 
 """
@@ -1040,19 +1041,37 @@ RepairedMDDialog -- a multi-directory selection dialog, deriving
                     wxTreeCtrl by removing misguided false items
                     "Home directory" etc. -- also repairs bug
                     in wxPython:agw.MultiDirDialog that returns
-                    items under '/' prefixed with '//'
+                    items under '/' prefixed with '//'.
+                    Furthermore, parameter defaults are tuned
+                    to my preferences.
 """
 class RepairedMDDialog(MDD.MultiDirDialog):
     bugstr = ('Home Directory', 'Home directory', 'Desktop')
 
-    def __init__(self, parent, prompt, defpath, agwstyle):
+    def __init__(self,
+                 parentwnd,
+                 prompt = _("Choose one or more directories:"),
+                 tit = _("Browse For Directories:"),
+                 defpath = '/',
+                 wxstyle = wx.DD_DEFAULT_STYLE,
+                 agwstyle = wx.DD_DIR_MUST_EXIST | MDD.DD_MULTIPLE,
+                 locus = wx.DefaultPosition,
+                 dims = wx.DefaultSize,
+                 tag = "repaired_mddialog"):
         MDD.MultiDirDialog.__init__(self,
-            parent, title = prompt,
-            defaultPath = defpath,
-            agwStyle = agwstyle)
+                                    parent = parentwnd,
+                                    message = prompt,
+                                    title = tit,
+                                    defaultPath = defpath,
+                                    style = wxstyle,
+                                    agwStyle = agwstyle,
+                                    pos = locus,
+                                    size = dims,
+                                    name = tag)
 
         self.__repair_tree()
 
+    # Private:
     def __repair_tree(self):
         if "HOME" in os.environ:
             init_dir = os.environ["HOME"]
@@ -1085,6 +1104,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
             treectrl.Delete(item_id)
 
 
+    # Use in place of GetPaths()
     def GetRepairedPaths(self):
         if "HOME" in os.environ:
             init_dir = os.environ["HOME"]
@@ -1108,7 +1128,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
         #   http://trac.wxwidgets.org/ticket/17190
         # As of this writing, 2016/01/19, trac says "three months ago"
         # (instead of giving a date: sheesh) and there is
-        # no sign of anyone having looked at this.
+        # no sign of anyone having looked at it.
         pts = self.GetPaths()
         str_machd = 'Macintosh HD'
         dir_machd = str_machd + '/'
@@ -1131,7 +1151,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
                         if init_dir:
                             p = p.replace(misguided, init_dir)
                         else:
-                            m = "'HOME' env. var. needed; not found"
+                            m = "'HOME' env. var. needed; but not found"
                             raise RepairedMDDialog.Unfixable, m
                         break
 
@@ -2258,9 +2278,8 @@ class ASourcePanePanel(wx.Panel):
         try:
             dlg = RepairedMDDialog(
                 self.parent,
-                "Select Additional Directories",
-                init_dir,
-                wx.DD_DIR_MUST_EXIST | MDD.DD_MULTIPLE
+                tit = "Select Additional Directories",
+                defpath = init_dir
             )
 
             resp = dlg.ShowModal()
