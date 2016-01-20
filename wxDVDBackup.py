@@ -190,7 +190,7 @@ def x_lstat(path, quiet = False, use_l = True):
         else:
             return os.stat(path)
     except OSError, (errno, strerror):
-        m = "Error: cannot stat '%s': '%s' (errno %d)" % (
+        m = _("Error: cannot stat '%s': '%s' (errno %d)") % (
             path, strerror, errno)
         _dbg(m)
         if not quiet:
@@ -266,7 +266,7 @@ class ChildProcParams:
             self.xcmdargs = [cmd]
         else:
             self.__except_init()
-            raise ChildProcParams.BadParam, "cmdargs is wrong type"
+            raise ChildProcParams.BadParam, _("cmdargs is wrong type")
 
         if (isinstance(cmdenv, list) or
             isinstance(cmdenv, dict) or
@@ -276,7 +276,7 @@ class ChildProcParams:
             self.xcmdenv = []
         else:
             self.__except_init()
-            raise ChildProcParams.BadParam, "cmdenv is wrong type"
+            raise ChildProcParams.BadParam, _("cmdenv is wrong type")
 
         if isinstance(stdin_fd, str):
             self.infd = os.open(stdin_fd, os.O_RDONLY)
@@ -296,7 +296,7 @@ class ChildProcParams:
             self.proc_input  = False
         else:
             self.__except_init()
-            raise ChildProcParams.BadParam, "stdin_fd is wrong type"
+            raise ChildProcParams.BadParam, _("stdin_fd is wrong type")
 
     def __del__(self):
         if self.infd_opened and self.infd > -1:
@@ -689,7 +689,7 @@ class ChildTwoStreamReader:
     """
     def go(self):
         if self.xcmd == None:
-            self.error_tuple = (0, "Internal: no child command arg")
+            self.error_tuple = (0, _("Internal: no child command arg"))
             return self.error_tuple
 
         is_path = os.path.split(self.xcmd)
@@ -1054,7 +1054,8 @@ class RepairedMDDialog(MDD.MultiDirDialog):
                  tit = _("Browse For Directories:"),
                  defpath = '/',
                  wxstyle = wx.DD_DEFAULT_STYLE,
-                 agwstyle = wx.DD_DIR_MUST_EXIST | MDD.DD_MULTIPLE,
+                 agwstyle = (MDD.DD_DIR_MUST_EXIST|
+                             MDD.DD_MULTIPLE),
                  locus = wx.DefaultPosition,
                  dims = wx.DefaultSize,
                  tag = "repaired_mddialog"):
@@ -1071,7 +1072,27 @@ class RepairedMDDialog(MDD.MultiDirDialog):
 
         self.__repair_tree()
 
-    # Private:
+    # Protected: override MDD.MultiDirDialog method
+    def CreateButtons(self):
+        import wx.lib.buttons as buttons
+
+        if self.agwStyle == 0:
+            self.newButton = buttons.ThemedGenBitmapTextButton(
+                self, wx.ID_NEW, MDD._new.GetBitmap(),
+                _("Make New Folder"), size=(-1, 28))
+        else:
+            self.newButton = wx.StaticText(
+                self, wx.ID_NEW, _("/\\_o0o_/\\"),
+                wx.DefaultPosition, wx.DefaultSize, 0)
+
+        self.okButton = buttons.ThemedGenBitmapTextButton(
+            self, wx.ID_OK, MDD._ok.GetBitmap(),
+            _("OK"), size=(-1, 28))
+        self.cancelButton = buttons.ThemedGenBitmapTextButton(
+            self, wx.ID_CANCEL, MDD._cancel.GetBitmap(),
+            _("Cancel"), size=(-1, 28))
+
+    # Private: fix the tree control
     def __repair_tree(self):
         if "HOME" in os.environ:
             init_dir = os.environ["HOME"]
@@ -1086,7 +1107,9 @@ class RepairedMDDialog(MDD.MultiDirDialog):
         item_id = treectrl.GetFirstVisibleItem()
 
         # WTF?
-        if treectrl.GetItemText(item_id) == 'Sections':
+        wtfstr = 'Sections'
+        wtflen = len(wtfstr)
+        if treectrl.GetItemText(item_id)[:wtflen] == wtfstr:
             (item_id, cookie) = treectrl.GetFirstChild(item_id)
 
         rm_items = []
@@ -1102,6 +1125,8 @@ class RepairedMDDialog(MDD.MultiDirDialog):
         for item_id in rm_items:
             treectrl.DeleteChildren(item_id)
             treectrl.Delete(item_id)
+
+        treectrl.UnselectAll()
 
 
     # Use in place of GetPaths()
@@ -2018,8 +2043,6 @@ class ASourcePanePanel(wx.Panel):
         self.bSizer1.SetMinSize(size)
 
         type_optChoices = []
-        #type_optChoices.append("whole filesystem")
-        #type_optChoices.append("filesystem hierarchy")
         type_optChoices.append("whole in one file")
         type_optChoices.append("filesystem directory")
 
@@ -2298,7 +2321,13 @@ class ASourcePanePanel(wx.Panel):
             self.addl_list_ctrl.add_multi_files(pts)
             dlg.Destroy()
 
-        except:
+        except RepairedMDDialog.Unfixable, m:
+            dlg.Destroy()
+            raise Exception, m
+
+        except Exception, m:
+            msg_line_ERROR("MDDialog exception: '%s'" % m)
+
             dlg = wx.DirDialog(
                 self.parent,
                 "Select Additional Directories",
