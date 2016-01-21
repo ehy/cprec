@@ -1655,18 +1655,29 @@ class AVolInfPanePanel(wx.Panel):
             wx.RA_SPECIFY_ROWS)
         self.type_opt.SetToolTip(
             wx.ToolTip(_(
+                "These fields allow editing of DVD volume "
+                "information when the 'new filesystem' backup "
+                "type is selected. (With the 'simple' backup type "
+                "volume information is copied as is.)\n"
+                "\n"
                 "Select whether to use DVD volume information "
                 "as found on the source DVD with \"copy from source\","
                 "or use a hand edited volume information set "
                 "with \"hand edit\".\n"
                 "\n"
                 "The hand-edit fields will remain if you change the "
-                "source disc, so it may be useful for another backup.\n"
+                "source disc, so they may be useful as a starter "
+                "for another backup.\n"
                 "\n"
                 "The \"copy from source\" fields may be edited, and "
-                "changes will apply to burns until the source disk "
-                "check ('Check' button) is done again, when these "
-                "fields will be overwritten."
+                "changes will apply to burns until the source disc "
+                "check (the 'Check' button) is done again. Then these "
+                "fields will be overwritten.\n"
+                "\n"
+                "In either case, it is best to ensure that the "
+                "'Volume ID' field has a useful value, with no spaces, "
+                "since this is often used as a label for the mounted "
+                "disc."
                 )
             ))
         self.add_child_wnd(self.type_opt)
@@ -2112,7 +2123,7 @@ class ASourcePanePanel(wx.Panel):
         self.type_opt.SetToolTip(
             wx.ToolTip(_(
             "Select the type of backup to perform: the first option "
-            "will make an exact backup copy of the disk."
+            "will make an exact backup copy of the disc."
             "\n\n"
             "The second option will copy files from the disc into a "
             "new directory, allowing additional files and directories "
