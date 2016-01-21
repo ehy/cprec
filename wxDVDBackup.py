@@ -2219,6 +2219,28 @@ class ASourcePanePanel(wx.Panel):
             wx.FLEX_GROWMODE_SPECIFIED)
 
         self.addl_list_ctrl = AFileListCtrl(self, gist)
+        self.addl_list_ctrl.SetToolTip(
+            wx.ToolTip(_(
+                "If the \"new filesystem\" backup type is selected, "
+                "additional files and directories may be included in "
+                "the backup, subject to available space remaining "
+                "after the source disc files, of course.\n"
+                "\n"
+                "For example, a serious fan of the source DVD might "
+                "like to include reference materials like locally "
+                "saved web pages, or scans of case covers, "
+                "scans of autographs, etc..\n"
+                "\n"
+                "These materials will be available when the backup "
+                "disc is mounted as an ISO-9660 filesystem.\n"
+                "\n"
+                "The buttons below the list control operate as "
+                "implied by their labels. For removal of items, the "
+                "list control allows item selection with the mouse "
+                "(use the control or shift keys for multiple "
+                "selections) or through a menu that appears if the "
+                "control receives a right button click."
+                )))
         self.add_child_wnd(self.addl_list_ctrl)
 
         self.fgSizer_extra_hier.Add(
