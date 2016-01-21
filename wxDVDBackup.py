@@ -47,11 +47,25 @@ except:
 _ = wx.GetTranslation
 # end from wxPython samples
 
+
 """
-    Global data
+    Development hacks^Wsupport
 """
 
 PROG = os.path.split(sys.argv[0])[1]
+
+if "-XGETTEXT" in sys.argv:
+    try:
+        # argv[0] is unreliable, but this is not for general use.
+        _xgt = "xgettext"
+        _xgtargs = (_xgt, "-o", "-", "-L", "Python",
+                "--keyword=_", "--add-comments", sys.argv[0])
+        os.execvp(_xgt, _xgtargs)
+    except OSError, (err, serr):
+        sys.stderr.write("Exec {0} {p}: {1} ({2})\n".format(
+            _xgt, serr, err, p = sys.argv[0]))
+        exit(1)
+
 
 if "-DBG" in sys.argv:
     _ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-py")
@@ -62,9 +76,14 @@ else:
 def _dbg(msg):
     if not _fdbg:
         return
-    _fdbg.write("%u: %s\n" % (time.time(), msg))
+    _fdbg.write("{0}: {1}\n".format(time.time(), msg))
 
 _dbg("debug file opened")
+
+
+"""
+    Global data
+"""
 
 _msg_obj = None
 _msg_obj_init_is_done = False
@@ -148,7 +167,7 @@ def msg_line_(msg, clr = wx.BLACK):
         msg_(msg + "\n", clr)
 
 def err_line_(msg, clr = None):
-    m = "%s: %s" % (PROG, msg)
+    m = "{0}: {1}".format(PROG, msg)
     if _msg_obj_init_is_done == True:
         err_("\n" + m, clr)
         sys.stderr.write(m + "\n")
@@ -190,7 +209,7 @@ def x_lstat(path, quiet = False, use_l = True):
         else:
             return os.stat(path)
     except OSError, (errno, strerror):
-        m = _("Error: cannot stat '%s': '%s' (errno %d)") % (
+        m = _("Error: cannot stat '{0}': '{1}' (errno {2})").format(
             path, strerror, errno)
         _dbg(m)
         if not quiet:
@@ -1082,7 +1101,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
                 _("Make New Folder"), size=(-1, 28))
         else:
             self.newButton = wx.StaticText(
-                self, wx.ID_NEW, _("/\\_o0o_/\\"),
+                self, wx.ID_NEW, "/\\_o0o_/\\",
                 wx.DefaultPosition, wx.DefaultSize, 0)
 
         self.okButton = buttons.ThemedGenBitmapTextButton(
@@ -1127,6 +1146,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
             treectrl.Delete(item_id)
 
         treectrl.UnselectAll()
+        self.folderText.SetValue('')
 
 
     # Use in place of GetPaths()
@@ -1176,7 +1196,8 @@ class RepairedMDDialog(MDD.MultiDirDialog):
                         if init_dir:
                             p = p.replace(misguided, init_dir)
                         else:
-                            m = "'HOME' env. var. needed; but not found"
+                            m = _(
+                              "'HOME' env. var. needed; but not found")
                             raise RepairedMDDialog.Unfixable, m
                         break
 
@@ -1216,7 +1237,7 @@ class AMsgWnd(wx.TextCtrl):
             wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL,
             wx.FONTWEIGHT_NORMAL
         )
-        self.get_msg_obj().SetValue("Message window.")
+        self.get_msg_obj().SetValue(_("Message window."))
         self.showpos = self.GetLastPosition()
 
         global _msg_obj
@@ -1321,10 +1342,12 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
 
         li = wx.ListItem()
         li.SetImage(-1)
-        li.SetText("Name")
+        # TRANSLATORS: 'name' is a file name
+        li.SetText(_("Name"))
         self.InsertColumnItem(0, li)
         self.SetColumnWidth(0, 192)
-        li.SetText("Full Path")
+        # TRANSLATORS: This is a full path with file name (if reg. file)
+        li.SetText(_("Full Path"))
         li.SetAlign(wx.LIST_FORMAT_LEFT)
         self.InsertColumnItem(1, li)
         self.SetColumnWidth(1, 1024)
@@ -1387,47 +1410,48 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
                 continue
 
             if stat.S_ISLNK(st.st_mode):
-                msg_line_WARN("Warning:")
-                msg_(" '%s' is a symlink;"
-                    " symlinks are recreated, not followed." % p)
+                msg_line_WARN(_("Warning:"))
+                msg_(_(" '{0}' is a symlink;"
+                    " symlinks are recreated, not followed."
+                    ).format(p))
                 idx = self.add_slink(p, idx) + 1
             elif stat.S_ISDIR(st.st_mode):
                 if p == "/":
-                    msg_line_ERROR(
+                    msg_line_ERROR(_(
                         "Error: '/' is the root directory;"
-                        " you must be joking.")
+                        " you must be joking."))
                     continue
                 idx = self.add_dir(p, idx) + 1
             elif stat.S_ISCHR(st.st_mode):
-                msg_line_WARN("Warning:")
-                msg_(" '%s' is a raw device node;"
+                msg_line_WARN(_("Warning:"))
+                msg_(_(" '{0}' is a raw device node;"
                     " it will be copied, but do you"
-                    " really want it?" % p)
+                    " really want it?").format(p))
                 idx = self.add_spcl(p, idx) + 1
             elif stat.S_ISBLK(st.st_mode):
-                msg_line_WARN("Warning:")
-                msg_(" '%s' is a block device node;"
+                msg_line_WARN(_("Warning:"))
+                msg_(_(" '{0}' is a block device node;"
                     " it will be copied, but do you"
-                    " really want it?" % p)
+                    " really want it?").format(p))
                 idx = self.add_spcl(p, idx) + 1
             elif stat.S_ISFIFO(st.st_mode):
-                msg_line_WARN("Warning:")
-                msg_(" '%s' is a FIFO pipe;"
+                msg_line_WARN(_("Warning:"))
+                msg_(_(" '{0}' is a FIFO pipe;"
                     " it will be copied, but do you"
-                    " really want it?" % p)
+                    " really want it?").format(p))
                 idx = self.add_spcl(p, idx) + 1
             elif stat.S_ISSOCK(st.st_mode):
-                msg_line_ERROR(
-                    "Error: '%s' is a unix domain socket;"
-                    " it will not be copied." % p)
+                msg_line_ERROR(_(
+                    "Error: '{0}' is a unix domain socket;"
+                    " it will not be copied.").format(p))
                 continue
             elif stat.S_ISREG(st.st_mode):
                 idx = self.add_file(p, idx) + 1
             else:
-                msg_line_WARN("Warning:")
-                msg_(" '%s' is an unknown fs object type;"
+                msg_line_WARN(_("Warning:"))
+                msg_(_(" '{0}' is an unknown fs object type;"
                     " a copy will be attempted if it is not removed"
-                    " from the list" % p)
+                    " from the list").format(p))
                 idx = self.add_file(p, idx) + 1
 
         return idx
@@ -1512,10 +1536,10 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
 
     def show_context_menu(self, pos):
         menu = wx.Menu()
-        menu.Append(self.sel_all_id, "Select All")
+        menu.Append(self.sel_all_id, _("Select All"))
         menu.AppendSeparator()
-        menu.Append(self.rm_item_id, "Remove Selected Items")
-        menu.Append(self.empty_list, "Remove All")
+        menu.Append(self.rm_item_id, _("Remove Selected Items"))
+        menu.Append(self.empty_list, _("Remove All"))
         self.PopupMenu(menu, pos)
 
     def on_event_menu(self, event):
@@ -1559,7 +1583,8 @@ class ABasePane(wx.ScrolledWindow):
         _dbg("IN enable_all arg %d" % int(benabled))
 
         for c in self.child_wnds:
-            self.child_wnds_prev_state[c] = c.IsEnabled()
+            is_en = c.IsEnabled()
+            self.child_wnds_prev_state[c] = is_en
             if c in not_these:
                 continue
 
@@ -1621,16 +1646,28 @@ class AVolInfPanePanel(wx.Panel):
         self.bSizer1.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_ALL)
 
         type_optChoices = []
-        type_optChoices.append("copy from source")
-        type_optChoices.append("hand edit")
+        type_optChoices.append(_("copy from source"))
+        type_optChoices.append(_("hand edit"))
 
         self.type_opt = wx.RadioBox(
-            self, wx.ID_ANY, "select field content",
+            self, wx.ID_ANY, _("select field content"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
         self.type_opt.SetToolTip(
-            wx.ToolTip(
-            "Select the "
+            wx.ToolTip(_(
+                "Select whether to use DVD volume information "
+                "as found on the source DVD with \"copy from source\","
+                "or use a hand edited volume information set "
+                "with \"hand edit\".\n"
+                "\n"
+                "The hand-edit fields will remain if you change the "
+                "source disc, so it may be useful for another backup.\n"
+                "\n"
+                "The \"copy from source\" fields may be edited, and "
+                "changes will apply to burns until the source disk "
+                "check ('Check' button) is done again, when these "
+                "fields will be overwritten."
+                )
             ))
         self.add_child_wnd(self.type_opt)
 
@@ -1642,7 +1679,8 @@ class AVolInfPanePanel(wx.Panel):
             box = wx.StaticBoxSizer(
                 wx.StaticBox(
                     self, wx.ID_ANY,
-                    "%s (%u characters maximum)" % (label, flen)),
+                    _("{0} ({1} characters maximum)").format(
+                        label, flen)),
                 wx.VERTICAL
                 )
 
@@ -1762,40 +1800,57 @@ class ATargetPanePanel(wx.Panel):
         self.set_select = []
 
         type_optChoices = []
-        type_optChoices.append("file/directory")
-        type_optChoices.append("burner device")
-        type_optChoices.append("direct to burner")
+        type_optChoices.append(_("file/directory"))
+        type_optChoices.append(_("burner device"))
+        type_optChoices.append(_("direct to burner"))
 
         self.type_opt = wx.RadioBox(
-            self, wx.ID_ANY, "select destination",
+            self, wx.ID_ANY, _("output target:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
-        self.type_opt.SetToolTip(
-            wx.ToolTip(
-            "Select the output target of the backup. "
+        self.type_opt.SetToolTip(wx.ToolTip(_(
+            "Select the output type of the backup. "
             "The first option 'file/directory' will simply put a "
             "filesystem image (an .iso) or a directory hierarchy "
-            "on your hard drive. "
+            "on your hard drive."
+            "\n\n"
             "The second option 'burner device' will write a temporary "
             "file or directory and then prompt you to make sure "
-            "the burner is ready with a disc. "
+            "the burner is ready with a disc."
+            "\n\n"
             "The third option 'direct to burner' may be used if you "
             "have two devices: one to read and one to write. This "
             "option attempts to write the backup disc as it is read "
-            "from the source drive.\n"
-            "WARNING: this option is not reliable and is likely "
-            "to fail and ruin the target disc."
-            ))
+            "from the source drive. This option is only available "
+            "if the \"simple\" backup type is selected"
+            "\n\n"
+            "WARNING: the third 'direct' option is the least reliable "
+            "and might fail and waste the target disc. If you "
+            "use this option try a slow burn speed when prompted, "
+            "and ensure that your computer is not busy with many tasks."
+            )))
         self.add_child_wnd(self.type_opt)
 
+        ttip = _(
+            "If you select the \"file/directory\" option, then "
+            "provide a path and name for the hard drive output."
+            "\n\n"
+            "If you select \"burner device\" or \"direct to burner\" "
+            "then select the device node associated with the DVD "
+            "burner you wish to use."
+            "\n\n"
+            "You may enter the path directly in the text field, or "
+            "click the button to use a file selection dialog."
+            )
+
         self.box_whole = wx.StaticBoxSizer(
-            wx.StaticBox(self, wx.ID_ANY, "backup target:"),
+            wx.StaticBox(self, wx.ID_ANY, _("output target:")),
             wx.VERTICAL
             )
 
         self.select_label = wx.StaticText(
             self, wx.ID_ANY,
-            "select output file, directory, or burner device node:",
+            _("specify a name for 'file/directory', or burner device:"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         self.select_label.Wrap(-1)
         self.box_whole.Add(self.select_label, 0, wx.ALL, 5)
@@ -1812,6 +1867,7 @@ class ATargetPanePanel(wx.Panel):
             self, wx.ID_ANY, "",
             wx.DefaultPosition, wx.DefaultSize,
             wx.TE_PROCESS_ENTER|wx.TE_PROCESS_TAB)
+        self.input_select_node.SetToolTip(wx.ToolTip(ttip))
         self.fgSizer_node_whole.Add(
             self.input_select_node, 1,
             wx.ALIGN_CENTER|wx.ALL|wx.EXPAND, 2)
@@ -1822,8 +1878,9 @@ class ATargetPanePanel(wx.Panel):
 
         self.button_select_node = wx.Button(
             self, wx.ID_ANY,
-            "Select Target",
+            _("Select Target"),
             wx.DefaultPosition, wx.DefaultSize, 0)
+        self.button_select_node.SetToolTip(wx.ToolTip(ttip))
         nodbuttsz.Add(
             self.button_select_node, 1,
             wx.ALIGN_CENTER|wx.ALL, 1)
@@ -1840,7 +1897,8 @@ class ATargetPanePanel(wx.Panel):
 
         # begin vol info panel
         self.box_volinfo = wx.StaticBoxSizer(
-            wx.StaticBox(self, wx.ID_ANY, "target volume info fields:"),
+            wx.StaticBox(self, wx.ID_ANY,
+                _("target volume info fields (optional):")),
             wx.VERTICAL
             )
 
@@ -1854,7 +1912,8 @@ class ATargetPanePanel(wx.Panel):
         # end vol info panel
 
         self.box_check = wx.StaticBoxSizer(
-            wx.StaticBox(self, wx.ID_ANY, "check settings:" ),
+            wx.StaticBox(self, wx.ID_ANY,
+                _("check first, then run:")),
             wx.VERTICAL
             )
 
@@ -1867,14 +1926,14 @@ class ATargetPanePanel(wx.Panel):
 
         self.check_button = wx.Button(
             self, wx.ID_ANY,
-            "Check settings", wx.DefaultPosition, wx.DefaultSize, 0)
+            _("Check"), wx.DefaultPosition, wx.DefaultSize, 0)
         self.fgSizer1.Add(
             self.check_button, 0,
             wx.ALIGN_CENTER|wx.EXPAND|wx.ALL, 5)
         self.add_child_wnd(self.check_button)
 
-        self.run_label = "Run it"
-        self.cancel_label = "Cancel"
+        self.run_label = _("Run it")
+        self.cancel_label = _("Cancel")
         self.cancel_mode = False
         self.run_button = wx.Button(
             self, wx.ID_ANY,
@@ -1927,33 +1986,33 @@ class ATargetPanePanel(wx.Panel):
     def on_select_node(self, event):
         self.dev = self.input_select_node.GetValue()
         self.core_ld.target_select_node(self.dev)
-        msg_line_INFO("set target to %s" % self.dev)
+        msg_line_INFO(_("set target to {0}").format(self.dev))
 
     def set_button_select_node_label(self):
         typ = self.type_opt.GetSelection()
-        tit = "Select burner device node"
+        tit = _("Select burner device node")
 
         # to fs:
         if typ == 0:
             if self.core_ld.get_is_whole_backup():
-                tit = "Select file name"
+                tit = _("Select file name")
             else:
-                tit = "Select directory name"
+                tit = _("Select directory name")
 
         self.button_select_node.SetLabel(tit)
 
     def on_button_select_node(self, event):
         typ = self.type_opt.GetSelection()
-        tit = "Select burner device node"
+        tit = _("Select burner device node")
         tdr = ""
         sty = 0
 
         # to fs:
         if typ == 0:
             if self.core_ld.get_is_whole_backup():
-                tit = "Select file name for filesystem image"
+                tit = _("Select file name for filesystem image")
             else:
-                tit = "Select directory name for hierarchy"
+                tit = _("Select directory name for hierarchy")
             # wx.FD_OVERWRITE_PROMPT removed: manager object prompts
             #sty = wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT
             sty = wx.FD_SAVE
@@ -2004,7 +2063,7 @@ class ATargetPanePanel(wx.Panel):
     def set_target_text(self, target_text):
         self.input_select_node.SetValue(target_text)
         self.dev = target_text
-        msg_line_INFO("set target to %s" % self.dev)
+        msg_line_INFO(_("set target to {0}").format(self.dev))
 
 
 
@@ -2043,34 +2102,51 @@ class ASourcePanePanel(wx.Panel):
         self.bSizer1.SetMinSize(size)
 
         type_optChoices = []
-        type_optChoices.append("whole in one file")
-        type_optChoices.append("filesystem directory")
+        type_optChoices.append(_("simple"))
+        type_optChoices.append(_("new filesystem"))
 
         self.type_opt = wx.RadioBox(
-            self, wx.ID_ANY, "backup type",
+            self, wx.ID_ANY, _("backup type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
         self.type_opt.SetToolTip(
-            wx.ToolTip(
+            wx.ToolTip(_(
             "Select the type of backup to perform: the first option "
-            "will make a backup copy of the disk filesystem, and the "
-            "second will copy files recursively from the disc "
-            "mount point, allowing additional files and directories "
-            "to be added to the backup."
-            ))
+            "will make an exact backup copy of the disk."
+            "\n\n"
+            "The second option will copy files from the disc into a "
+            "new directory, allowing additional files and directories "
+            "to be added to the backup.  This new directory will "
+            "be the backup. This requires that the disc be mounted, "
+            "while the first \"simple\" option does not."
+            )))
         self.add_child_wnd(self.type_opt)
 
 
         self.box_whole = wx.StaticBoxSizer(
             wx.StaticBox(
-                self, wx.ID_ANY, "backup source:"
+                self, wx.ID_ANY, _("backup source:")
                 ),
             wx.VERTICAL
             )
 
+        ttip = _(
+            "If you're using \"new filesystem\", the "
+            "second option, use the 'Select Mount' button to "
+            "use a directory selector dialog to specify the mount "
+            "point. You may place the mount point in the text field "
+            "by hand (and then press enter/return)."
+            "\n\n"
+            "For the \"simple\" option use 'Select Node' to select "
+            "the device node with a file selector dialog, or place "
+            "the device node path in the text field "
+            "by hand (and then press enter/return)."
+            )
+
         staticText3 = wx.StaticText(
             self, wx.ID_ANY,
-            "select DVD device node or mount point:",
+            _("use 'Select Node' for \"simple\", "
+                "otherwise 'Select Mount':"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         staticText3.Wrap(-1)
         self.box_whole.Add(staticText3, 0, wx.ALL, 5)
@@ -2082,6 +2158,7 @@ class ASourcePanePanel(wx.Panel):
             self, wx.ID_ANY, "",
             wx.DefaultPosition, wx.DefaultSize,
             wx.TE_PROCESS_ENTER|wx.TE_PROCESS_TAB)
+        self.input_node_whole.SetToolTip(wx.ToolTip(ttip))
         self.fgSizer_node_whole.Add(
             self.input_node_whole, 1,
             wx.ALIGN_CENTER|wx.ALL|wx.EXPAND, 2)
@@ -2091,8 +2168,9 @@ class ASourcePanePanel(wx.Panel):
 
         self.button_node_whole = wx.Button(
             self, wx.ID_ANY,
-            "Select Node",
+            _("Select Node"),
             wx.DefaultPosition, wx.DefaultSize, 0)
+        self.button_node_whole.SetToolTip(wx.ToolTip(ttip))
         nodbuttsz.Add(
             self.button_node_whole, 1,
             wx.ALIGN_CENTER|wx.ALL, 1)
@@ -2101,8 +2179,9 @@ class ASourcePanePanel(wx.Panel):
 
         self.button_dir_whole = wx.Button(
             self, wx.ID_ANY,
-            "Select Mount",
+            _("Select Mount"),
             wx.DefaultPosition, wx.DefaultSize, 0)
+        self.button_dir_whole.SetToolTip(wx.ToolTip(ttip))
         nodbuttsz.Add( self.button_dir_whole, 1,
             wx.ALIGN_CENTER|wx.ALL, 1)
         self.add_child_wnd(self.button_dir_whole)
@@ -2117,8 +2196,7 @@ class ASourcePanePanel(wx.Panel):
 
         self.box_hier = wx.StaticBoxSizer(
             wx.StaticBox(self, wx.ID_ANY,
-                "extra files and directories for "
-                "hierarchy (optional):"),
+                _("optional extras for \"new filesystem\" option:")),
             wx.VERTICAL
             )
 
@@ -2141,7 +2219,7 @@ class ASourcePanePanel(wx.Panel):
 
         self.button_addl_files = wx.Button(
             self, wx.ID_ANY,
-            "Add Files",
+            _("Add Files"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz.Add(
             self.button_addl_files, 1,
@@ -2151,7 +2229,7 @@ class ASourcePanePanel(wx.Panel):
 
         self.button_addl_dirs = wx.Button(
             self, wx.ID_ANY,
-            "Add Directories",
+            _("Add Directories"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz.Add(
             self.button_addl_dirs, 1,
@@ -2165,7 +2243,7 @@ class ASourcePanePanel(wx.Panel):
 
         self.button_addl_rmsel = wx.Button(
             self, wx.ID_ANY,
-            "Remove Selected",
+            _("Remove Selected"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz2.Add(self.button_addl_rmsel, 1,  wx.EXPAND, 2)
         self.set_hier.append(self.button_addl_rmsel)
@@ -2173,7 +2251,7 @@ class ASourcePanePanel(wx.Panel):
 
         self.button_addl_clear = wx.Button(
             self, wx.ID_ANY,
-            "Clear List",
+            _("Clear List"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz2.Add(self.button_addl_clear, 1, wx.EXPAND, 2)
         self.set_hier.append(self.button_addl_clear)
@@ -2225,13 +2303,13 @@ class ASourcePanePanel(wx.Panel):
         # appearing in the selector is merely clicked; click
         # /dev/stdout etc. and get a signal
         self.file_dlg = wx.FileDialog(
-            self.parent, "Select File",
+            self.parent, _("Select File"),
             "", "", "*",
             wx.FD_OPEN|wx.FILE_MUST_EXIST
             )
 
         self.dir_dlg = wx.DirDialog(
-            self.parent, "Select Mount Point",
+            self.parent, _("Select Mount Point"),
             "", wx.DD_DIR_MUST_EXIST
             )
 
@@ -2256,7 +2334,7 @@ class ASourcePanePanel(wx.Panel):
 
     def on_nodepick_whole(self, event):
         self.dev = self.input_node_whole.GetValue()
-        msg_line_INFO("set source device to %s" % self.dev)
+        msg_line_INFO(_("set source device to {0}").format(self.dev))
 
     def on_nodepick_whole_button(self, event):
         r = self.file_dlg.ShowModal()
@@ -2279,7 +2357,7 @@ class ASourcePanePanel(wx.Panel):
         # /dev/stdout etc. and get a signal
         dlg = wx.FileDialog(
             self.parent,
-            "Select Additional Files",
+            _("Select Additional Files"),
             "", "", "*",
             wx.FD_OPEN|wx.FD_MULTIPLE|wx.FILE_MUST_EXIST
         )
@@ -2301,7 +2379,7 @@ class ASourcePanePanel(wx.Panel):
         try:
             dlg = RepairedMDDialog(
                 self.parent,
-                tit = "Select Additional Directories",
+                tit = _("Select Additional Directories"),
                 defpath = init_dir
             )
 
@@ -2326,11 +2404,11 @@ class ASourcePanePanel(wx.Panel):
             raise Exception, m
 
         except Exception, m:
-            msg_line_ERROR("MDDialog exception: '%s'" % m)
+            msg_line_ERROR(_("MDDialog exception: '{0}'").format(m))
 
             dlg = wx.DirDialog(
                 self.parent,
-                "Select Additional Directories",
+                _("Select Additional Directories"),
                 init_dir,
                 wx.DD_DIR_MUST_EXIST
             )
@@ -2450,7 +2528,7 @@ class AChildSashWnd(wx.SashWindow):
 
     def on_sash_drag(self, event):
         if event.GetDragStatus() == wx.SASH_STATUS_OUT_OF_RANGE:
-            msg_line_WARN('sash drag is out of range')
+            msg_line_WARN(_('sash drag is out of range'))
             return
 
         eobj = event.GetEventObject()
@@ -2561,7 +2639,7 @@ class ASashWnd(wx.SashWindow):
         sz1 = wx.Size(sz.width, sz.height - 20)
         self.child1 = AChildSashWnd(
             self.swnd[0], sz1, parent, -1,
-            "Source and Destination", gist
+            _("Source and Destination"), gist
             )
 
         self.child2 = AProgBarPanel(self.swnd[1], gist)
@@ -2588,7 +2666,7 @@ class ASashWnd(wx.SashWindow):
 
     def on_sash_drag(self, event):
         if event.GetDragStatus() == wx.SASH_STATUS_OUT_OF_RANGE:
-            msg_line_WARN('sash drag is out of range')
+            msg_line_WARN(_('sash drag is out of range'))
             return
 
         eobj = event.GetEventObject()
@@ -2643,7 +2721,7 @@ class AFrame(wx.Frame):
         self.CreateStatusBar()
         self.Centre(wx.BOTH)
 
-        self.sash_wnd = ASashWnd(self, -1, "The Sash Window", gist)
+        self.sash_wnd = ASashWnd(self, -1, _("The Sash Window"), gist)
 
         self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_CLOSE, self.on_quit)
@@ -2917,7 +2995,7 @@ class MediaDrive:
                         ) )
                 else:
                     err_(
-                        "Internal mechanism jammed: please service"
+                        _("Internal mechanism jammed: please grease")
                     )
                     return False
 
@@ -2971,7 +3049,7 @@ class ACoreLogiDat:
     work_msg_last_int = 0
     work_msg_last_idx = 0
     work_msgs = (
-        "Working",
+        _("Working"),
         ".",
         ". .",
         ". . .",
@@ -3112,6 +3190,10 @@ class ACoreLogiDat:
             self.source.enable_all(benable, non)
             self.target.enable_all(benable, non)
 
+        if benable:
+            self.source_opt_id_change(
+                self.source.type_opt.GetSelection(), True)
+
     def set_ready_topwnd(self, wnd):
         #ov = self.opt_values
         self.topwnd = wnd
@@ -3129,7 +3211,7 @@ class ACoreLogiDat:
         self.target_force_idx = -1
         self.target.set_button_select_node_label()
 
-    def source_opt_id_change(self, s_id):
+    def source_opt_id_change(self, s_id, quiet = False):
         if not self.target:
             return
 
@@ -3143,25 +3225,27 @@ class ACoreLogiDat:
                 self.target.type_opt.SetSelection(
                     self.target_force_idx)
                 self.target_force_idx = -1
-                msg_line_WARN("Warning:")
-                msg_INFO(
-                    " The destination has"
-                    " been changed from 'burner device'"
-                    " to 'direct to burner' (as it was earlier)."
-                    )
+                if not quiet:
+                    msg_line_WARN(_("Warning:"))
+                    msg_INFO(_(
+                        " The destination has"
+                        " been changed from 'burner device'"
+                        " to 'direct to burner' (as it was earlier)."
+                        ))
 
         elif s_id == ov.s_hier:
             if t_id == ov.t_direct:
                 self.target.type_opt.SetSelection(ov.t_dev)
                 self.target.do_opt_id_change(ov.t_dev)
                 self.target_force_idx = ov.t_direct
-                msg_line_WARN("Warning:")
-                msg_INFO(
-                    " filesystem hierarchy type backup"
-                    " cannot be direct to burner; a temporary"
-                    " directory is necessary --\n\tthe destination"
-                    " has been changed to 'burner device'."
-                    )
+                if not quiet:
+                    msg_line_WARN(_("Warning:"))
+                    msg_INFO(_(
+                        " filesystem hierarchy type backup"
+                        " cannot be direct to burner; a temporary"
+                        " directory is necessary --\n\tthe destination"
+                        " has been changed to 'burner device'."
+                        ))
 
             self.target.type_opt.EnableItem(ov.t_direct, False)
             self.get_volinfo_wnd().Enable(True)
@@ -3366,7 +3450,7 @@ class ACoreLogiDat:
 
         cur = int(m.group(1))
         sz  = int(m.group(2))
-        # paranoia
+
         if sz < 1:
             g.Pulse()
             return
@@ -3482,7 +3566,7 @@ class ACoreLogiDat:
         eq = self.do_devstat_check(outdev, self.checked_output_devstat)
         if not eq:
             if not self.do_target_medium_check(outdev):
-                m = "Target medium check failed"
+                m = _("Target medium check failed")
                 msg_line_ERROR(m)
                 stmsg.put_status(m)
                 return False
@@ -3510,13 +3594,16 @@ class ACoreLogiDat:
         rw = re.search('([\+-]\s*RW|re-?write)', m, re.I)
 
         if self.checked_input_blocks > self.checked_media_blocks:
-            m = "Target medium needs %u free blocks, found only %u." % (
+            m = _(
+                "Target medium needs {0} free blocks, found only {1}."
+                ).format(
                 self.checked_input_blocks, self.checked_media_blocks)
             msg_line_ERROR(m)
             stmsg.put_status(m)
 
             if rw:
-                m += "\nMedium appears re-writable. Attempt blanking?"
+                m += _(
+                    "\nMedium appears re-writable. Attempt blanking?")
                 r = self.dialog(m, "yesno", wx.YES_NO)
                 if r == wx.YES:
                     self.do_blank(d.name, blank_async)
@@ -3532,16 +3619,19 @@ class ACoreLogiDat:
         if dbl:
             hbl = self.checked_media_blocks / 2
             if self.checked_input_blocks <= hbl:
-                m = "Target %s capacity %u blocks, only need %u%s" % (
-                    m,
-                    self.checked_media_blocks,
-                    self.checked_input_blocks,
-                    " -- use a single layer DVD blank disc.")
+                m = _(
+                    "Target {0} capacity {1} blocks, only need {2}"\
+                    " -- use a single layer DVD blank disc."
+                    ).format(
+                             m,
+                             self.checked_media_blocks,
+                             self.checked_input_blocks,
+                             )
                 msg_line_ERROR(m)
                 stmsg.put_status(m)
                 return False
 
-        m = "Good: burn needs %u free blocks, medium has %u." % (
+        m = _("Good: need {0} free blocks, medium has {1}.").format(
             self.checked_input_blocks, self.checked_media_blocks)
         msg_line_GOOD(m)
         stmsg.put_status(m)
@@ -3629,7 +3719,6 @@ class ACoreLogiDat:
 
     # called with status of a child process
     def do_child_status(self, stat, chil):
-        self.target.set_run_label()
         self.get_gauge_wnd().SetValue(0)
 
         if self.in_check_op:
@@ -3664,9 +3753,9 @@ class ACoreLogiDat:
             if d["in_burn"] == True:
                 # this means burn was just done
                 self.reset_target_data()
-                m = "Burn succeeded!. Would you like to burn another? "
-                m = m + "If yes, put a new burnable blank in "
-                m = m + "the burner addressed by node '%s'." % outf
+                m = _("Burn succeeded!. Would you like to burn "\
+                    "another? If yes, put a new burnable blank in "\
+                    "the burner addressed by node '{0}'.").format(outf)
                 r = self.dialog(
                     m, "sty",
                     wx.YES_NO|wx.ICON_QUESTION)
@@ -3676,18 +3765,15 @@ class ACoreLogiDat:
                     if self.checked_output_devnode:
                         d["target_dev"] = self.checked_output_arg
                         if self.do_burn(chil, d):
-                            msg_line_INFO("Additional burn started.")
+                            msg_line_INFO(_("Additional burn started."))
                             return
                     else:
-                        merr = "Media Error"
-
-                #else:
-                #    msg_line_INFO("Burn done: success")
+                        merr = _("Media Error")
 
             else:
-                m = "Prepared to burn backup. "
-                m = m + "Make sure a writable blank disc is ready in "
-                m = m + "the burner addressed by node '%s'." % outf
+                m = _("Prepared to burn backup. "\
+                    "Make sure a writable blank disc is ready in "\
+                    "the burner addressed by node '{0}'.").format(outf)
                 r = self.dialog(
                     m, "sty",
                     wx.OK|wx.CANCEL|wx.ICON_INFORMATION)
@@ -3696,15 +3782,15 @@ class ACoreLogiDat:
                     if self.checked_output_devnode:
                         d["target_dev"] = self.checked_output_arg
                         if self.do_burn(chil, d):
-                            msg_line_INFO("Burn started.")
+                            msg_line_INFO(_("Burn started."))
                             return
                         else:
-                            merr = "Burn Failed"
+                            merr = _("Burn Failed")
                     else:
-                        merr = "Media Error"
+                        merr = _("Media Error")
 
                 #else:
-                #    msg_line_INFO("Burn cancelled")
+                #    msg_line_INFO(_("Burn cancelled"))
 
             if merr:
                 msg_line_ERROR(merr)
@@ -3716,6 +3802,7 @@ class ACoreLogiDat:
         elif stat != 0 and chil.get_extra_data():
             pass
 
+        self.target.set_run_label()
         self.cleanup_run()
         self.enable_panes(True, True)
 
@@ -3791,7 +3878,8 @@ class ACoreLogiDat:
 
         elif mth and typ == 'enter run':
             self.target.set_cancel_label()
-            m = "New thread %s started for child processes" % m
+            m = _(
+                "New thread {0} started for child processes").format(m)
             msg_line_INFO(m)
             slno.put_status(m)
 
@@ -3809,36 +3897,33 @@ class ACoreLogiDat:
             bsig = ch.prockilled
 
             if mth:
-                ms = "status"
+                ms = _("status")
                 if bsig:
-                    ms = "cancelled, signal"
+                    ms = _("cancelled, signal")
 
-                #m = ("Child thread %s status %d, process %s %d"
-                #    % (m, st, ms, stat))
-                m = ("Child process %s %d" % (ms, stat))
+                m = _("Child process {0} {1}").format(ms, stat)
                 msg_line_INFO(m)
 
                 if not j_ok:
-                    m = "Thread join() fail"
+                    m = _("Thread join() fail")
                     msg_line_ERROR(m)
 
-            #del self.ch_thread
             self.ch_thread = None
             self.work_msg_last_idx = 0
 
             global eintr
 
             if stat == 0:
-                slno.put_status("Success!")
+                slno.put_status(_("Success!"))
             elif bsig or (stat == eintr and ch.is_growisofs()):
-                slno.put_status("Cancelled!")
+                slno.put_status(_("Cancelled!"))
             else:
-                slno.put_status("Failed!")
+                slno.put_status(_("Failed!"))
 
             self.do_child_status(stat, ch)
 
         elif mth:
-            msg_line_ERROR("unknown thread event '%s'" % typ)
+            msg_line_ERROR(_("unknown thread event '{0}'").format(typ))
 
     def dialog(self, msg, typ = "msg", sty = None):
         global PROG
@@ -3881,12 +3966,10 @@ class ACoreLogiDat:
             self.cur_tempfile = outf
             return (ofd, outf)
         except OSError, (errno, strerror):
-            m = "%s: '%s' (errno %d)" % (
-                "Error making temporary file",
-                strerror, errno)
+            m = _("Error making temporary file: '{0}' (errno {1})"
+                ).format(strerror, errno)
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
-            m = "Failed -- " + m
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
             return False
 
@@ -3897,12 +3980,10 @@ class ACoreLogiDat:
             self.cur_tempfile = outf
             return outf
         except OSError, (errno, strerror):
-            m = "%s: '%s' (errno %d)" % (
-                "Error making temporary directory",
-                strerror, errno)
+            m = _("Error making temporary directory: '{0}' (errno {1})"
+                ).format(strerror, errno)
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
-            m = "Failed -- " + m
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
             return False
 
@@ -3911,17 +3992,16 @@ class ACoreLogiDat:
             ofd = os.open(outf, fl, 0666)
             return (ofd, outf)
         except OSError, (errno, strerror):
-            m = "%s: '%s' (errno %d)" % (
-                "Error opening file %s" % outf,
-                strerror, errno)
+            m = _("Error opening file '{2}': '{0}' (errno {1})"
+                ).format(strerror, errno, outf)
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
-            m = "Failed -- " + m
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
         except AttributeError:
-            msg_line_ERROR("Internal error opening %s" % outf)
+            msg_line_ERROR(_("Internal error opening {0}").format(outf))
         except:
-            msg_line_ERROR("UNKNOWN EXCEPTION opening %s" % outf)
+            msg_line_ERROR(
+                _("UNKNOWN EXCEPTION opening {0}").format(outf))
 
         return False
 
@@ -3946,7 +4026,8 @@ class ACoreLogiDat:
                 ttf = self.cur_tempfile
                 try:
                     tfd, tnam = self.get_tempfile()
-                    m = "No output file given!\nUse '%s'?" % tnam
+                    m = _("No output file given!\nUse '{0}'?").format(
+                        tnam)
                     r = self.dialog(m, "yesno", wx.YES_NO)
                     if r == wx.YES:
                         self.cur_tempfile = ttf
@@ -3995,19 +4076,24 @@ class ACoreLogiDat:
 
                 if sym and ext:
                     if not reg:
-                        m = "%s is a symbolic link to %s."
-                        m = m % (outf, outreg)
+                        m = _("{0} is a symbolic link to {1}.").format(
+                            outf, outreg)
                         if nsl > 0:
-                            m = "%s (with %u symlinks between.)" % (
-                                m, nsl)
+                            m = _(
+                                "{0} (with {1} symlinks between.)"
+                                ).format(m, nsl)
                         self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
                         return False
 
-                    m = "%s is a symbolic link to file %s."
-                    m = m % (outf, outreg)
+                    m = _(
+                        "{0} is a symbolic link to file {1}."
+                        ).format(outf, outreg)
                     if nsl > 0:
-                        m = "%s (with %u symlinks between.)" % (m, nsl)
-                    m = "%s\nShould you overwrite %s?"% (m, outreg)
+                        m = _(
+                            "{0} is a symbolic link to file {1} "
+                            "(with {2} symlinks between.)\n"
+                            "Should you overwrite {3}?"
+                            ).format(outf, outreg, nsl, outreg)
                     r = self.dialog(m, "yesno", wx.YES_NO)
                     if r != wx.YES:
                         return False
@@ -4015,10 +4101,10 @@ class ACoreLogiDat:
                         outreg, os.O_WRONLY|os.O_TRUNC)
 
                 if sym:
-                    m = "%s is a symbolic link to non-existing %s."
-                    m = m % (outf, outreg)
-                    m = "%s\nUse the name '%s'?" % (
-                        m, outreg)
+                    m = _(
+                        "{0} is a symbolic link to non-existing {1}.\n"
+                        "Use the name '{2}'?"
+                        ).format(outf, outreg, outreg)
                     r = self.dialog(m, "yesno", wx.YES_NO)
                     if r != wx.YES:
                         return False
@@ -4026,7 +4112,9 @@ class ACoreLogiDat:
                     return self.get_openfile(outreg)
 
                 if reg:
-                    m = "%s is an existing file.\nReplace it?" % outf
+                    m = _(
+                        "{0} is an existing file.\nReplace it?"
+                        ).format(outf)
                     r = self.dialog(m, "yesno", wx.YES_NO)
                     if r != wx.YES:
                         return False
@@ -4035,9 +4123,12 @@ class ACoreLogiDat:
                     return self.get_openfile(outf)
 
                 if not reg:
-                    m = "%s is an existing non-regular file." % outf
-                    m = "%s\nProvide a new target or remove %s." % (
-                        m, outf)
+                    m = _(
+                        # TRANSLATORS: {0} and {1} are both the same
+                        # file name
+                        "{0} is an existing non-regular file.\n"
+                        "Provide a new target, or remove file {1}"
+                        ).format(outf, outf)
                     self.dialog(m, "msg", wx.OK|wx.ICON_INFORMATION)
                     return False
 
@@ -4051,7 +4142,9 @@ class ACoreLogiDat:
                 ttf = self.cur_tempfile
                 try:
                     tnam = self.get_tempdir()
-                    m = "No output directory given!\nUse '%s'?" % tnam
+                    m = _(
+                        "No output directory given!\nUse '{0}'?"
+                        ).format(tnam)
                     r = self.dialog(m, "yesno", wx.YES_NO)
                     if r == wx.YES:
                         self.cur_tempfile = ttf
@@ -4071,14 +4164,16 @@ class ACoreLogiDat:
             st = x_lstat(outf, True)
 
             if st and not stat.S_ISDIR(st.st_mode):
-                m = "%s exists. Please choose another directory name."
-                m = m % outf
+                m = _(
+                 "{0} exists. Please choose another directory name."
+                 ).format(outf)
                 self.dialog(m, "msg", wx.OK|wx.ICON_ERROR)
                 return False
 
             if st:
-                m = "Directory %s exists. Remove and replace (lose) it?"
-                m = m % outf
+                m = _(
+                 "Directory {0} exists. Remove and replace (lose) it?"
+                 ).format(outf)
                 r = self.dialog(m, "yesno", wx.YES_NO)
                 if r == wx.YES:
                     self.rm_temp(outf)
@@ -4088,12 +4183,12 @@ class ACoreLogiDat:
             try:
                 os.mkdir(outf, 0777)
             except OSError, (errno, strerror):
-                m = "%s: '%s' (errno %d)" % (
-                    "Error creating directory %s" % outf,
-                    strerror, errno)
+                m = _(
+                    "Failed, error creating directory \"{0}\":"
+                    "'{1}' (errno {2})"
+                    ).format(outf, strerror, errno)
                 msg_line_ERROR(m)
                 self.get_stat_wnd().put_status(m)
-                m = "Failed -- " + m
                 self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
                 return False
 
@@ -4149,8 +4244,8 @@ class ACoreLogiDat:
         if not st or not (
                 stat.S_ISCHR(st.st_mode) or
                 stat.S_ISBLK(st.st_mode)):
-            m = "Please enter the target DVD burner device node"
-            m = m + " in the 'backup target' field"
+            m = _("Please enter the target DVD burner device node"
+                  " in the 'backup target' field")
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
             r = self.dialog(m, "input", target_dev)
@@ -4185,14 +4280,14 @@ class ACoreLogiDat:
             is_gr = ch.is_growisofs()
 
         if not quiet:
-            m = "Operation cancelled"
+            m = _("Operation cancelled")
             msg_line_INFO(m)
             self.get_stat_wnd().put_status(m)
             if is_gr:
-                m = "Please give burn process (growisofs) time "
-                m = m + "to exit cleanly -- do not kill it\nor "
-                m = m + "the burner drive might be left unusable "
-                m = m + "until reboot"
+                m = _("Please give burn process (growisofs) time "
+                      "to exit cleanly -- do not kill it\nor "
+                      "the burner drive might be left unusable "
+                      "until reboot")
                 msg_line_INFO(m)
 
         self.cleanup_run()
@@ -4206,34 +4301,37 @@ class ACoreLogiDat:
             return
 
         if self.working():
-            # Should not happen -- button should be in cancel mode
-            stmsg.put_status("Already busy!")
+            stmsg.put_status(_("Already busy!"))
             return
 
         if self.get_is_whole_backup():
             if self.get_is_dev_direct_target():
                 if not target_dev:
-                    m = "Please set a target device (with disc) " \
-                        "and click the 'Check settings' button"
+                    m = _("Please set a target device (with disc) "
+                          "and click the 'Check settings' button")
                     msg_line_ERROR(m)
                     self.dialog(m, "msg")
                     return
                 if not self.do_burn_pre_check():
-                    m = "Please be sure the source and target " \
-                        "do not change after the Check button"
+                    m = _("Please be sure the source and target "
+                          "do not change after the Check button")
                     msg_line_ERROR(m)
                     self.dialog(m, "msg")
                     return
 
             self.enable_panes(False, False)
+            self.target.set_cancel_label()
             if not self.do_dd_dvd_run(target_dev):
                 self.enable_panes(True, True)
+                self.target.set_run_label()
         elif self.get_is_hier_backup():
             self.enable_panes(False, False)
+            self.target.set_cancel_label()
             if not self.do_cprec_run(target_dev):
                 self.enable_panes(True, True)
+                self.target.set_run_label()
         else:
-            msg_line_ERROR("ERROR: internal inconsistency, not good")
+            msg_line_ERROR(_("ERROR: internal inconsistency, not good"))
 
     def do_burn(self, ch_proc, dat = None):
         do_it = True
@@ -4269,20 +4367,21 @@ class ACoreLogiDat:
 
     def get_speed_select_prompt(self, name = None):
         if self.target_data == None:
-            return "Select a speed or action from the list:"
+            return _("Select a speed or action from the list:")
 
-        mis = self.get_drive_medium_info_string("        ")
-        pmt = "Select a speed or action from the list for"
         if name:
-            pmt += " %s drive:\n" % name
+            pmt = _(
+                "Select a speed or action from the list for {0}:\n"
+                ).format(name)
         else:
-            pmt += " drive:\n"
+            pmt = _(
+                "Select a speed or action from the list for drive:\n")
 
-        return pmt + mis
+        return pmt + self.get_drive_medium_info_string("        ")
 
     def get_drive_medium_info_string(self, prefix = ""):
         if self.target_data == None:
-            return "Select a speed or action from the list:"
+            return _("Select a speed or action from the list:")
 
         d = self.target_data
 
@@ -4293,7 +4392,7 @@ class ACoreLogiDat:
 
         b = d.get_data_item("medium book")
         if not b:
-            b = '[no medium book type found]'
+            b = _('[no medium book type found]')
 
         m = d.get_data_item("medium")
         if m:
@@ -4303,22 +4402,32 @@ class ACoreLogiDat:
                 ext = " (%s)" % m["type_ext"]
             m = '%s%s [%02X], booktype %s' % (m["type"], ext, i, b)
         else:
-            m = '[no medium type description found]'
+            m = _('[no medium type description found]')
 
         mi = d.get_data_item("medium id")
         if not mi:
-            mi = '[no medium id found] - booktype %s' % b
+            mi = _('[no medium id found] - booktype {0}').format(b)
 
         medi = "%s - %s" % (mi, m)
 
         fr = d.get_data_item("medium freespace")
-        fr = "freespace %u bytes, (%u blocks)" % (fr * 2048, fr)
 
-        ret  = "%s%s, model %s (firmware %s)\n" % (
-            prefix, drv, model, fw)
-        ret += "%swith disc:\n" % prefix
-        ret += "%s%s\n" % (prefix, medi)
-        ret += "%s%s\n" % (prefix, fr)
+        ret = _(
+            # TRANSLATORS: {pfx} is a prefix, probably just whitespace
+            # for alignment of several lines,
+            # {drv} is a drive manufacturer name,
+            # {mdl} is drive model,
+            # {fw} is firmware version,
+            # {medi} is DVD blank medium description,
+            # {frb} is free space in bytes
+            # {fr} is free space in 2048 byte blocks
+            "{pfx}{drv}, model {mdl} (firmware {fw})\n"
+            "{pfx}{medi}\n"
+            "{pfx}freespace {frb} bytes ({fr} blocks)\n"
+            ).format(pfx = prefix,
+                     drv = drv, mdl = model,
+                     fw = fw, medi = medi,
+                     frb = fr * 2048, fr = fr)
 
         return ret
 
@@ -4328,32 +4437,32 @@ class ACoreLogiDat:
             spds = self.target_data.get_write_speeds()
 
         if not name:
-            name = 'target'
+            name = _('target')
 
         if not self.target_data or len(spds) < 1:
             spds = (2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 18.0)
         chcs = []
 
         for s in spds:
-            chcs.append("%g (~ %gKB/s)" % (s, s * 1385))
+            chcs.append("{0} (~ {1}KB/s)".format(s, s * 1385))
 
         nnumeric = len(chcs)
         ndefchoice = nnumeric / 2
         inc = 0
 
-        chcs.append("%s default" % procname)
+        chcs.append(_("{0} default").format(procname))
         def_idx = nnumeric + inc
         inc += 1
-        chcs.append("Enter a speed")
+        chcs.append(_("Enter a speed"))
         ent_idx = nnumeric + inc
         inc += 1
         if self.last_burn_speed:
-            chcs.append("Use same speed as last burn")
+            chcs.append(_("Use same speed as last burn"))
             last_idx = nnumeric + inc
             inc += 1
         else:
             last_idx = -1
-        chcs.append("Cancel burn")
+        chcs.append(_("Cancel burn"))
         cnc_idx = nnumeric + inc
         inc += 1
 
@@ -4369,14 +4478,15 @@ class ACoreLogiDat:
         elif r == last_idx:
             return self.last_burn_speed
         elif r == ent_idx:
-            m = "Enter the speed number you would like"
+            title = "Enter the speed number you would like"
             sdef = self.last_burn_speed
             if not sdef:
                 sdef = "%u" % spds[ndefchoice]
             mn = 1
             mx = 256
-            pmt_def = ("Min %u, max %u:" % (mn,mx), mn, mx, int(sdef))
-            self.last_burn_speed = self.dialog(m, "intinput", pmt_def)
+            m = _("Min {mn}, max {mx}:").format(mn = mn, mx = mx)
+            self.last_burn_speed = self.dialog(title, "intinput",
+                (m, mn, mx, int(sdef)))
             if self.last_burn_speed < 1:
                 self.last_burn_speed = "%u" % spds[ndefchoice]
         elif r == cnc_idx:
@@ -4397,8 +4507,9 @@ class ACoreLogiDat:
         srcfile = dat["source_file"]
         dat["in_burn"] = True
 
-        msg_line_INFO('\nburn from temporary fs image "%s" to %s' % (
-            srcfile, outdev))
+        msg_line_INFO(_(
+            '\nburn from temporary file "{0}" to device {1}').format(
+                srcfile, outdev))
 
         self.cur_out_file = None
         self.cur_task_items["taskname"] = 'growisofs-whole'
@@ -4422,7 +4533,7 @@ class ACoreLogiDat:
         xcmdargs.append("-Z")
         xcmdargs.append("%s=%s" % (outdev, srcfile))
 
-        stmsg.put_status("Running %s for %s" % (xcmd, srcfile))
+        stmsg.put_status(_("Running {0} for {1}").format(xcmd, srcfile))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs)
         ch_proc.reset_read_lists()
@@ -4444,8 +4555,9 @@ class ACoreLogiDat:
         srcdir = dat["source_file"]
         dat["in_burn"] = True
 
-        msg_line_INFO('\nburn from temporary directory "%s" to %s' % (
-            srcdir, outdev))
+        msg_line_INFO(_(
+            '\nburn from temporary directory "{0}" to {1}').format(
+                srcdir, outdev))
 
         self.cur_out_file = None
         self.cur_task_items["taskname"] = 'growisofs-hier'
@@ -4490,10 +4602,11 @@ class ACoreLogiDat:
             s = xlst[k]
             lmax = i[1]
             while len(s) > lmax:
-                m = "%s '%s' has max length %d\n'%s'\n%s %d\n%s" % (
-                    "Volume data field", i[4], lmax,
-                    s, "has length", len(s),
-                    "Edit field, or cancel burn?")
+                m = _(
+                    "Volume data field '{0}' has max length {1}\n"
+                    "'{2}'\nhas length {3}\n"
+                    "Edit field, or cancel burn?"
+                    ).format(i[4], lmax, s, len(s))
                 r = self.dialog(
                     m, "yesno", wx.YES_NO|wx.CANCEL|wx.ICON_QUESTION)
                 if r == wx.CANCEL:
@@ -4502,7 +4615,8 @@ class ACoreLogiDat:
                 elif r != wx.YES:
                     s = ""
                     continue
-                m = "Please make value length no more than %d" % lmax
+                m = _("Please make value length no more than {0}"
+                    ).format(lmax)
                 s = self.dialog(m, "input", s)
                 dic = {}
                 dic[k] = s
@@ -4514,12 +4628,12 @@ class ACoreLogiDat:
                 continue
             xcmdargs.append(i[2])
             xcmdargs.append(s)
-            msg_line_INFO("add iso fs option %s '%s'" % (
+            msg_line_INFO(_("add iso fs option {0} '{1}'").format(
                 i[2], s))
 
         xcmdargs.append(srcdir)
 
-        stmsg.put_status("Running %s for %s" % (xcmd, srcdir))
+        stmsg.put_status(_("Running {0} for {1}").format(xcmd, srcdir))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs)
         ch_proc.reset_read_lists()
@@ -4539,7 +4653,7 @@ class ACoreLogiDat:
             dev = self.source.dev
 
         if not dev:
-            m = "Select a mount point"
+            m = _("Select a mount point")
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
@@ -4549,17 +4663,21 @@ class ACoreLogiDat:
         realdev = os.path.realpath(dev)
         if realdev and realdev != dev:
             dev = realdev
-            msg_line_INFO('using source mount "%s" for "%s"' % (
-                dev, origdev))
+            msg_line_INFO(_(
+                'using source mount "{0}" for "{1}"').format(
+                    dev, origdev))
 
         st = x_lstat(dev, True)
         m = None
         if not st:
-            m = "cannot get state of '%s' ('%s'), %s" % (
-                dev, origdev, "does it exist?")
+            m = _(
+                "cannot get state of '{0}' ('{1}'), does it exist?"
+                ).format(dev, origdev)
         elif not stat.S_ISDIR(st.st_mode):
-            m = "Source selection '%s' ('%s') %s" % (
-                dev, origdev, "is not a mount point directory.")
+            m = _(
+                "Source selection of '{0}' ('{1}') "
+                "is not a mount point directory."
+                ).format(dev, origdev)
 
         if m:
             msg_line_ERROR(m)
@@ -4585,7 +4703,7 @@ class ACoreLogiDat:
         except:
             return False
 
-        msg_line_INFO('using target directory "%s"' % outf)
+        msg_line_INFO(_('using target directory "{0}"').format(outf))
 
         self.cur_out_file = outf
         self.cur_task_items["taskname"] = 'cprec'
@@ -4609,7 +4727,7 @@ class ACoreLogiDat:
             ('CPREC_LINEBUF', 'true'), ('DDD_LINEBUF', 'true')
             ]
 
-        stmsg.put_status("Running %s for %s" % (xcmd, origdev))
+        stmsg.put_status(_("Running {0} for {1}").format(xcmd, origdev))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
         ch_proc = ChildTwoStreamReader(parm_obj, self)
@@ -4637,7 +4755,7 @@ class ACoreLogiDat:
             dev = self.source.dev
 
         if not dev:
-            m = "Select a source device node or mount point"
+            m = _("Select a source device node or mount point")
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
@@ -4647,20 +4765,23 @@ class ACoreLogiDat:
         realdev = os.path.realpath(dev)
         if realdev and realdev != dev:
             dev = realdev
-            msg_line_INFO('using source node "%s" for "%s"' % (
-                dev, origdev))
+            msg_line_INFO(_(
+                'using source node "{0}" for "{1}"').format(
+                    dev, origdev))
 
         st = x_lstat(dev, True)
         m = None
         if not st:
-            m = "cannot get state of '%s', %s" % (
-                dev, "does it exist?")
+            m = _(
+                "cannot get state of '{0}', does it exist?"
+                ).format(dev)
         elif not (stat.S_ISDIR(st.st_mode) or
                 stat.S_ISBLK(st.st_mode) or
                 stat.S_ISCHR(st.st_mode)):
-            m = "Source selection '%s' %s" % (
-                dev,
-                "is not a mount point directory, or a device node.")
+            m = _(
+                "Source selection '{0}' "
+                "is not a mount point directory, or a device node."
+                ).format(dev)
 
         if m:
             msg_line_ERROR(m)
@@ -4698,9 +4819,11 @@ class ACoreLogiDat:
             return False
 
         if not is_direct:
-            msg_line_INFO('using target fs image file "%s"' % outf)
+            msg_line_INFO(_(
+                'using target fs image file "{0}"').format(outf))
         else:
-            msg_line_INFO('target direct to burner (%s)' % outf)
+            msg_line_INFO(_(
+                'target direct to burner ({0})').format(outf))
 
         self.cur_out_file = outf
         self.cur_task_items["taskname"] = 'dd-dvd'
@@ -4717,9 +4840,10 @@ class ACoreLogiDat:
             ('CPREC_LINEBUF', 'true'), ('DDD_LINEBUF', 'true')
             ]
 
+        stmsg.put_status(_("Running {0} for {1}").format(xcmd, dev))
+
         if not is_direct:
             self.cur_task_items["taskdirect"] = False
-            stmsg.put_status("Running %s for %s" % (xcmd, dev))
             parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
         else:
             self.cur_out_file = None
@@ -4727,7 +4851,6 @@ class ACoreLogiDat:
             self.cur_task_items["taskfile"] = None
             self.cur_task_items["taskdirect"] = True
 
-            stmsg.put_status("Running %s for %s" % (xcmd, dev))
             inp_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
 
             ycmd = 'growisofs'
@@ -4747,8 +4870,13 @@ class ACoreLogiDat:
             ycmdargs.append("-Z")
             ycmdargs.append("%s=%s" % (outdev, outf))
 
-            stmsg.put_status(
-                "Running %s for %s=%s" % (ycmd, outdev, outf))
+            stmsg.put_status(_(
+                #TRANSLATORS: {cmd} is child program name,
+                # {dev} is device node, {file} is input file:
+                # the form {dev}={fil} represents the way these
+                # parameters are set in a growisofs command line.
+                "Running {cmd} for {dev}={fil}"
+                ).format(cmd = ycmd, dev = outdev, fil = outf))
             parm_obj = ChildProcParams(ycmd, ycmdargs, xcmdenv, inp_obj)
 
         ch_proc = ChildTwoStreamReader(parm_obj, self)
@@ -4782,9 +4910,11 @@ class ACoreLogiDat:
             if isinstance(rfd, str) and isinstance(fpid, int):
                 ei = fpid
                 es = rfd
-                m = "cannot execute child because '%s' (%d)" % (es, ei)
+                m = _(
+                    "cannot execute child because '{0}' ({1})").format(
+                        es, ei)
             else:
-                m = "ERROR: child process failure"
+                m = _("ERROR: child process failure")
 
             msg_line_ERROR(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
@@ -4803,14 +4933,15 @@ class ACoreLogiDat:
         except:
             # USR1 is handle specially in child obj class
             ch_proc.kill_wait(signal.SIGUSR1, 3)
-            msg_line_ERROR("ERROR: could not make or run thread")
+            msg_line_ERROR(_("ERROR: could not make or run thread"))
 
 
     def do_blank(self, dev, blank_async = False):
         stmsg = self.get_stat_wnd()
         outdev  = os.path.realpath(dev)
 
-        msg_line_INFO('\nblanking disc in "%s" (%s)' % (dev, outdev))
+        msg_line_INFO(_(
+            'blanking disc in "{0}" ({1})').format(dev, outdev))
 
         xcmd = 'dvd+rw-format'
         xcmdargs = []
@@ -4819,7 +4950,7 @@ class ACoreLogiDat:
         xcmdargs.append("-blank")
         xcmdargs.append(outdev)
 
-        stmsg.put_status("Running %s for %s" % (xcmd, outdev))
+        stmsg.put_status(_("Running {0} for {1}").format(xcmd, outdev))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs)
         ch_proc = ChildTwoStreamReader(parm_obj, self)
@@ -4830,34 +4961,29 @@ class ACoreLogiDat:
             self.child_go(ch_proc)
             return True
 
-        # no thread
-        #plsth = APeriodThread(
-        #    self.topwnd, self.topwnd_id, 0.5, "pulse")
-        #plsth.start()
-
         is_ok = ch_proc.go_and_read()
 
         if not is_ok:
-            m = "Failed media blank of %s with %s" % (outdev, xcmd)
+            m = _(
+                "Failed media blank of {0} with {1}").format(
+                    outdev, xcmd)
             msg_line_ERROR(m)
             stmsg.put_status(m)
             return False
         else:
-            stmsg.put_status("Waiting for %s" % xcmd)
+            stmsg.put_status(_("Waiting for {0}").format(xcmd))
 
         ch_proc.wait()
         is_ok = ch_proc.get_status()
 
-        #plsth.do_stop()
-        #plsth.join()
-
         if is_ok == 0:
-            m = "%s succeeded blanking %s" % (xcmd, outdev)
+            m = _("{0} succeeded blanking {1}").format(xcmd, outdev)
             msg_line_GOOD(m)
             stmsg.put_status(m)
         else:
-            m = "Failed media blank of %s with %s - status %d" % (
-                outdev, xcmd, is_ok)
+            m = _(
+                "Failed media blank of {0} with {1} - status {2}"
+                ).format(outdev, xcmd, is_ok)
             msg_line_ERROR(m)
             stmsg.put_status(m)
             return False
@@ -4870,7 +4996,7 @@ class ACoreLogiDat:
         self.target_data = None
 
         if self.working():
-            stmsg.put_status("Already busy!")
+            stmsg.put_status(_("Already busy!"))
             return False
 
         xcmd = 'dvd+rw-mediainfo'
@@ -4879,7 +5005,7 @@ class ACoreLogiDat:
         xcmdargs.append(target_dev)
         xcmdenv = []
 
-        m = "Checking %s with %s" % (target_dev, xcmd)
+        m = _("Checking {0} with {1}").format(target_dev, xcmd)
         msg_line_WARN(m)
         stmsg.put_status(m)
 
@@ -4889,22 +5015,26 @@ class ACoreLogiDat:
         is_ok = ch_proc.go_and_read()
 
         if not is_ok:
-            m = "Failed media check of %s with %s" % (target_dev, xcmd)
+            m = _(
+                "Failed media check of {0} with {1}"
+                ).format(target_dev, xcmd)
             msg_line_ERROR(m)
             stmsg.put_status(m)
             return False
         else:
-            stmsg.put_status("Waiting for %s" % xcmd)
+            stmsg.put_status(_("Waiting for {0}").format(xcmd))
 
         ch_proc.wait()
         is_ok = ch_proc.get_status()
 
         if is_ok:
-            m = "%s failed status %d for %s" % (xcmd, is_ok, target_dev)
+            m = _(
+                "{0} failed status {1} for {2}"
+                ).format(xcmd, is_ok, target_dev)
             msg_line_ERROR(m)
             is_ok = False
         else:
-            m = "%s succeeded for %s" % (xcmd, target_dev)
+            m = _("{0} succeeded for {1}").format(xcmd, target_dev)
             msg_line_INFO(m)
             is_ok = True
 
@@ -4920,7 +5050,9 @@ class ACoreLogiDat:
 
         e = self.target_data.get_data_item("presence")
         if e:
-            m = "Failed: %s says \"%s\" for %s" % (xcmd, e, target_dev)
+            m = _(
+                "Failed: {0} says \"{1}\" for {2}"
+                ).format(xcmd, e, target_dev)
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.target_data = None
@@ -4939,8 +5071,8 @@ class ACoreLogiDat:
         else:
             self.checked_media_blocks = self.target_data.get_data_item(
                 "medium freespace")
-            msg_line_INFO("Medium free blocks: %d" %
-                self.checked_media_blocks)
+            msg_line_INFO(_("Medium free blocks: {0}").format(
+                self.checked_media_blocks))
             self.checked_output_devnode = os.path.realpath(target_dev)
             st = x_lstat(self.checked_output_devnode)
             self.checked_output_devstat = st
@@ -4951,14 +5083,14 @@ class ACoreLogiDat:
         stmsg = self.get_stat_wnd()
 
         if self.working():
-            stmsg.put_status("Already busy!")
+            stmsg.put_status(_("Already busy!"))
             return False
 
         if not dev and self.source and self.source.dev:
             dev = self.source.dev
 
         if not dev:
-            m = "Select a device node or mount point"
+            m = _("Select a device node or mount point")
             msg_line_ERROR(m)
             stmsg.put_status(m)
             self.dialog(m, "msg", wx.OK|wx.ICON_EXCLAMATION)
@@ -4969,20 +5101,23 @@ class ACoreLogiDat:
         realdev = os.path.realpath(dev)
         if realdev and realdev != dev:
             dev = realdev
-            msg_line_INFO('using source node "%s" for "%s"' % (
-                dev, origdev))
+            msg_line_INFO(_(
+                'using source node "{0}" for "{1}"'
+                ).format(dev, origdev))
 
         st = x_lstat(dev, True)
         m = None
         if not st:
-            m = "cannot get state of '%s', %s" % (
-                dev, "does it exist?")
+            m = _(
+                "cannot get state of '{0}', does it exist?"
+                ).format(dev)
         elif not (stat.S_ISDIR(st.st_mode) or
                 stat.S_ISBLK(st.st_mode) or
                 stat.S_ISCHR(st.st_mode)):
-            m = "Source selection '%s' %s" % (
-                dev,
-                "is not a mount point directory, or a device node.")
+            m = _(
+                "Source selection '{0}' "
+                "is not a mount point directory, or a device node."
+                ).format(dev)
 
         if m:
             msg_line_ERROR(m)
@@ -5001,7 +5136,7 @@ class ACoreLogiDat:
         xcmdenv.append( ('CPREC_LINEBUF', 'true') )
         xcmdenv.append( ('DDD_LINEBUF', 'true') )
 
-        stmsg.put_status("Checking %s with %s" % (dev, xcmd))
+        stmsg.put_status(_("Checking {0} with {1}").format(dev, xcmd))
 
         parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
         ch_proc = ChildTwoStreamReader(parm_obj, self)
@@ -5036,7 +5171,7 @@ class ACoreLogiDat:
             'DVDVersion', 'output <standard output>', 'total bad blocks'
         )
 
-        msg_line_("\nChecked device '%s':\n" % dev)
+        msg_line_(_("\nChecked device '{0}':\n").format(dev))
 
         stat = ch_proc.get_status()
 
@@ -5054,7 +5189,7 @@ class ACoreLogiDat:
                     continue
 
                 self.mono_message(
-                    prefunc = lambda : msg_INFO("VIDEO data, ops:"),
+                    prefunc = lambda : msg_INFO(_("VIDEO data, ops:")),
                     monofunc = lambda : msg_(" %s" % l))
 
             voldict = {}
@@ -5067,53 +5202,59 @@ class ACoreLogiDat:
                 if val:
                     val = val.rstrip(' \n\r\t')
 
+                m = val
                 if lbl == 'input_arg':
                     mnt, sep, nod = val.partition('|')
-                    lbl = 'device node'
+                    lbl = _('device node')
                     self.checked_input_arg = dev
                     if dev == nod:
-                        val = nod
+                        m = _("{0}: {1}").format(lbl, nod)
                     else:
                         if dev == mnt:
-                            val = '%s is %s' % (dev, nod)
+                            m = _(
+                                "{0}: {1} is {2}"
+                                ).format(lbl, dev, nod)
                         else:
-                            val = '%s (%s) is %s' % (mnt, dev, nod)
+                            m = _(
+                                "{0}: {1} ({2}) is {3}"
+                                ).format(lbl, mnt, dev, nod)
                         self.checked_input_mountpt = mnt
                 else:
                     voldict[lbl] = val
+                    if lbl == 'filesystem_block_count':
+                        self.checked_input_blocks = int(val.strip())
 
-                if lbl == 'filesystem_block_count':
-                    self.checked_input_blocks = int(val.strip())
+                    if m == "":
+                        m = _("[field is not set]")
 
-                if val == "":
-                    val = "[field is not set]"
+                    m = _("{0}: {1}").format(lbl, m)
 
                 self.mono_message(
-                    prefunc = lambda : msg_GOOD("DVD volume info:"),
-                    monofunc = lambda : msg_(" %s: %s\n" % (lbl, val)))
+                    prefunc = lambda : msg_GOOD(_("DVD volume info: ")),
+                    monofunc = lambda : msg_(m + "\n"))
 
             # give volume info pane new data
             self.vol_wnd.set_source_info(voldict)
 
             for l in rlinx:
-                msg_ERROR("AUXILIARY OUTPUT: '%s'" % l)
+                msg_ERROR(_("AUXILIARY OUTPUT: '{0}'").format(l))
 
             if stat != 0:
-                msg_line_ERROR(
-                    "!!! %s check of '%s' FAILED code %d"
-                    % (xcmd, dev, stat))
+                msg_line_ERROR(_(
+                    "!!! {0} check of '{1}' FAILED code {2}").format(
+                        (xcmd, dev, stat)))
             else:
                 self.checked_input_devnode = nod
                 st = x_lstat(self.checked_input_devnode)
                 self.checked_input_devstat = st
 
         elif stat >= 60:
-            msg_line_ERROR(
-                "!!! execution of '%s' FAILED" % xcmd)
+            msg_line_ERROR(_(
+                "!!! execution of '{0}' FAILED").format(xcmd))
         else:
-            msg_line_ERROR(
-                "!!! check of '%s' FAILED code %d"
-                % (dev, stat))
+            msg_line_ERROR(_(
+                "!!! check of '{0}' FAILED code {1}").format(
+                    (dev, stat)))
 
 
 class TheAppClass(wx.App):
