@@ -2903,8 +2903,6 @@ T_EVT_CHILDPROC_MESSAGE = wx.NewEventType()
 EVT_CHILDPROC_MESSAGE = wx.PyEventBinder(T_EVT_CHILDPROC_MESSAGE, 1)
 class AChildProcEvent(wx.PyCommandEvent):
     def __init__(self, evttag, payload = None, destid = None):
-        global T_EVT_CHILDPROC_MESSAGE
-
         if destid == None:
             destid = wx.GetApp().GetTopWindow().GetId()
 
@@ -2972,13 +2970,13 @@ class MediaDrive:
         if name:
             self.name = name
         else:
-            self.name = "[no name]"
+            self.name = _("[no name]")
 
         self.data = {}
 
         self.data["drive"] = []
         for i in (1, 2, 3):
-            self.data["drive"].append("unknown")
+            self.data["drive"].append(_("unknown"))
         self.data["medium"] = {}
         self.data["medium id"] = ""
         self.data["medium book"] = ""
@@ -3228,7 +3226,6 @@ class ACoreLogiDat:
                 self.source.type_opt.GetSelection(), True)
 
     def set_ready_topwnd(self, wnd):
-        #ov = self.opt_values
         self.topwnd = wnd
         self.topwnd_id = wnd.GetId()
 
@@ -3398,18 +3395,27 @@ class ACoreLogiDat:
 
         try:
             nm = self.cur_task_items["taskname"]
-            if nm == 'blanking':
-                self.update_working_blanking(g)
-            elif nm == 'cprec':
-                self.update_working_cprec(g)
-            elif nm == 'dd-dvd':
-                self.update_working_dd_dvd(g)
-            elif nm == 'growisofs-hier':
-                self.update_working_growisofs_hier(g)
-            elif nm == 'growisofs-whole':
-                self.update_working_growisofs(g)
-            elif nm == 'growisofs-direct':
-                self.update_working_growisofs(g)
+            lamda_key = "lambda_" + nm
+            try:
+                self.cur_task_items[lamda_key](g)
+            except:
+                if nm == 'blanking':
+                    l = lambda g: self.update_working_blanking(g)
+                elif nm == 'cprec':
+                    l = lambda g: self.update_working_cprec(g)
+                elif nm == 'dd-dvd':
+                    l = lambda g: self.update_working_dd_dvd(g)
+                elif nm == 'growisofs-hier':
+                    l = lambda g: self.update_working_growisofs_hier(g)
+                elif nm == 'growisofs-whole':
+                    l = lambda g: self.update_working_growisofs(g)
+                elif nm == 'growisofs-direct':
+                    l = lambda g: self.update_working_growisofs(g)
+                else:
+                    l = lambda g: g.Pulse()
+
+                self.cur_task_items[lamda_key] = l
+                self.cur_task_items[lamda_key](g)
         except:
             g.Pulse()
 
