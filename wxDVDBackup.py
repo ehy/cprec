@@ -1619,6 +1619,12 @@ class AVolInfPane(ABasePane):
     def get_panel(self):
         return self.panel
 
+    def config_rd(self, config):
+        self.get_panel().config_rd(config)
+
+    def config_wr(self, config):
+        self.get_panel().config_wr(config)
+
 """
 AVolInfPanePanel -- Panel window for operation volume info fields setup
 """
@@ -1729,6 +1735,39 @@ class AVolInfPanePanel(wx.Panel):
         self.type_opt.SetSelection(0)
         self.do_on_type_opt(0)
 
+
+    def config_rd(self, config):
+        if config.HasEntry("volinf_type_opt"):
+            opt = max(0, min(1, config.ReadInt("volinf_type_opt")))
+            self.type_opt.SetSelection(opt)
+            self.do_on_type_opt(opt)
+        else:
+            opt = self.type_opt.GetSelection()
+
+        if opt != 1:
+            self.do_on_type_opt(1)
+        for c in self.ctls:
+            nam = c.GetName()
+            cnam = "volinf_" + nam
+            if config.HasEntry(cnam):
+                val = config.Read(cnam)
+                c.SetValue(val)
+        if opt != 1:
+            self.do_on_type_opt(opt)
+
+    def config_wr(self, config):
+        opt = self.type_opt.GetSelection()
+        config.WriteInt("volinf_type_opt", opt)
+
+        if opt != 1:
+            self.do_on_type_opt(1)
+        for c in self.ctls:
+            val = c.GetValue()
+            nam = c.GetName()
+            cnam = "volinf_" + nam
+            config.Write(cnam, val)
+        if opt != 1:
+            self.do_on_type_opt(opt)
 
     def on_type_opt(self, event):
         self.do_on_type_opt(event.GetSelection())
@@ -1993,6 +2032,21 @@ class ATargetPanePanel(wx.Panel):
         self.button_select_node.Bind(
             wx.EVT_BUTTON, self.on_button_select_node)
 
+
+    def config_rd(self, config):
+        if config.HasEntry("target_type_opt"):
+            opt = max(0, min(2, config.ReadInt("target_type_opt")))
+            self.type_opt.SetSelection(opt)
+            self.do_opt_id_change(opt)
+        if config.HasEntry("target_device"):
+            self.input_select_node.SetValue(config.Read("target_device"))
+            self.on_select_node(None)
+        self.panel_volinfo.config_rd(config)
+
+    def config_wr(self, config):
+        self.panel_volinfo.config_wr(config)
+        config.WriteInt("target_type_opt", self.type_opt.GetSelection())
+        config.Write("target_device", self.input_select_node.GetValue())
 
     def on_select_node(self, event):
         self.dev = self.input_select_node.GetValue()
@@ -2346,6 +2400,19 @@ class ASourcePanePanel(wx.Panel):
             "", wx.DD_DIR_MUST_EXIST
             )
 
+
+    def config_rd(self, config):
+        if config.HasEntry("source_type_opt"):
+            opt = max(0, min(1, config.ReadInt("source_type_opt")))
+            self.type_opt.SetSelection(opt)
+            self.do_opt_id_change(opt)
+        if config.HasEntry("source_device"):
+            self.input_node_whole.SetValue(config.Read("source_device"))
+            self.on_nodepick_whole(None)
+
+    def config_wr(self, config):
+        config.WriteInt("source_type_opt", self.type_opt.GetSelection())
+        config.Write("source_device", self.input_node_whole.GetValue())
 
     def do_opt_id_change(self, t_id):
         if t_id == 0:
@@ -2752,14 +2819,38 @@ class AFrame(wx.Frame):
         self.core_ld = gist
 
         self.CreateStatusBar()
-        self.Centre(wx.BOTH)
 
-        self.sash_wnd = ASashWnd(self, -1, _("The Sash Window"), gist)
+        self.sash_wnd = ASashWnd(self, -1, "The Sash Window", gist)
 
         self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_CLOSE, self.on_quit)
-        # Custom event from chald handler threads
+        # Custom event from child handler threads
         self.Bind(EVT_CHILDPROC_MESSAGE, self.on_chmsg, id=self.GetId())
+
+    def config_rd(self, config):
+        pass
+
+    def config_wr(self, config):
+        if not config:
+            return
+
+        mn = 0
+        if self.IsIconized():
+            mn = 1
+        mx = 0
+        if self.IsMaximized():
+            mx = 1
+
+        config.WriteInt("iconized", mn)
+        config.WriteInt("maximized", mx)
+
+        if mn == 0 and mx == 0:
+            w, h = self.GetSize()
+            x, y = self.GetPosition()
+            config.WriteInt("x", max(x, 0))
+            config.WriteInt("y", max(y, 0))
+            config.WriteInt("w", w)
+            config.WriteInt("h", h)
 
     def on_idle(self, event):
         self.core_ld.do_idle(event)
@@ -3131,7 +3222,8 @@ class ACoreLogiDat:
         ". . . because I'm still . . .", "[at Alice's Restaurant]"
         )
 
-    def __init__(self):
+    def __init__(self, app):
+        self.app = app
         self.source = None
         self.target = None
         self.panes_enabled = True
@@ -3229,6 +3321,53 @@ class ACoreLogiDat:
         self.topwnd = wnd
         self.topwnd_id = wnd.GetId()
 
+        config = self.get_config()
+        self.topwnd.config_rd(config)
+        self.target.config_rd(config)
+        self.source.config_rd(config)
+
+    def do_quit(self, event):
+        try:
+            self.ch_thread.set_quit()
+        except:
+            #print PROG + ": Exception 1 in do_quit()"
+            pass
+
+        self.do_cancel(True)
+
+        try:
+            config = self.get_config()
+            self.source.config_wr(config)
+            self.target.config_wr(config)
+            self.topwnd.config_wr(config)
+        except:
+            print PROG + ": Exception 2 in do_quit()"
+
+    def do_idle(self, event):
+        if self.iface_init == False:
+            do_src = True
+            do_tgt = True
+
+            try:
+                config = self.get_config()
+                if config.HasEntry("source_type_opt"):
+                    do_src = False
+                if config.HasEntry("target_type_opt"):
+                    do_tgt = False
+            except:
+                pass
+
+            self.iface_init = True
+            ov = self.opt_values
+            if do_src:
+                self.source.type_opt.SetSelection(ov.s_whole)
+                self.source.do_opt_id_change(ov.s_whole)
+            if do_tgt:
+                self.target.type_opt.SetSelection(ov.t_dev)
+                self.target.do_opt_id_change(ov.t_dev)
+                self.target_opt_id_change(ov.t_dev)
+
+
     def target_select_node(self, node):
         if node != self.checked_output_arg:
             self.target_data = None
@@ -3286,6 +3425,9 @@ class ACoreLogiDat:
     def get_new_idval(self):
         return wx.NewId()
 
+    def get_config(self):
+        return self.app.get_config()
+
     def get_vol_datastructs(self):
         """provide data structs prepared in _init_ for volume info panel
         """
@@ -3314,7 +3456,7 @@ class ACoreLogiDat:
 
     def get_stat_wnd(self):
         if self.statwnd == None:
-            self.statwnd = wx.GetApp().GetTopWindow()
+            self.statwnd = self.topwnd
 
         return self.statwnd
 
@@ -3395,9 +3537,9 @@ class ACoreLogiDat:
 
         try:
             nm = self.cur_task_items["taskname"]
-            lamda_key = "lambda_" + nm
+            lambda_key = "lambda_" + nm
             try:
-                self.cur_task_items[lamda_key](g)
+                self.cur_task_items[lambda_key](g)
             except:
                 if nm == 'blanking':
                     l = lambda g: self.update_working_blanking(g)
@@ -3414,8 +3556,8 @@ class ACoreLogiDat:
                 else:
                     l = lambda g: g.Pulse()
 
-                self.cur_task_items[lamda_key] = l
-                self.cur_task_items[lamda_key](g)
+                self.cur_task_items[lambda_key] = l
+                self.cur_task_items[lambda_key](g)
         except:
             g.Pulse()
 
@@ -3727,23 +3869,6 @@ class ACoreLogiDat:
         self.checked_output_devstat = None
 
 
-    def do_idle(self, event):
-        if self.iface_init == False:
-            self.iface_init = True
-            ov = self.opt_values
-            self.source.type_opt.SetSelection(ov.s_whole)
-            self.source.do_opt_id_change(ov.s_whole)
-            self.target.type_opt.SetSelection(ov.t_dev)
-            self.target.do_opt_id_change(ov.t_dev)
-            self.target_opt_id_change(ov.t_dev)
-
-    def do_quit(self, event):
-        try:
-            self.ch_thread.set_quit()
-        except:
-            pass
-        self.do_cancel(True)
-
     def cb_go_and_read(self, n, s):
         """Callback for ChildTwoStreamReader.go_and_read()
         invoked from temporary thread
@@ -3965,8 +4090,6 @@ class ACoreLogiDat:
             msg_line_ERROR(_("unknown thread event '{0}'").format(typ))
 
     def dialog(self, msg, typ = "msg", sty = None):
-        global PROG
-
         if typ == "msg":
             if sty == None:
                 sty = wx.OK | wx.ICON_INFORMATION
@@ -4479,11 +4602,13 @@ class ACoreLogiDat:
             name = _('target')
 
         if not self.target_data or len(spds) < 1:
-            spds = (2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 18.0)
+            spds = (2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 18.0, 24.0)
         chcs = []
 
+        prec = 2
         for s in spds:
-            chcs.append("{0} (~ {1}KB/s)".format(s, s * 1385))
+            chcs.append("{flt:.{pr}} (~ {int}KB/s)".format(
+                flt = s, int = int(s * 1385), pr = prec))
 
         nnumeric = len(chcs)
         ndefchoice = nnumeric / 2
@@ -4950,8 +5075,8 @@ class ACoreLogiDat:
                 ei = fpid
                 es = rfd
                 m = _(
-                    "cannot execute child because '{0}' ({1})").format(
-                        es, ei)
+                    "cannot execute child because '{0}' ({1})"
+                    ).format(es, ei)
             else:
                 m = _("ERROR: child process failure")
 
@@ -5270,8 +5395,8 @@ class ACoreLogiDat:
                     m = _("{0}: {1}").format(lbl, m)
 
                 self.mono_message(
-                    prefunc = lambda : msg_GOOD(_("DVD volume info: ")),
-                    monofunc = lambda : msg_(m + "\n"))
+                    prefunc = lambda : msg_GOOD(_("DVD volume info:")),
+                    monofunc = lambda : msg_(" " + m + "\n"))
 
             # give volume info pane new data
             self.vol_wnd.set_source_info(voldict)
@@ -5300,23 +5425,59 @@ class ACoreLogiDat:
 class TheAppClass(wx.App):
     def __init__(self, dummy):
         wx.App.__init__(self)
-        self.frame = None
+
+    def OnExit(self):
+        config = self.get_config()
+        if config:
+            config.Flush()
+
+        return 0
 
     def OnInit(self):
-        global PROG
+        config = self.get_config()
+        config.SetPath('/main')
 
-        self.core_ld = ACoreLogiDat()
+        self.core_ld = ACoreLogiDat(self)
+
+        if config.HasEntry("x") and config.HasEntry("y"):
+            pos = wx.Point(
+                x = max(config.ReadInt("x", 0), 0),
+                y = max(config.ReadInt("y", 0), 0)
+            )
+        else:
+            pos = wx.DefaultPosition
+
+        w = config.ReadInt("w", -1)
+        h = config.ReadInt("h", -1)
+        if w < 0 or h < 0:
+            w = 800
+            h = 600
 
         self.frame = AFrame(
             None, -1, PROG, self.core_ld,
-            wx.DefaultPosition, wx.Size(840, 600)
-            )
+            pos, wx.Size(w, h))
+
+        if pos == wx.DefaultPosition:
+            self.frame.Centre(wx.BOTH)
+
+        self.frame.Iconize (config.ReadInt("iconized" , 0))
+        self.frame.Maximize(config.ReadInt("maximized", 0))
 
         self.frame.Show(True)
         self.SetTopWindow(self.frame)
         self.core_ld.set_ready_topwnd(self.frame)
 
         return True
+
+    def get_config(self):
+        try:
+            return self.config
+        except:
+            self.config = wx.Config(
+                PROG[:PROG.rfind(".py")],
+                "GPLFreeSoftwareApplications",
+                style = wx.CONFIG_USE_LOCAL_FILE)
+        return self.config
 
     def get_msg_obj(self):
         return self.GetTopWindow().get_msg_obj()
