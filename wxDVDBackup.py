@@ -5207,7 +5207,8 @@ class ACoreLogiDat:
         # lines with these tokens in rlin2 (below)
         # are excluded from output
         excl = (
-            'DVDVersion', 'output <standard output>', 'total bad blocks'
+            'DVDVersion', 'output <standard output>',
+            'total bad blocks', 'device name instead'
         )
 
         msg_line_(_("\nChecked device '{0}':\n").format(dev))
@@ -5281,7 +5282,7 @@ class ACoreLogiDat:
             if stat != 0:
                 msg_line_ERROR(_(
                     "!!! {0} check of '{1}' FAILED code {2}").format(
-                        (xcmd, dev, stat)))
+                        xcmd, dev, stat))
             else:
                 self.checked_input_devnode = nod
                 st = x_lstat(self.checked_input_devnode)
@@ -5293,7 +5294,7 @@ class ACoreLogiDat:
         else:
             msg_line_ERROR(_(
                 "!!! check of '{0}' FAILED code {1}").format(
-                    (dev, stat)))
+                    dev, stat))
 
 
 class TheAppClass(wx.App):
