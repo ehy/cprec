@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+# -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
@@ -2827,6 +2828,60 @@ class AFrame(wx.Frame):
         # Custom event from child handler threads
         self.Bind(EVT_CHILDPROC_MESSAGE, self.on_chmsg, id=self.GetId())
 
+        # setup menubar
+        self.menu_ids = {}
+        self._mk_menu()
+
+
+    def _mk_menu(self):
+        ld = self.core_ld
+        mb = wx.MenuBar()
+
+        # conventional File menu
+        mfile = wx.Menu()
+        # items
+        self.menu_ids["file_quit"] = cur = ld.get_new_idval()
+        mfile.Append(cur, _("&Quit"), _("Quit the program"))
+        self.Bind(wx.EVT_MENU, self.on_menu, id = cur)
+        # put current menu on bar
+        mb.Append(mfile, _("&File"))
+
+        # conventional Help menu
+        mhelp = wx.Menu()
+        # items
+        self.menu_ids["help_about"] = cur = ld.get_new_idval()
+        mhelp.Append(cur, _("&About"), _("About the program"))
+        self.Bind(wx.EVT_MENU, self.on_menu, id = cur)
+        # put current menu on bar
+        mb.Append(mhelp, _("&Help"))
+
+        # finally, put menu on frame window
+        self.SetMenuBar(mb)
+
+    def on_menu(self, event):
+        cur = event.GetId()
+
+        if cur == self.menu_ids["file_quit"]:
+            self.Close(False)
+        elif cur == self.menu_ids["help_about"]:
+            self.do_about_dialog()
+
+    def do_about_dialog(self):
+        # licence: get_licence_data()
+        info = wx.AboutDialogInfo()
+        info.SetName(PROG)
+        info.SetVersion("0.0.-1 Omega, man!")
+        info.SetDevelopers(['Ed Hynan'])
+        info.SetLicence(get_licence_data())
+        info.SetDescription("Flexible backup for video DVD discs.")
+        # the following requies a coding statement after shebang, like:
+        # -*- coding: utf-8 -*-
+        info.SetCopyright("© 2016 Ed Hynan <ehynan@gmail.com>")
+        # default ASCII
+        #info.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
+        wx.AboutBox(info)
+
+
     def config_rd(self, config):
         pass
 
@@ -3521,13 +3576,14 @@ class ACoreLogiDat:
             return (self.ch_thread.get_args())[2]
         return None
 
+    # working state
+    # update_working* below are for busy updates to gauge
+    # and status bar
+
     def working(self):
         if self.ch_thread != None:
             return True
         return False
-
-    # update_working* below are for busy updates to gauge
-    # and status bar
 
     def update_working_gauge(self):
         if not self.cur_task_items:
@@ -3665,7 +3721,7 @@ class ACoreLogiDat:
 
         fn = m.group(1)
         sz = int(m.group(2))
-        # paranoia
+
         if sz < 1:
             g.Pulse()
             return
@@ -3801,10 +3857,9 @@ class ACoreLogiDat:
             hbl = self.checked_media_blocks / 2
             if self.checked_input_blocks <= hbl:
                 m = _(
-                    "Target {0} capacity {1} blocks, only need {2}"\
+                    "Disc capacity is {0} blocks, but only {1} needed"\
                     " -- use a single layer DVD blank disc."
                     ).format(
-                             m,
                              self.checked_media_blocks,
                              self.checked_input_blocks,
                              )
@@ -3812,7 +3867,7 @@ class ACoreLogiDat:
                 stmsg.put_status(m)
                 return False
 
-        m = _("Good: need {0} free blocks, medium has {1}.").format(
+        m = _("Good: {0} free blocks needed, medium has {1}.").format(
             self.checked_input_blocks, self.checked_media_blocks)
         msg_line_GOOD(m)
         stmsg.put_status(m)
@@ -5449,7 +5504,7 @@ class TheAppClass(wx.App):
 
         w = config.ReadInt("w", -1)
         h = config.ReadInt("h", -1)
-        if w < 0 or h < 0:
+        if w < 100 or h < 100:
             w = 800
             h = 600
 
@@ -5473,8 +5528,13 @@ class TheAppClass(wx.App):
         try:
             return self.config
         except:
+            try:
+                tr = PROG.rindex(".py")
+            except:
+                tr = len(PROG)
+
             self.config = wx.Config(
-                PROG[:PROG.rfind(".py")],
+                PROG[:tr],
                 "GPLFreeSoftwareApplications",
                 style = wx.CONFIG_USE_LOCAL_FILE)
         return self.config
@@ -5482,7 +5542,23 @@ class TheAppClass(wx.App):
     def get_msg_obj(self):
         return self.GetTopWindow().get_msg_obj()
 
-if __name__ == '__main__':
+
+def __main():
     app = TheAppClass(0)
     app.MainLoop()
+
+
+_licence_data = """
+This is the licence: GPL v{{2,3}}.
+Actually, this is a place-holder.
+
+The GPL will eventually be placed here.
+Yip!
+"""
+
+def get_licence_data():
+    return _licence_data.format()
+
+if __name__ == '__main__':
+    __main()
 
