@@ -2877,9 +2877,14 @@ class AFrame(wx.Frame):
         info.SetDescription("Flexible backup for video DVD discs.")
         # the following requies a coding statement after shebang, like:
         # -*- coding: utf-8 -*-
-        info.SetCopyright("© 2016 Ed Hynan <ehynan@gmail.com>")
+        # *and* also will raise exception from wx if user's
+        # locale $LANG/$LC_ALL etc. are not set suitably
+        # therfore do not use it.
+        try:
+            info.SetCopyright("© 2016 Ed Hynan <ehynan@gmail.com>")
         # default ASCII
-        #info.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
+        except:
+            info.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
         wx.AboutBox(info)
 
 
