@@ -5548,6 +5548,13 @@ def __main():
     app.MainLoop()
 
 
+# The program licence, encoded as:
+# buf = zlib.compress(file opened on 'COPYING', 9)
+# for (max)48byte-head-of-buf:
+#   base64 encode (max)48 bytes
+#   append '\n' to (max)64 byte result
+#   concatenate result on target
+#   remove (max)48 bytes at head of buf
 _licence_data = """
 eNqdXFtz4zayfg7q/AiUX8au4ijx5OwlcSpVsi2PtWvLjiTPxG9LSZDFHYrUEqQ9
 +venv24ABHWZ5GxqsxObZKPR6MvXF8x332n65+PoSX8cjAbj/p1+fLq8G15p+ncw
@@ -5694,6 +5701,9 @@ UKJRfjqc72fC7Uus4uajcEJAg2e74hWjuroNUynKEfclJHEKb35I1F/qXhCg8/dn
 DvxdF+rw33WxX9r8P3d/dKk=
 """
 
+# Get the decoded licence -- usefule for conventional 'About'
+# dialog box; let it stay out of the way here, needn't be a
+# method of the dialog parent class.
 def get_prog_licence():
     import StringIO
     import zlib
