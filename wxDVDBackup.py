@@ -2813,6 +2813,8 @@ class ASashWnd(wx.SashWindow):
 
 
 class AFrame(wx.Frame):
+    about_info = None
+
     def __init__(self,
             parent, ID, title, gist,
             pos = wx.DefaultPosition, size = wx.DefaultSize):
@@ -2868,25 +2870,30 @@ class AFrame(wx.Frame):
             self.do_about_dialog()
 
     def do_about_dialog(self):
-        # licence: get_prog_licence()
-        info = wx.AboutDialogInfo()
-        info.SetName(PROG)
-        info.SetVersion("0.0.-1 Omega, man!")
-        info.SetDevelopers(['Ed Hynan'])
-        info.SetLicence(get_prog_licence())
-        info.SetDescription("Flexible backup for video DVD discs.")
-        # the following requies a coding statement after shebang, like:
-        # -*- coding: utf-8 -*-
-        # *and* also will raise exception from wx if user's
-        # locale $LANG/$LC_ALL etc. are not set suitably
-        # therfore do not use it.
-        try:
-            info.SetCopyright("© 2016 Ed Hynan <ehynan@gmail.com>")
-        # default ASCII
-        except:
-            info.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
-        wx.AboutBox(info)
+        if not self.about_info:
+            import zlib
+            import base64
 
+            lic = _licence_data
+            t = wx.AboutDialogInfo()
+
+            t.SetName(PROG)
+            t.SetVersion("0.0.-1 Omega, man!")
+            t.SetDevelopers(['Ed Hynan'])
+            t.SetLicence(zlib.decompress(base64.b64decode(lic)))
+            t.SetDescription("Flexible backup for video DVD discs.")
+            # the following requies a coding statement after shebang,
+            # like: -*- coding: utf-8 -*-
+            # *and* also will raise exception from wx if user's
+            # locale $LANG/$LC_ALL etc. are not set suitably
+            # therefore do not use it.
+            #t.SetCopyright("© 2016 Ed Hynan <ehynan@gmail.com>")
+            # default ASCII
+            t.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
+
+            self.about_info = t
+
+        wx.AboutBox(self.about_info)
 
     def config_rd(self, config):
         pass
@@ -5555,12 +5562,11 @@ def __main():
 
 
 # The program licence, encoded as:
-# buf = zlib.compress(file opened on 'COPYING', 9)
-# for (max)48byte-head-of-buf:
-#   base64 encode (max)48 bytes
-#   append '\n' to (max)64 byte result
-#   concatenate result on target
-#   remove (max)48 bytes at head of buf
+# CHUNK = 64
+# buf = base64.b64encode(zlib.compress(f_in.read(), 9))
+# while buf:
+#   f_out.write(buf[:CHUNK] + "\n")
+#   buf = buf[CHUNK:]
 _licence_data = """
 eNqdXFtz4zayfg7q/AiUX8au4ijx5OwlcSpVsi2PtWvLjiTPxG9LSZDFHYrUEqQ9
 +venv24ABHWZ5GxqsxObZKPR6MvXF8x332n65+PoSX8cjAbj/p1+fLq8G15p+ncw
@@ -5706,26 +5712,6 @@ r0+kQa6ue8TthiqL6xu1FQ7oT3y+XNtQ0T3Y8FcOhCZbFfuiFC3aqkSHGt6G/2KJ
 UKJRfjqc72fC7Uus4uajcEJAg2e74hWjuroNUynKEfclJHEKb35I1F/qXhCg8/dn
 DvxdF+rw33WxX9r8P3d/dKk=
 """
-
-# Get the decoded licence -- usefule for conventional 'About'
-# dialog box; let it stay out of the way here, needn't be a
-# method of the dialog parent class.
-def get_prog_licence():
-    import StringIO
-    import zlib
-    import base64
-
-    f_in = StringIO.StringIO(_licence_data)
-    buf = ""
-
-    while True:
-        ln = f_in.readline()
-        if not ln:
-            break
-
-        buf += base64.b64decode(ln.rstrip(' \n\r\t'))
-
-    return zlib.decompress(buf)
 
 
 if __name__ == '__main__':
