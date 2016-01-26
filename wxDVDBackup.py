@@ -2707,8 +2707,7 @@ class ASashWnd(wx.SashWindow):
         self.msg_minh = 40
         self.msg_inith = 100
         sz = pparent.GetClientSize()
-        #sz.height = 555 - self.msg_inith
-        sz.height -= self.msg_inith
+        sz.height -= self.msg_inith + 24
 
         self.swnd = []
         self.swnd.append(
@@ -2728,7 +2727,7 @@ class ASashWnd(wx.SashWindow):
                 self, -1, wx.DefaultPosition, (30, 30),
                 wx.NO_BORDER|wx.SW_3D
             ))
-        self.swnd[1].SetDefaultSize((sz.width, 0))
+        self.swnd[1].SetDefaultSize((sz.width, self.msg_inith))
         self.swnd[1].SetOrientation(wx.LAYOUT_HORIZONTAL)
         self.swnd[1].SetAlignment(wx.LAYOUT_TOP)
         self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
@@ -2747,7 +2746,7 @@ class ASashWnd(wx.SashWindow):
             self.swnd[0], sz1, parent, -1,
             "Source and Destination", gist
             )
-        self.child2 = AMsgWnd(self.swnd[1], 400, self.msg_inith)
+        self.child2 = AMsgWnd(self.swnd[1], sz.width, self.msg_inith)
         self.core_ld.set_msg_wnd(self.child2)
         self.child2.set_scroll_to_end(True)
 
