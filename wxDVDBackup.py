@@ -15,8 +15,9 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
+
 """
-DVD Backup fronted for cprec and dd-dvd
+DVD Backup fronted for cprec and dd-dvd, growisofs, genisoimage/mkisofs
 """
 
 import collections
@@ -41,6 +42,7 @@ import time
 import wx
 # from wxPython samples
 import wx.lib.mixins.listctrl as listmix
+import wx.lib.sized_controls as sc
 from wx.lib.embeddedimage import PyEmbeddedImage
 try:
     import wx.lib.agw.multidirdialog as MDD
@@ -1251,8 +1253,6 @@ class AMsgWnd(wx.TextCtrl):
         # only for scrolled windows and scroll bars --
         # but leave code in place in case this changes,
         # or some workaround presents itself.
-        #self.Bind(wx.EVT_SCROLL_TOP, self.on_scroll_top)
-        #self.Bind(wx.EVT_SCROLL_BOTTOM, self.on_scroll_bottom)
         self.Bind(wx.EVT_SCROLLWIN_TOP, self.on_scroll_top)
         self.Bind(wx.EVT_SCROLLWIN_BOTTOM, self.on_scroll_bottom)
 
@@ -2681,14 +2681,33 @@ class AChildSashWnd(wx.SashWindow):
 ASashWnd -- adjustable child of top frame
 """
 class ASashWnd(wx.SashWindow):
-    def __init__(self, parent, ID, title, gist):
-        wx.SashWindow.__init__(self, parent, ID)
+    def __init__(self, parent, ID, title, gist, init_build = False):
+        wx.SashWindow.__init__(self, parent, ID, name = title)
 
         self.core_ld = gist
 
+        # Param init_build means do build/create now, or
+        # let parent code call method to build; a workaround
+        # for interference from use of sizers, parent can start
+        # iface element build after sizers are stable
+        self.init_build_done = False
+        if init_build:
+            self._init_build()
+
+    def _init_build(self):
+        if self.init_build_done:
+            return
+
+        self.init_build_done = True
+
+        parent = self.GetParent()
+        pparent = parent.GetParent()
+        gist = self.core_ld
+
         self.msg_minh = 40
         self.msg_inith = 100
-        sz = wx.GetApp().GetTopWindow().GetClientSize()
+        sz = pparent.GetClientSize()
+        #sz.height = 555 - self.msg_inith
         sz.height -= self.msg_inith
 
         self.swnd = []
@@ -2706,57 +2725,37 @@ class ASashWnd(wx.SashWindow):
 
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (30, 20),
+                self, -1, wx.DefaultPosition, (30, 30),
                 wx.NO_BORDER|wx.SW_3D
             ))
-        self.swnd[1].SetDefaultSize((sz.width, 20))
+        self.swnd[1].SetDefaultSize((sz.width, 0))
         self.swnd[1].SetOrientation(wx.LAYOUT_HORIZONTAL)
         self.swnd[1].SetAlignment(wx.LAYOUT_TOP)
         self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
         self.swnd[1].SetSashVisible(wx.SASH_BOTTOM, True)
-        self.swnd[1].SetExtraBorderSize(0)
-
-        self.swnd.append(
-            wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (30, 30),
-                wx.NO_BORDER|wx.SW_3D
-            ))
-        self.swnd[2].SetDefaultSize((sz.width, self.msg_inith))
-        self.swnd[2].SetOrientation(wx.LAYOUT_HORIZONTAL)
-        self.swnd[2].SetAlignment(wx.LAYOUT_TOP)
-        self.swnd[2].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[2].SetSashVisible(wx.SASH_BOTTOM, True)
-        self.swnd[2].SetExtraBorderSize(1)
+        self.swnd[1].SetExtraBorderSize(1)
 
         self.child1_maxw = 16000
         self.child1_maxh = 16000
 
         self.child2_maxw = 16000
-        self.child2_maxh = 20
-
-        self.child3_maxw = 16000
-        self.child3_maxh = 16000
+        self.child2_maxh = 16000
 
         self.w0adj = 20
         sz1 = wx.Size(sz.width, sz.height - 20)
         self.child1 = AChildSashWnd(
             self.swnd[0], sz1, parent, -1,
-            _("Source and Destination"), gist
+            "Source and Destination", gist
             )
+        self.child2 = AMsgWnd(self.swnd[1], 400, self.msg_inith)
+        self.core_ld.set_msg_wnd(self.child2)
+        self.child2.set_scroll_to_end(True)
 
-        self.child2 = AProgBarPanel(self.swnd[1], gist)
-        self.core_ld.set_gauge_wnd(self.child2)
-
-        self.child3 = AMsgWnd(self.swnd[2], 400, self.msg_inith)
-        self.core_ld.set_msg_wnd(self.child3)
-        self.child3.set_scroll_to_end(True)
-
-        self.remainingSpace = self.swnd[2]
+        self.remainingSpace = self.swnd[1]
 
         ids = []
         ids.append(self.swnd[0].GetId())
         ids.append(self.swnd[1].GetId())
-        ids.append(self.swnd[2].GetId())
         ids.sort()
 
         self.Bind(
@@ -2777,18 +2776,18 @@ class ASashWnd(wx.SashWindow):
             hi = min(self.child1_maxh, event.GetDragRect().height)
             self.swnd[0].SetDefaultSize((self.child1_maxw, hi))
 
-        elif eobj is self.swnd[2]:
-            hi = min(self.child3_maxh, event.GetDragRect().height)
-            self.swnd[2].SetDefaultSize((self.child3_maxw, hi))
+        elif eobj is self.swnd[1]:
+            hi = min(self.child2_maxh, event.GetDragRect().height)
+            self.swnd[1].SetDefaultSize((self.child2_maxw, hi))
 
         wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
         self.remainingSpace.Refresh()
-        self.child3.conditional_scroll_adjust()
+        self.child2.conditional_scroll_adjust()
 
     def OnSize(self, event):
         ssz = self.GetSize()
         sz  = self.swnd[0].GetSize()
-        sz1 = self.swnd[2].GetSize()
+        sz1 = self.swnd[1].GetSize()
         h1 = sz.height
 
         wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
@@ -2806,34 +2805,72 @@ class ASashWnd(wx.SashWindow):
             self.swnd[0].SetDefaultSize((sz.width, h1))
             wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
 
-        self.child3.conditional_scroll_adjust()
+        self.child2.conditional_scroll_adjust()
 
     def get_msg_obj(self):
-        return self.child3
+        return self.child2
 
 
-class AFrame(wx.Frame):
+#class AFrame(wx.Frame):
+class AFrame(sc.SizedFrame):
     about_info = None
 
     def __init__(self,
             parent, ID, title, gist,
-            pos = wx.DefaultPosition, size = wx.DefaultSize):
-        wx.Frame.__init__(self, parent, ID, title, pos, size)
+            pos = wx.DefaultPosition, size = wx.DefaultSize,
+            # gauge toolbar range:
+            rang = 10000):
+        #wx.Frame.__init__(self, parent, ID, title, pos, size)
+        sc.SizedFrame.__init__(self, parent, ID, title, pos, size)
 
         self.core_ld = gist
 
+        # setup menubar
+        self.menu_ids = {}
+        self._mk_menu()
+
         self.CreateStatusBar()
 
-        self.sash_wnd = ASashWnd(self, -1, "The Sash Window", gist)
+        panel = self.GetContentsPane()
+        panel.SetSizerType("vertical")
+
+        self.sash_wnd_built = False
+        self.sash_wnd = ASashWnd(
+            panel, gist.get_new_idval(),
+            "main_sash_window",
+            gist)
+        self.sash_wnd_build()
+
+        self.sash_wnd.SetSizerProps(
+            expand = True,
+            proportion = 600,
+            halign = "centre",
+            valign = "top",
+            minsize = "adjust")
+
+        self.gauge = wx.Gauge(
+            panel, gist.get_new_idval(), rang,
+            size = wx.Size(-1, 16),
+            style = wx.GA_HORIZONTAL | wx.GA_SMOOTH)
+
+        self.gauge.SetSizerProps(
+            expand = True,
+            proportion = 24,
+            halign = "center",
+            valign = "bottom",
+            minsize = "fixed")
 
         self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_CLOSE, self.on_quit)
         # Custom event from child handler threads
         self.Bind(EVT_CHILDPROC_MESSAGE, self.on_chmsg, id=self.GetId())
 
-        # setup menubar
-        self.menu_ids = {}
-        self._mk_menu()
+        self.Fit()
+        self.SetMinSize((150, 100))
+
+
+    def get_gauge(self):
+        return self.gauge
 
 
     def _mk_menu(self):
@@ -2895,8 +2932,35 @@ class AFrame(wx.Frame):
 
         wx.AboutBox(self.about_info)
 
+    def sash_wnd_build(self):
+        if not self.sash_wnd_built:
+            self.sash_wnd_built = True
+            self.sash_wnd._init_build()
+
     def config_rd(self, config):
-        pass
+        if config.HasEntry("x") and config.HasEntry("y"):
+            pos = wx.Point(
+                x = max(config.ReadInt("x", 0), 0),
+                y = max(config.ReadInt("y", 0), 0)
+            )
+        else:
+            pos = wx.DefaultPosition
+
+        w = config.ReadInt("w", -1)
+        h = config.ReadInt("h", -1)
+        if w < 100 or h < 100:
+            w = 800
+            h = 600
+
+        self.SetSize((w, h))
+
+        if pos == wx.DefaultPosition:
+            self.Centre(wx.BOTH)
+
+        self.sash_wnd_build()
+
+        self.Iconize (config.ReadInt("iconized" , 0))
+        self.Maximize(config.ReadInt("maximized", 0))
 
     def config_wr(self, config):
         if not config:
@@ -3507,7 +3571,9 @@ class ACoreLogiDat:
     def set_target_wnd(self, wnd):
         self.target = wnd
 
-    def set_gauge_wnd(self, wnd):
+    def set_gauge_wnd(self, wnd = None):
+        if wnd == None:
+            wnd = self.topwnd
         self.gauge_wnd = wnd.get_gauge()
 
     def set_msg_wnd(self, wnd):
@@ -5523,7 +5589,7 @@ class TheAppClass(wx.App):
 
         self.frame = AFrame(
             None, -1, PROG, self.core_ld,
-            pos, wx.Size(w, h))
+            pos, wx.Size(800, 600))
 
         if pos == wx.DefaultPosition:
             self.frame.Centre(wx.BOTH)
@@ -5533,6 +5599,8 @@ class TheAppClass(wx.App):
 
         self.frame.Show(True)
         self.SetTopWindow(self.frame)
+
+        self.core_ld.set_gauge_wnd(self.frame)
         self.core_ld.set_ready_topwnd(self.frame)
 
         return True
