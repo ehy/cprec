@@ -2681,15 +2681,13 @@ class AChildSashWnd(wx.SashWindow):
 ASashWnd -- adjustable child of top frame
 """
 class ASashWnd(wx.SashWindow):
-    def __init__(self, parent, ID, title, gist, init_build = False):
+    def __init__(self, parent, ID, title, gist, init_build = True):
         wx.SashWindow.__init__(self, parent, ID, name = title)
 
         self.core_ld = gist
 
         # Param init_build means do build/create now, or
-        # let parent code call method to build; a workaround
-        # for interference from use of sizers, parent can start
-        # iface element build after sizers are stable
+        # let parent code call method to build
         self.init_build_done = False
         if init_build:
             self._init_build()
@@ -2706,8 +2704,8 @@ class ASashWnd(wx.SashWindow):
 
         self.msg_minh = 40
         self.msg_inith = 100
-        sz = pparent.GetClientSize()
-        sz.height -= self.msg_inith + 24
+        sz = parent.GetClientSize()
+        sz.height -= self.msg_inith
 
         self.swnd = []
         self.swnd.append(
@@ -2727,9 +2725,9 @@ class ASashWnd(wx.SashWindow):
                 self, -1, wx.DefaultPosition, (30, 30),
                 wx.NO_BORDER|wx.SW_3D
             ))
-        self.swnd[1].SetDefaultSize((sz.width, self.msg_inith))
+        self.swnd[1].SetDefaultSize((sz.width, self.msg_minh))
         self.swnd[1].SetOrientation(wx.LAYOUT_HORIZONTAL)
-        self.swnd[1].SetAlignment(wx.LAYOUT_TOP)
+        self.swnd[1].SetAlignment(wx.LAYOUT_BOTTOM)
         self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
         self.swnd[1].SetSashVisible(wx.SASH_BOTTOM, True)
         self.swnd[1].SetExtraBorderSize(1)
@@ -2740,13 +2738,13 @@ class ASashWnd(wx.SashWindow):
         self.child2_maxw = 16000
         self.child2_maxh = 16000
 
-        self.w0adj = 20
-        sz1 = wx.Size(sz.width, sz.height - 20)
+        self.w0adj = 6
+        sz1 = wx.Size(sz.width, sz.height - self.w0adj)
         self.child1 = AChildSashWnd(
             self.swnd[0], sz1, parent, -1,
             "Source and Destination", gist
             )
-        self.child2 = AMsgWnd(self.swnd[1], sz.width, self.msg_inith)
+        self.child2 = AMsgWnd(self.swnd[1], 100, self.msg_minh)
         self.core_ld.set_msg_wnd(self.child2)
         self.child2.set_scroll_to_end(True)
 
@@ -2818,7 +2816,7 @@ class AFrame(sc.SizedFrame):
             parent, ID, title, gist,
             pos = wx.DefaultPosition, size = wx.DefaultSize,
             # gauge toolbar range:
-            rang = 10000):
+            rang = 1000):
         #wx.Frame.__init__(self, parent, ID, title, pos, size)
         sc.SizedFrame.__init__(self, parent, ID, title, pos, size)
 
@@ -2840,10 +2838,7 @@ class AFrame(sc.SizedFrame):
 
         self.sash_wnd.SetSizerProps(
             expand = True,
-            proportion = 600,
-            halign = "centre",
-            valign = "top",
-            minsize = "adjust")
+            proportion = 600)
 
         self.gauge = wx.Gauge(
             panel, gist.get_new_idval(), rang,
@@ -2852,10 +2847,7 @@ class AFrame(sc.SizedFrame):
 
         self.gauge.SetSizerProps(
             expand = True,
-            proportion = 24,
-            halign = "center",
-            valign = "bottom",
-            minsize = "fixed")
+            proportion = 24)
 
         self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_CLOSE, self.on_quit)
@@ -2912,7 +2904,7 @@ class AFrame(sc.SizedFrame):
             t = wx.AboutDialogInfo()
 
             t.SetName(PROG)
-            t.SetVersion("0.0.-1 Omega, man!")
+            t.SetVersion("0.0.1 First Molt")
             t.SetDevelopers(['Ed Hynan'])
             t.SetLicence(zlib.decompress(base64.b64decode(lic)))
             t.SetDescription("Flexible backup for video DVD discs.")
@@ -2930,27 +2922,7 @@ class AFrame(sc.SizedFrame):
         wx.AboutBox(self.about_info)
 
     def config_rd(self, config):
-        if config.HasEntry("x") and config.HasEntry("y"):
-            pos = wx.Point(
-                x = max(config.ReadInt("x", 0), 0),
-                y = max(config.ReadInt("y", 0), 0)
-            )
-        else:
-            pos = wx.DefaultPosition
-
-        w = config.ReadInt("w", -1)
-        h = config.ReadInt("h", -1)
-        if w < 100 or h < 100:
-            w = 800
-            h = 600
-
-        self.SetSize((w, h))
-
-        if pos == wx.DefaultPosition:
-            self.Centre(wx.BOTH)
-
-        self.Iconize (config.ReadInt("iconized" , 0))
-        self.Maximize(config.ReadInt("maximized", 0))
+        pass
 
     def config_wr(self, config):
         if not config:
@@ -5573,12 +5545,30 @@ class TheAppClass(wx.App):
         else:
             pos = wx.DefaultPosition
 
+        w = config.ReadInt("w", -1)
+        h = config.ReadInt("h", -1)
+        if w < 100 or h < 100:
+            w = 800
+            h = 600
+
         self.frame = AFrame(
             None, -1, PROG, self.core_ld,
             pos, wx.Size(800, 600))
+        self.SetTopWindow(self.frame)
+
+        self.frame.SetSize((w, h))
+
+        if pos == wx.DefaultPosition:
+            self.frame.Centre(wx.BOTH)
+
+        i = config.ReadInt("iconized" , 0)
+        if i:
+            self.frame.Iconize(True)
+        m = config.ReadInt("maximized", 0)
+        if m:
+            self.frame.Maximize(True)
 
         self.frame.Show(True)
-        self.SetTopWindow(self.frame)
 
         self.core_ld.set_gauge_wnd(self.frame)
         self.core_ld.set_ready_topwnd(self.frame)
