@@ -2373,6 +2373,8 @@ class ASourcePanePanel(wx.Panel):
             wx.EVT_RADIOBOX, self.on_type_opt)
         self.input_node_whole.Bind(
             wx.EVT_TEXT_ENTER, self.on_nodepick_whole)
+        self.input_node_whole.Bind(
+            wx.EVT_TEXT, self.on_nodepick_whole_evtext)
         self.button_node_whole.Bind(
             wx.EVT_BUTTON, self.on_nodepick_whole_button)
         self.button_dir_whole.Bind(
@@ -2436,7 +2438,12 @@ class ASourcePanePanel(wx.Panel):
 
     def on_nodepick_whole(self, event):
         self.dev = self.input_node_whole.GetValue()
+        self.core_ld.source_select_node(self.dev)
         msg_line_INFO(_("set source device to {0}").format(self.dev))
+
+    def on_nodepick_whole_evtext(self, event):
+        self.dev = self.input_node_whole.GetValue()
+        self.core_ld.source_select_node(self.dev)
 
     def on_nodepick_whole_button(self, event):
         r = self.file_dlg.ShowModal()
@@ -3464,15 +3471,16 @@ class ACoreLogiDat:
 
     def target_select_node(self, node):
         if node != self.checked_output_arg:
-            self.target_data = None
-            self.checked_media_blocks  = 0
-            self.checked_output_arg     = ''
-            self.checked_output_devnode = ''
-            self.checked_output_devstat = None
+            self.reset_target_data()
 
     def target_opt_id_change(self, t_id):
         self.target_force_idx = -1
         self.target.set_button_select_node_label()
+
+    def source_select_node(self, node):
+        if node != self.checked_input_arg:
+            self.reset_source_data()
+            self.target.run_button.Enable(False)
 
     def source_opt_id_change(self, s_id, quiet = False):
         if not self.target:
@@ -3930,8 +3938,8 @@ class ACoreLogiDat:
             target_dev = self.target.input_select_node.GetValue()
 
         if target_dev:
-            src = self.checked_input_devnode
             if self.get_is_dev_direct_target():
+                src = self.checked_input_devnode
                 try:
                     same = os.path.samefile(src, target_dev)
                     if same:
@@ -3954,7 +3962,6 @@ class ACoreLogiDat:
 
             st = self.checked_output_devstat
             if not st:
-                #self.reset_source_data()
                 if self.do_target_medium_check(target_dev):
                     if self.do_in_out_size_check(async_blank):
                         if async_blank:
@@ -4588,7 +4595,7 @@ class ACoreLogiDat:
 
         if self.get_is_whole_backup():
             if self.get_is_dev_direct_target():
-               if not target_dev:
+                if not target_dev:
                     m = _("Please set a target device (with disc) "
                           "and click the 'Check settings' button")
                     msg_line_ERROR(m)
