@@ -3930,6 +3930,28 @@ class ACoreLogiDat:
             target_dev = self.target.input_select_node.GetValue()
 
         if target_dev:
+            src = self.checked_input_devnode
+            if self.get_is_dev_direct_target():
+                try:
+                    same = os.path.samefile(src, target_dev)
+                    if same:
+                        m = _("Can only do direct type burn using "
+                              "two different drives, but "
+                              "drives {s} and {t} are the same."
+                              ).format(s = src, t = target_dev)
+                        msg_line_ERROR(m)
+                        return
+                    else:
+                        m = _("Direct: source {s} and target {t}"
+                            ).format(s = src, t = target_dev)
+                        msg_line_INFO(m)
+                except:
+                    m = _("Cannot stat source {s} or target {t}"
+                        ).format(s = src, t = target_dev)
+                    msg_line_ERROR(m)
+                    return
+
+
             st = self.checked_output_devstat
             if not st:
                 #self.reset_source_data()
@@ -4559,12 +4581,14 @@ class ACoreLogiDat:
             return
 
         if self.working():
-            stmsg.put_status(_("Already busy!"))
+            msg_line_WARN(_("Already busy!"))
             return
+
+        self.get_stat_wnd().put_status("")
 
         if self.get_is_whole_backup():
             if self.get_is_dev_direct_target():
-                if not target_dev:
+               if not target_dev:
                     m = _("Please set a target device (with disc) "
                           "and click the 'Check settings' button")
                     msg_line_ERROR(m)
