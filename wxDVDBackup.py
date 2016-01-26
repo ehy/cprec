@@ -2833,12 +2833,10 @@ class AFrame(sc.SizedFrame):
         panel = self.GetContentsPane()
         panel.SetSizerType("vertical")
 
-        self.sash_wnd_built = False
         self.sash_wnd = ASashWnd(
             panel, gist.get_new_idval(),
             "main_sash_window",
-            gist)
-        self.sash_wnd_build()
+            gist, True)
 
         self.sash_wnd.SetSizerProps(
             expand = True,
@@ -2931,11 +2929,6 @@ class AFrame(sc.SizedFrame):
 
         wx.AboutBox(self.about_info)
 
-    def sash_wnd_build(self):
-        if not self.sash_wnd_built:
-            self.sash_wnd_built = True
-            self.sash_wnd._init_build()
-
     def config_rd(self, config):
         if config.HasEntry("x") and config.HasEntry("y"):
             pos = wx.Point(
@@ -2955,8 +2948,6 @@ class AFrame(sc.SizedFrame):
 
         if pos == wx.DefaultPosition:
             self.Centre(wx.BOTH)
-
-        self.sash_wnd_build()
 
         self.Iconize (config.ReadInt("iconized" , 0))
         self.Maximize(config.ReadInt("maximized", 0))
@@ -5572,6 +5563,8 @@ class TheAppClass(wx.App):
 
         self.core_ld = ACoreLogiDat(self)
 
+        # pos is repeated later in frame's conf_rd() -- w/o
+        # both, vertical position is off.
         if config.HasEntry("x") and config.HasEntry("y"):
             pos = wx.Point(
                 x = max(config.ReadInt("x", 0), 0),
@@ -5580,21 +5573,9 @@ class TheAppClass(wx.App):
         else:
             pos = wx.DefaultPosition
 
-        w = config.ReadInt("w", -1)
-        h = config.ReadInt("h", -1)
-        if w < 100 or h < 100:
-            w = 800
-            h = 600
-
         self.frame = AFrame(
             None, -1, PROG, self.core_ld,
             pos, wx.Size(800, 600))
-
-        if pos == wx.DefaultPosition:
-            self.frame.Centre(wx.BOTH)
-
-        self.frame.Iconize (config.ReadInt("iconized" , 0))
-        self.frame.Maximize(config.ReadInt("maximized", 0))
 
         self.frame.Show(True)
         self.SetTopWindow(self.frame)
