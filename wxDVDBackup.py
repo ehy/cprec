@@ -3513,7 +3513,7 @@ class ACoreLogiDat:
         if self.working():
             self.target.set_target_text(self.checked_output_arg, True)
         elif node != self.checked_output_arg:
-            if not self.get_is_fs_target()
+            if not self.get_is_fs_target():
                 self.reset_target_data()
                 self.target.run_button.Enable(False)
 
