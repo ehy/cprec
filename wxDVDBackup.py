@@ -1857,7 +1857,7 @@ class ATargetPanePanel(wx.Panel):
         type_optChoices.append(_("direct to burner"))
 
         self.type_opt = wx.RadioBox(
-            self, wx.ID_ANY, _("output target:"),
+            self, wx.ID_ANY, _("output type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
         self.type_opt.SetToolTip(wx.ToolTip(_(
@@ -2127,10 +2127,11 @@ class ATargetPanePanel(wx.Panel):
     def get_target_text(self):
         return self.input_select_node.GetValue()
 
-    def set_target_text(self, target_text):
+    def set_target_text(self, target_text, quiet = False):
         self.input_select_node.SetValue(target_text)
         self.dev = target_text
-        msg_line_INFO(_("set target to {0}").format(self.dev))
+        if not quiet:
+            msg_line_INFO(_("set target to {0}").format(self.dev))
 
 
 
@@ -2540,6 +2541,12 @@ class ASourcePanePanel(wx.Panel):
 
     def get_all_addl_items(self):
         return self.addl_list_ctrl.get_all_items()
+
+    def set_source_text(self, text, quiet = False):
+        self.input_node_whole.SetValue(text)
+        self.dev = text
+        if not quiet:
+            msg_line_INFO(_("set source to {0}").format(self.dev))
 
 
 """
@@ -3470,15 +3477,20 @@ class ACoreLogiDat:
 
 
     def target_select_node(self, node):
-        if node != self.checked_output_arg:
+        if self.working():
+            self.target.set_target_text(self.checked_output_arg, True)
+        elif node != self.checked_output_arg:
             self.reset_target_data()
+            self.target.run_button.Enable(False)
 
     def target_opt_id_change(self, t_id):
         self.target_force_idx = -1
         self.target.set_button_select_node_label()
 
     def source_select_node(self, node):
-        if node != self.checked_input_arg:
+        if self.working():
+            self.source.set_source_text(self.checked_input_arg, True)
+        elif node != self.checked_input_arg:
             self.reset_source_data()
             self.target.run_button.Enable(False)
 
