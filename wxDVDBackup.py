@@ -2822,6 +2822,32 @@ class ASashWnd(wx.SashWindow):
         return self.child2
 
 
+# A sequential integer ID dispenser for wx objects like
+# menu/toolbar items, buttons
+# prefix WX in capitols to distinguish from actual wx objects/code
+class WXObjIdSource():
+    seed = wx.ID_HIGHEST + 1000
+    cur = seed
+    incr = 1
+
+    def __init__(self, offs = 0):
+        self.offs = offs
+
+    def __call__(self):
+        return self.get_new_id()
+
+    def get_seed(self):
+        return self.__class__.seed
+
+    def get_cur(self):
+        return self.__class__.cur
+
+    def get_new_id(self):
+        v = self.__class__.cur + self.offs
+        self.__class__.cur += self.__class__.incr
+        return v
+
+
 #class AFrame(wx.Frame):
 class AFrame(sc.SizedFrame):
     about_info = None
@@ -2877,13 +2903,14 @@ class AFrame(sc.SizedFrame):
 
 
     def _mk_menu(self):
-        ld = self.core_ld
+        def id_src():
+            return self.core_ld.get_new_idval()
         mb = wx.MenuBar()
 
         # conventional File menu
         mfile = wx.Menu()
         # items
-        self.menu_ids["file_quit"] = cur = ld.get_new_idval()
+        self.menu_ids["file_quit"] = cur = id_src()
         mfile.Append(cur, _("&Quit"), _("Quit the program"))
         self.Bind(wx.EVT_MENU, self.on_menu, id = cur)
         # put current menu on bar
@@ -2892,7 +2919,7 @@ class AFrame(sc.SizedFrame):
         # conventional Help menu
         mhelp = wx.Menu()
         # items
-        self.menu_ids["help_about"] = cur = ld.get_new_idval()
+        self.menu_ids["help_about"] = cur = id_src()
         mhelp.Append(cur, _("&About"), _("About the program"))
         self.Bind(wx.EVT_MENU, self.on_menu, id = cur)
         # put current menu on bar
@@ -2930,6 +2957,7 @@ class AFrame(sc.SizedFrame):
             #t.SetCopyright("© 2016 Ed Hynan <ehynan@gmail.com>")
             # default ASCII
             t.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
+            t.SetWebSite("https://github.com/ehy/cprec")
 
             self.about_info = t
 
@@ -2979,18 +3007,18 @@ class AFrame(sc.SizedFrame):
 # A thread for time consuming child process --
 # cb is a callback, args is/are arguments to pass
 class AChildThread(threading.Thread):
-    def __init__(self, topwnd, topwnd_id, cb, args):
+    def __init__(self, topwnd, destwnd_id, cb, args):
         threading.Thread.__init__(self)
 
         self.topwnd = topwnd
-        self.destid = topwnd_id
+        self.destid = destwnd_id
         self.cb = cb
         self.args = args
 
         self.status = -1
         self.got_quit = False
 
-        self.per_th = APeriodThread(topwnd, topwnd_id)
+        self.per_th = APeriodThread(topwnd, destwnd_id)
 
     def run(self):
         tid = threading.current_thread().ident
@@ -3034,11 +3062,11 @@ class APeriodThread(threading.Thread):
     # of libc sleep(3); in fact it will take a float argument.
     th_sleep_ok = ("FreeBSD", "OpenBSD")
 
-    def __init__(self, topwnd, topwnd_id, interval = 1, msg = None):
+    def __init__(self, topwnd, destwnd_id, interval = 1, msg = None):
         threading.Thread.__init__(self)
 
         self.topwnd = topwnd
-        self.destid = topwnd_id
+        self.destid = destwnd_id
         self.got_stop = False
         self.intvl = interval
         self.tid = 0
@@ -3536,8 +3564,10 @@ class ACoreLogiDat:
         self.target.set_button_select_node_label()
 
 
-    def get_new_idval(self):
-        return wx.NewId()
+    def get_new_idval(self, wx_new_id = False):
+        if wx_new_id:
+            return wx.NewId()
+        return WXObjIdSource()()
 
     def get_config(self):
         return self.app.get_config()
