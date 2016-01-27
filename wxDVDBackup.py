@@ -2848,6 +2848,7 @@ class WXObjIdSource():
         return v
 
 
+# top/main frame window class
 #class AFrame(wx.Frame):
 class AFrame(sc.SizedFrame):
     about_info = None
@@ -2948,7 +2949,7 @@ class AFrame(sc.SizedFrame):
             t.SetVersion("0.0.1 First Molt")
             t.SetDevelopers(['Ed Hynan'])
             t.SetLicence(zlib.decompress(base64.b64decode(lic)))
-            t.SetDescription("Flexible backup for video DVD discs.")
+            t.SetDescription(self._get_about_desc())
             # the following requies a coding statement after shebang,
             # like: -*- coding: utf-8 -*-
             # *and* also will raise exception from wx if user's
@@ -2962,6 +2963,10 @@ class AFrame(sc.SizedFrame):
             self.about_info = t
 
         wx.AboutBox(self.about_info)
+
+    def _get_about_desc(self):
+        desc = _("Flexible backup for video DVD discs.")
+        return desc
 
     def config_rd(self, config):
         pass
@@ -3508,10 +3513,11 @@ class ACoreLogiDat:
         if self.working():
             self.target.set_target_text(self.checked_output_arg, True)
         elif node != self.checked_output_arg:
-            self.reset_target_data()
-            self.target.run_button.Enable(False)
+            if not self.get_is_fs_target()
+                self.reset_target_data()
+                self.target.run_button.Enable(False)
 
-    def target_opt_id_change(self, t_id):
+    def target_opt_id_change(self, t_id, quiet = False):
         self.target_force_idx = -1
         self.target.set_button_select_node_label()
 
