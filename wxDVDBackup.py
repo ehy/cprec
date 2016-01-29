@@ -5400,6 +5400,7 @@ class ACoreLogiDat:
 
         xcmd = self.get_cmd_path('cprec')
         xcmdargs = []
+        xcmdargs.append("%s-%s" % (xcmd, devname))
 
         optl = ("block-read-count", "retry-block-count", "libdvdr",
                 "ignore-specials", "ignore-hardlinks",
@@ -5427,7 +5428,6 @@ class ACoreLogiDat:
 
         cf.SetPath(opth)
 
-        xcmdargs.append("%s-%s" % (xcmd, devname))
         xcmdargs.append("-vvpfd0")
         xcmdargs.append("-n")
         xcmdargs.append(dev)
@@ -5546,6 +5546,7 @@ class ACoreLogiDat:
 
         xcmd = self.get_cmd_path('dd-dvd')
         xcmdargs = []
+        xcmdargs.append("%s-%s" % (xcmd, devname))
 
         optl = ("block-read-count", "retry-block-count", "libdvdr")
         cf = self.get_config()
@@ -5568,7 +5569,6 @@ class ACoreLogiDat:
 
         cf.SetPath(opth)
 
-        xcmdargs.append("%s-%s" % (xcmd, devname))
         xcmdargs.append("-vv")
         xcmdargs.append(dev)
         if not is_direct:
