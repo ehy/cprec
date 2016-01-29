@@ -40,6 +40,7 @@ import tempfile
 import threading
 import time
 import wx
+import wx.aui
 # from wxPython samples
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.sized_controls as sc
@@ -2553,21 +2554,45 @@ class ASourcePanePanel(wx.Panel):
 AProgBarPanel -- small class for wxGauge progress bar
 """
 class AProgBarPanel(wx.Panel):
-    def __init__(self, parent, gist, ID = -1, rang = 1000):
+    def __init__(self, parent, gist, ID = -1, rang = 1000,
+                 style = wx.GA_HORIZONTAL | wx.GA_SMOOTH):
         wx.Panel.__init__(self, parent, ID)
 
         self.gist = gist
         self.gauge = wx.Gauge(
             self, gist.get_new_idval(), rang,
-            style = wx.GA_HORIZONTAL | wx.GA_SMOOTH)
+            style = style)
 
-        szr = wx.BoxSizer(wx.HORIZONTAL)
-        szr.Add(self.gauge, 1, wx.EXPAND | wx.ALL, 1)
+        if style & wx.GA_HORIZONTAL and not style & wx.GA_VERTICAL:
+            szr = wx.HORIZONTAL
+        else:
+            szr = wx.VERTICAL
+
+        szr = wx.BoxSizer(szr)
+        szr.Add(self.gauge, 1, wx.EXPAND | wx.ALL, 2)
         self.SetSizer(szr)
         self.Layout()
 
     def get_gauge(self):
         return self.gauge
+
+    def IsVertical(self):
+        return self.get_gauge().IsVertical()
+
+    def GetValue(self):
+        return self.get_gauge().GetValue()
+
+    def SetValue(self, value):
+        self.get_gauge().SetValue(value)
+
+    def GetRange(self):
+        return self.get_gauge().GetRange()
+
+    def SetRange(self, value):
+        self.get_gauge().SetRange(value)
+
+    def Pulse(self):
+        self.get_gauge().Pulse()
 
 
 """
@@ -2848,6 +2873,317 @@ class WXObjIdSource():
         return v
 
 
+# A dialog box for settings
+# using a tabbed interface for sections
+class ASettingsDialog(sc.SizedDialog):
+    def __init__(self,
+            parent, ID, gist,
+            title = _("{appname} Settings").format(appname = PROG),
+            pos = wx.DefaultPosition, size = (600, 450)):
+        sc.SizedDialog.__init__(self, parent, ID, title, pos, size)
+
+        self.core_ld = gist
+
+        panel = self.GetContentsPane()
+        panel.SetSizerType("vertical")
+
+        self.nb = wx.aui.AuiNotebook(
+            panel,
+            id = gist.get_new_idval(),
+            style = wx.aui.AUI_NB_TOP|
+                    wx.aui.AUI_NB_TAB_SPLIT|
+                    wx.aui.AUI_NB_TAB_MOVE|
+                    wx.aui.AUI_NB_SCROLL_BUTTONS)
+
+        self.nb.SetSizerProps(expand = True, proportion = 12)
+
+        self.SetButtonSizer(
+            self.CreateStdDialogButtonSizer(wx.OK | wx.CANCEL))
+
+        self._setup_data_structs()
+
+        self._mk_paths_pane()
+        self._mk_advanced_pane()
+        self._mk_environ_pane()
+
+        self.Fit()
+        self.SetMinSize(size)
+
+    def _mk_paths_pane(self):
+        dat = self._data_paths
+        pane = sc.SizedPanel(self.nb, self.core_ld.get_new_idval())
+        pane.SetSizerType("form")
+
+        self._mk_pane_items(pane, dat, 10)
+
+        pane.SetToolTip(wx.ToolTip(_(
+                "The items under this tab are for "
+                "the child programs that are the tools "
+                "used for the job. These must all be usable. "
+                "If any of the tools need a special path, or are "
+                "installed with a different name, then "
+                "specify the name and/or path in these fields."
+                )
+            ))
+
+        pane.Fit()
+        pane.SetMinSize(self.nb.GetSize())
+
+        self.nb.AddPage(pane, _("Tool Names/Paths"))
+
+    def _mk_advanced_pane(self):
+        dat = self._data_advanced
+        pane = sc.SizedPanel(self.nb)
+        pane.SetSizerType("form")
+
+        self._mk_pane_items(pane, dat, 10)
+
+        pane.SetToolTip(wx.ToolTip(_(
+                "The items under this tab are advanced "
+                "options for cprec and dd-dvd.\n"
+                "\n"
+                "dd-dvd is the program used when backup type "
+                "\"simple\" is selected, and cprec is used when "
+                "the \"new filesystem\" type is selected.\n"
+                "\n"
+                "To understand these options, see the cprec(1) "
+                "and dd-dvd(1) manual pages."
+                )
+            ))
+
+        pane.Fit()
+        pane.SetMinSize(self.nb.GetSize())
+
+        self.nb.AddPage(pane, _("Advanced Options"))
+
+    def _mk_environ_pane(self):
+        pass
+
+    def _mk_pane_items(self, pane, dat, border = 0):
+        bdr = border
+        dlen = len(dat)
+        for idx in xrange(dlen):
+            a = dat[idx]
+            typ = a[0]
+            i0 = self.core_ld.get_new_idval()
+            i1 = self.core_ld.get_new_idval()
+
+            if typ == "text":
+                s = wx.StaticText(pane, i0, a[1])
+                s.SetSizerProps(
+                    valign = "center", border = (["left"], bdr))
+                t = wx.TextCtrl(pane, i1, a[4], name = a[2])
+                t.SetSizerProps(
+                    expand = True,
+                    valign = "center",
+                    border = (["right", "bottom"], bdr),
+                    proportion = 10)
+            elif typ == "blank":
+                s = wx.Panel(pane, id = i0)
+                t = wx.Panel(pane, id = i1)
+                t.SetSizerProps(expand = True, proportion = a[1])
+            elif typ == "hline":
+                s = wx.StaticLine(pane, i0, style = wx.LI_HORIZONTAL)
+                s.SetSizerProps(expand = True, proportion = a[1])
+                t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
+                t.SetSizerProps(expand = True, proportion = a[1])
+            elif typ == "txthline":
+                s = wx.StaticText(pane, i0, a[2],
+                    style = wx.ALIGN_CENTRE)
+                s.SetSizerProps(expand = False, proportion = a[1],
+                    halign = "center", valign = "center")
+                t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
+                t.SetSizerProps(expand = True, proportion = a[1])
+            elif typ == "spin_int":
+                df, mn, mx = a[4]
+                s = wx.StaticText(pane, i0, a[1])
+                s.SetSizerProps(
+                    valign = "center", border = (["left"], bdr))
+                t = wx.SpinCtrl(pane, i1, str(df), name = a[2],
+                    initial = df, min = mn, max = mx)
+                t.SetSizerProps(expand = False, valign = "center")
+            elif typ == "cprec_option":
+                s = wx.StaticText(pane, i0, a[1])
+                s.SetSizerProps(
+                    valign = "center", border = (["left"], bdr))
+                t = wx.CheckBox(pane, i1, name = a[2],
+                    label = _("cprec option: {0}").format("--" + a[2]))
+                t.SetValue(a[3])
+                t.SetSizerProps(expand = False, valign = "center")
+
+
+    def _setup_data_structs(self):
+        # list of array, where:
+        # 0 == type of control
+        # (if not special type like "blank":)
+        # 1 == control label
+        # 2 == control/config name
+        # 3 == set value
+        # 4 == control type extra -- only exists as needed, per type
+
+        # advanced tab
+        self._data_advanced = [
+            ["cprec_option", # booleans
+                _("Do not fail if file exists:"),
+                "ignore-existing",
+                False],
+            ["cprec_option", # booleans
+                _("Do not copy symbolic links, make new file:"),
+                "ignore-symlinks",
+                False],
+            ["cprec_option", # booleans
+                _("Do not make hard links, make new file:"),
+                "ignore-hardlinks",
+                False],
+            ["cprec_option", # booleans
+                _("Do not make device nodes, pipes, etc.:"),
+                "ignore-specials",
+                True],
+            ["txthline", 5, _("cprec and dd-dvd options:")],
+            ["spin_int", # extra: default, min, max
+                _("{0} 2048 byte blocks:").format("--block-read-count"),
+                "block-read-count",
+                "", (4096, 1, 4096 * 8)],
+            ["spin_int",
+                _("{0} for read errors:").format("--retry-block-count"),
+                "retry-block-count",
+                "", (48, 1, 4096 * 8)],
+            ["hline", 5],
+            ["text", # extra: default
+                _("libdvdread library name or path:"),
+                "libdvdr",
+                "", ""],
+            ["blank", 5]
+            ]
+
+        # tool paths tab
+        self._data_paths = [
+            ["text", # extra: default
+                _("growisofs program:"),
+                "growisofs",
+                "", "growisofs"],
+            ["text",
+                _("dvd+rw-mediainfo program:"),
+                "dvd+rw-mediainfo",
+                "", "dvd+rw-mediainfo"],
+            ["text",
+                _("dvd+rw-format program:"),
+                "dvd+rw-format",
+                "", "dvd+rw-format"],
+            ["text",
+                _("mkisofs/genisoimage program:"),
+                "mkisofs",
+                "", "mkisofs"],
+            ["txthline", 5, _("Included Programs:")],
+            ["text",
+                _("cprec program:"),
+                "cprec",
+                "", "cprec"],
+            ["text",
+                _("dd-dvd program:"),
+                "dd-dvd",
+                "", "dd-dvd"],
+            ["blank", 5]
+            ]
+
+
+    def config_rd(self, config):
+        dp = self._get_data_paths()
+        cf_path = config.GetPath()
+
+        for pth, dat in dp:
+            config.SetPath("/main/settings/" + pth)
+
+            dlen = len(dat)
+            for idx in xrange(dlen):
+                a = dat[idx]
+                typ = a[0]
+
+                if not (typ == "text" or
+                        typ == "spin_int" or
+                        typ == "cprec_option"):
+                    continue
+
+                ctl = self.FindWindowByName(a[2])
+                if not ctl: # error; shouldn't happen
+                    continue
+
+                cfkey = a[2]
+                if not config.HasEntry(cfkey):
+                    continue
+
+                if typ == "text":
+                    v = config.Read(cfkey)
+                    ctl.SetValue(v)
+                elif typ == "spin_int":
+                    v = config.ReadInt(cfkey)
+                    ctl.SetValue(v)
+                elif typ == "cprec_option":
+                    v = config.ReadInt(cfkey)
+                    ctl.SetValue(bool(v))
+
+
+        config.SetPath(cf_path)
+
+    def config_wr(self, config):
+        dp = self._get_data_paths()
+        cf_path = config.GetPath()
+
+        for pth, dat in dp:
+            config.SetPath("/main/settings/" + pth)
+
+            dlen = len(dat)
+            for idx in xrange(dlen):
+                a = dat[idx]
+                typ = a[0]
+
+                if not (typ == "text" or
+                        typ == "spin_int" or
+                        typ == "cprec_option"):
+                    continue
+
+                ctl = self.FindWindowByName(a[2])
+                if not ctl: # error; shouldn't happen
+                    continue
+
+                cfkey = a[2]
+
+                if typ == "text":
+                    v = ctl.GetValue().strip()
+                    df = a[4]
+                    if len(v) and v != df:
+                        config.Write(cfkey, v)
+                    elif len(df) and len(v) == 0:
+                        config.Write(cfkey, df)
+                    elif config.HasEntry(cfkey):
+                        config.DeleteEntry(cfkey)
+                elif typ == "spin_int":
+                    v = ctl.GetValue()
+                    df, mn, mx = a[4]
+                    if v != df:
+                        config.WriteInt(cfkey, v)
+                    elif config.HasEntry(cfkey):
+                        config.DeleteEntry(cfkey)
+                elif typ == "cprec_option":
+                    v = ctl.GetValue()
+                    df = a[3]
+                    if bool(v) != df:
+                        config.WriteInt(cfkey, int(v))
+                    elif df:
+                        config.WriteInt(cfkey, int(df))
+                    elif config.HasEntry(cfkey):
+                        config.DeleteEntry(cfkey)
+
+
+        config.SetPath(cf_path)
+
+    def _get_data_paths(self):
+        return (
+            ("tools", self._data_paths),
+            ("advanced", self._data_advanced)
+        )
+
+
 # top/main frame window class
 #class AFrame(wx.Frame):
 class AFrame(sc.SizedFrame):
@@ -2881,10 +3217,8 @@ class AFrame(sc.SizedFrame):
             expand = True,
             proportion = 600)
 
-        self.gauge = wx.Gauge(
-            panel, gist.get_new_idval(), rang,
-            size = wx.Size(-1, 16),
-            style = wx.GA_HORIZONTAL | wx.GA_SMOOTH)
+        self.gauge = AProgBarPanel(
+            panel, gist, gist.get_new_idval(), rang)
 
         self.gauge.SetSizerProps(
             expand = True,
@@ -2898,6 +3232,8 @@ class AFrame(sc.SizedFrame):
         self.Fit()
         self.SetMinSize((150, 100))
 
+        self.dlg_settings = ASettingsDialog(
+            self, gist.get_new_idval(), gist)
 
     def get_gauge(self):
         return self.gauge
@@ -2911,6 +3247,9 @@ class AFrame(sc.SizedFrame):
         # conventional File menu
         mfile = wx.Menu()
         # items
+        self.menu_ids["file_settings"] = cur = id_src()
+        mfile.Append(cur, _("&Settings"), _("Program settings"))
+        self.Bind(wx.EVT_MENU, self.on_menu, id = cur)
         self.menu_ids["file_quit"] = cur = id_src()
         mfile.Append(cur, _("&Quit"), _("Quit the program"))
         self.Bind(wx.EVT_MENU, self.on_menu, id = cur)
@@ -2934,11 +3273,19 @@ class AFrame(sc.SizedFrame):
 
         if cur == self.menu_ids["file_quit"]:
             self.Close(False)
+        elif cur == self.menu_ids["file_settings"]:
+            self.do_file_settings()
         elif cur == self.menu_ids["help_about"]:
             self.do_about_dialog()
 
+    def do_file_settings(self):
+        r = self.dlg_settings.ShowModal()
+
+        if r == wx.ID_OK:
+            self.dlg_settings.config_wr(self.core_ld.get_config())
+
     def do_about_dialog(self):
-        if not self.about_info:
+        if not self.__class__.about_info:
             import zlib
             import base64
 
@@ -2960,16 +3307,16 @@ class AFrame(sc.SizedFrame):
             t.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
             t.SetWebSite("https://github.com/ehy/cprec")
 
-            self.about_info = t
+            self.__class__.about_info = t
 
-        wx.AboutBox(self.about_info)
+        wx.AboutBox(self.__class__.about_info)
 
     def _get_about_desc(self):
         desc = _("Flexible backup for video DVD discs.")
         return desc
 
     def config_rd(self, config):
-        pass
+        self.dlg_settings.config_rd(config)
 
     def config_wr(self, config):
         if not config:
@@ -2992,6 +3339,8 @@ class AFrame(sc.SizedFrame):
             config.WriteInt("y", max(y, 0))
             config.WriteInt("w", w)
             config.WriteInt("h", h)
+
+        self.dlg_settings.config_wr(config)
 
     def on_idle(self, event):
         self.core_ld.do_idle(event)
@@ -3347,20 +3696,6 @@ class ACoreLogiDat:
         ". .",
         ".",
         "Hey Now!"
-        )
-    work_msgs_silly = (
-        "Working", "Still working", "Yet more working",
-        "Be patient", "You know, this is time consuming . . .",
-        ". . . I mean, a long process . . .",
-        ". . . even for the fastest optical drives . . .",
-        ". . . it's a lot of data", "So, working", "and working",
-        "No, not hung up . . .", "wait patiently", "Go get a beer",
-        "and a whiskey", "or water with a pinch of . . .",
-        ". . . ergot of Tuna, or whatever", "Relax",
-        "The next statement will be false!",
-        "The previous statement was true!",
-        "[still seeking Second Foundation]", "Patience please . . .",
-        ". . . because I'm still . . .", "[at Alice's Restaurant]"
         )
 
     def __init__(self, app):
@@ -3841,9 +4176,10 @@ class ACoreLogiDat:
         if stat_wnd == None:
             stat_wnd = self.get_stat_wnd()
 
+        msgs = self.__class__.work_msgs
         idx = self.work_msg_last_idx
-        stat_wnd.put_status(self.work_msgs[idx])
-        self.work_msg_last_idx = (idx + 1) % len(self.work_msgs)
+        stat_wnd.put_status(msgs[idx])
+        self.work_msg_last_idx = (idx + 1) % len(msgs)
 
     def update_working_msg(self, stat_wnd = None):
         last = self.work_msg_last_int
@@ -4835,6 +5171,19 @@ class ACoreLogiDat:
 
         return self.last_burn_speed
 
+
+    # command execution code
+    #
+
+    def get_cmd_path(self, cmd):
+        cf = self.get_config()
+        opth = cf.GetPath()
+        cf.SetPath("/main/settings/tools")
+        if cf.HasEntry(cmd):
+            cmd = cf.Read(cmd).strip()
+        cf.SetPath(opth)
+        return cmd
+
     def do_burn_whole(self, ch_proc, dat):
         stmsg = self.get_stat_wnd()
         self.cur_task_items = {}
@@ -4855,7 +5204,7 @@ class ACoreLogiDat:
         self.cur_task_items["taskfile"] = None
         self.cur_task_items["taskdirect"] = False
 
-        xcmd = 'growisofs'
+        xcmd = self.get_cmd_path('growisofs')
         xcmdargs = []
         xcmdargs.append(xcmd)
 
@@ -4903,7 +5252,7 @@ class ACoreLogiDat:
         self.cur_task_items["taskfile"] = None
         self.cur_task_items["taskdirect"] = False
 
-        xcmd = 'growisofs'
+        xcmd = self.get_cmd_path('growisofs')
         xcmdargs = []
         xcmdargs.append(xcmd)
 
@@ -5049,8 +5398,35 @@ class ACoreLogiDat:
         self.cur_task_items["taskfile"] = outf
         self.cur_task_items["taskdirect"] = False
 
-        xcmd = 'cprec'
+        xcmd = self.get_cmd_path('cprec')
         xcmdargs = []
+
+        optl = ("block-read-count", "retry-block-count", "libdvdr",
+                "ignore-specials", "ignore-hardlinks",
+                "ignore-symlinks", "ignore-existing")
+        cf = self.get_config()
+        opth = cf.GetPath()
+        cf.SetPath("/main/settings/advanced")
+
+        for opt in optl:
+            if not cf.HasEntry(opt):
+                continue
+            if opt == "block-read-count" or opt == "retry-block-count":
+                s = "--{opt}={val}".format(
+                    opt = opt, val = cf.ReadInt(opt))
+            elif opt == "libdvdr":
+                s = "--{opt}={val}".format(
+                    opt = opt, val = cf.Read(opt).strip())
+            else:
+                v = bool(cf.ReadInt(opt))
+                if not v:
+                    continue
+                s = "--{opt}".format(opt = opt)
+
+            xcmdargs.append(s)
+
+        cf.SetPath(opth)
+
         xcmdargs.append("%s-%s" % (xcmd, devname))
         xcmdargs.append("-vvpfd0")
         xcmdargs.append("-n")
@@ -5168,8 +5544,30 @@ class ACoreLogiDat:
         self.cur_task_items["taskname"] = 'dd-dvd'
         self.cur_task_items["taskfile"] = outf
 
-        xcmd = 'dd-dvd'
+        xcmd = self.get_cmd_path('dd-dvd')
         xcmdargs = []
+
+        optl = ("block-read-count", "retry-block-count", "libdvdr")
+        cf = self.get_config()
+        opth = cf.GetPath()
+        cf.SetPath("/main/settings/advanced")
+
+        for opt in optl:
+            if not cf.HasEntry(opt):
+                continue
+            if opt == "block-read-count" or opt == "retry-block-count":
+                s = "--{opt}={val}".format(
+                    opt = opt, val = cf.ReadInt(opt))
+            elif opt == "libdvdr":
+                s = "--{opt}={val}".format(
+                    opt = opt, val = cf.Read(opt).strip())
+            else:
+                continue
+
+            xcmdargs.append(s)
+
+        cf.SetPath(opth)
+
         xcmdargs.append("%s-%s" % (xcmd, devname))
         xcmdargs.append("-vv")
         xcmdargs.append(dev)
@@ -5192,7 +5590,7 @@ class ACoreLogiDat:
 
             inp_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
 
-            ycmd = 'growisofs'
+            ycmd = self.get_cmd_path('growisofs')
             ycmdargs = []
             ycmdargs.append(ycmd)
 
@@ -5282,7 +5680,7 @@ class ACoreLogiDat:
         msg_line_INFO(_(
             'blanking disc in "{0}" ({1})').format(dev, outdev))
 
-        xcmd = 'dvd+rw-format'
+        xcmd = self.get_cmd_path('dvd+rw-format')
         xcmdargs = []
         xcmdargs.append(xcmd)
 
@@ -5338,7 +5736,7 @@ class ACoreLogiDat:
             stmsg.put_status(_("Already busy!"))
             return False
 
-        xcmd = 'dvd+rw-mediainfo'
+        xcmd = self.get_cmd_path('dvd+rw-mediainfo')
         xcmdargs = []
         xcmdargs.append(xcmd)
         xcmdargs.append(target_dev)
@@ -5466,7 +5864,7 @@ class ACoreLogiDat:
 
         devname = os.path.split(origdev)[1]
 
-        xcmd = 'dd-dvd'
+        xcmd = self.get_cmd_path('dd-dvd')
         xcmdargs = []
         xcmdargs.append("%s-%s" % (xcmd, devname))
         xcmdargs.append("-vvn")
