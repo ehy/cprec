@@ -361,11 +361,6 @@ class ChildTwoStreamReader:
     prefix1 = "1: "
     prefix2 = "2: "
 
-    fork_err_status = 69
-    exec_err_status = 66
-    exec_wtf_status = 67
-    pgrp_err_status = 68
-
     catch_sigs = (
         signal.SIGINT,
         signal.SIGTERM,
@@ -388,6 +383,12 @@ class ChildTwoStreamReader:
         signal.SIGUSR2,
         signal.SIGPIPE
     )
+
+    fork_err_status = 69
+    exec_err_status = 66
+    exec_wtf_status = 67
+    pgrp_err_status = 68
+
 
     def __init__(self,
                  child_params = None,
@@ -441,6 +442,44 @@ class ChildTwoStreamReader:
     def set_dtor_lambda(self, procobj):
         self.dtor_lambda = procobj
 
+    @staticmethod
+    def status_string(stat, signalled = False):
+        if signalled:
+            r = _("terminated with signal {n}")
+            if stat == signal.SIGINT:
+                s = _("SIGINT")
+            elif stat == signal.SIGTERM:
+                s = _("SIGTERM")
+            elif stat == signal.SIGQUIT:
+                s = _("SIGQUIT")
+            elif stat == signal.SIGHUP:
+                s = _("SIGHUP")
+            elif stat == signal.SIGUSR1:
+                s = _("SIGUSR1")
+            elif stat == signal.SIGUSR2:
+                s = _("SIGUSR2")
+            elif stat == signal.SIGPIPE:
+                s = _("SIGPIPE")
+            elif stat == signal.SIGALRM:
+                s = _("SIGALRM")
+            else:
+                s = str(stat)
+
+            return r.format(n = s)
+
+        if stat == ChildTwoStreamReader.fork_err_status:
+            return _("failed, because fork() system call failed")
+        elif stat == ChildTwoStreamReader.exec_err_status:
+            return _("failed, could not be executed")
+        elif stat == ChildTwoStreamReader.exec_wtf_status:
+            return _("failed with an unknown execution error")
+        elif stat == ChildTwoStreamReader.pgrp_err_status:
+            return _("failed to create new process group")
+        elif stat:
+            return _("failed")
+
+
+        return _("succeeded")
 
 
     """
@@ -3109,18 +3148,25 @@ class ASettingsDialog(sc.SizedDialog):
                     continue
 
                 cfkey = a[2]
-                if not config.HasEntry(cfkey):
-                    continue
 
                 if typ == "text":
-                    v = config.Read(cfkey)
-                    ctl.SetValue(v)
+                    if config.HasEntry(cfkey):
+                        v = config.Read(cfkey)
+                        ctl.SetValue(v)
+                    else:
+                        ctl.SetValue(a[4])
                 elif typ == "spin_int":
-                    v = config.ReadInt(cfkey)
-                    ctl.SetValue(v)
+                    if config.HasEntry(cfkey):
+                        v = config.ReadInt(cfkey)
+                        ctl.SetValue(v)
+                    else:
+                        ctl.SetValue(a[4][0])
                 elif typ == "cprec_option":
-                    v = config.ReadInt(cfkey)
-                    ctl.SetValue(bool(v))
+                    if config.HasEntry(cfkey):
+                        v = config.ReadInt(cfkey)
+                        ctl.SetValue(bool(v))
+                    else:
+                        ctl.SetValue(a[3])
 
 
         config.SetPath(cf_path)
@@ -3153,13 +3199,11 @@ class ASettingsDialog(sc.SizedDialog):
                     df = a[4]
                     if len(v) and v != df:
                         config.Write(cfkey, v)
-                    elif len(df) and len(v) == 0:
-                        config.Write(cfkey, df)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
                 elif typ == "spin_int":
                     v = ctl.GetValue()
-                    df, mn, mx = a[4]
+                    df = a[4][0]
                     if v != df:
                         config.WriteInt(cfkey, v)
                     elif config.HasEntry(cfkey):
@@ -3174,8 +3218,8 @@ class ASettingsDialog(sc.SizedDialog):
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
 
-
         config.SetPath(cf_path)
+
 
     def _get_data_paths(self):
         return (
@@ -3279,10 +3323,13 @@ class AFrame(sc.SizedFrame):
             self.do_about_dialog()
 
     def do_file_settings(self):
-        r = self.dlg_settings.ShowModal()
+        cf = self.core_ld.get_config()
+        self.dlg_settings.config_rd(cf)
 
-        if r == wx.ID_OK:
-            self.dlg_settings.config_wr(self.core_ld.get_config())
+        rs = self.dlg_settings.ShowModal()
+
+        if rs == wx.ID_OK:
+            self.dlg_settings.config_wr(cf)
 
     def do_about_dialog(self):
         if not self.__class__.about_info:
@@ -3316,7 +3363,7 @@ class AFrame(sc.SizedFrame):
         return desc
 
     def config_rd(self, config):
-        self.dlg_settings.config_rd(config)
+        pass
 
     def config_wr(self, config):
         if not config:
@@ -3340,7 +3387,6 @@ class AFrame(sc.SizedFrame):
             config.WriteInt("w", w)
             config.WriteInt("h", h)
 
-        self.dlg_settings.config_wr(config)
 
     def on_idle(self, event):
         self.core_ld.do_idle(event)
@@ -4570,12 +4616,12 @@ class ACoreLogiDat:
             bsig = ch.prockilled
 
             if mth:
-                ms = _("status")
-                if bsig:
-                    ms = _("cancelled, signal")
-
-                m = _("Child process {0} {1}").format(ms, stat)
-                msg_line_INFO(m)
+                _("Child process has {0}").format(
+                    ChildTwoStreamReader.status_string(stat, bsig))
+                if stat:
+                    msg_line_ERROR(m)
+                else:
+                    msg_line_GOOD(m)
 
                 if not j_ok:
                     m = _("Thread join() fail")
@@ -4584,11 +4630,10 @@ class ACoreLogiDat:
             self.ch_thread = None
             self.work_msg_last_idx = 0
 
-            global eintr
-
             if stat == 0:
                 slno.put_status(_("Success!"))
-            elif bsig or (stat == eintr and ch.is_growisofs()):
+            elif ((bsig and stat == signal.SIGINT) or
+                  (stat == eintr and ch.is_growisofs())):
                 slno.put_status(_("Cancelled!"))
             else:
                 slno.put_status(_("Failed!"))
