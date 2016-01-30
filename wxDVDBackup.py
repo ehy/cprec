@@ -3323,6 +3323,15 @@ class AFrame(sc.SizedFrame):
             self.do_about_dialog()
 
     def do_file_settings(self):
+        if self.core_ld.working():
+            wx.MessageBox(
+                _("Please wait until current task finished, or "
+                  "cancel first."),
+                _("Confirm Quit"),
+                wx.OK | wx.ICON_EXCLAMATION, self)
+
+            return
+
         cf = self.core_ld.get_config()
         self.dlg_settings.config_rd(cf)
 
@@ -3392,6 +3401,13 @@ class AFrame(sc.SizedFrame):
         self.core_ld.do_idle(event)
 
     def on_quit(self, event):
+        rs = wx.MessageBox(
+            _("Do you really want to quit {app}?").format(app = PROG),
+            _("Confirm Quit"), wx.YES_NO | wx.ICON_QUESTION, self)
+
+        if rs != wx.YES:
+            return
+
         self.core_ld.do_quit(event)
         self.Destroy()
 
@@ -4492,7 +4508,7 @@ class ACoreLogiDat:
             else:
                 m = _("Prepared to burn backup. "\
                     "Make sure a writable blank disc is ready in "\
-                    "the burner addressed by node '{0}'.").format(outf)
+                    "the burner controlled by node '{0}'.").format(outf)
                 r = self.dialog(
                     m, "sty",
                     wx.OK|wx.CANCEL|wx.ICON_INFORMATION)
@@ -4616,7 +4632,7 @@ class ACoreLogiDat:
             bsig = ch.prockilled
 
             if mth:
-                m = _("Child process has {0}").format(
+                m = _("Child process status is \"{0}\"").format(
                     ChildTwoStreamReader.status_string(stat, bsig))
                 if stat:
                     msg_line_ERROR(m)
@@ -5071,7 +5087,10 @@ class ACoreLogiDat:
         typ = dat["source_type"]
 
         if typ == "hier":
-            do_it = self.do_burn_hier(ch_proc, dat)
+            if self.do_mkiso_blocks():
+                do_it = self.do_burn_hier(ch_proc, dat)
+            else:
+                return False
         elif typ == "whole":
             do_it = self.do_burn_whole(ch_proc, dat)
         else:
@@ -5562,7 +5581,12 @@ class ACoreLogiDat:
 
         try:
             if to_dev:
-                outf = self.check_target_dev(target_dev)
+                st = x_lstat(target_dev, True, False)
+                ist = self.checked_input_devstat
+                if st and os.path.samestat(st, ist):
+                    outf = target_dev
+                else:
+                    outf = self.check_target_dev(target_dev)
                 if outf:
                     target_dev = outf
                     ofd, outf = self.get_tempfile()
@@ -5862,6 +5886,129 @@ class ACoreLogiDat:
             self.checked_output_devstat = st
 
         return is_ok
+
+    def do_mkiso_blocks(self, srcdir = None, verbose = True):
+        stmsg = self.get_stat_wnd()
+
+        if not srcdir:
+            srcdir = self.cur_tempfile
+
+        if not srcdir:
+            if verbose:
+                msg_line_WARN(_("No directory for iso blocks check"))
+            return False
+
+        st = x_lstat(srcdir, True, False)
+        if not st:
+            if verbose:
+                msg_line_ERROR(_("stat({d}) failed").format(d = srcdir))
+            return False
+
+        if not stat.S_ISDIR(st.st_mode):
+            if verbose:
+                msg_line_ERROR(_(
+                    "{d} is not a directory").format(d = srcdir))
+            return False
+
+
+        xcmd = self.get_cmd_path('mkisofs')
+        xcmdargs = []
+        xcmdargs.append(xcmd)
+
+        xcmdargs.append("-dvd-video")
+        xcmdargs.append("-gui")
+        xcmdargs.append("-uid")
+        xcmdargs.append("0")
+        xcmdargs.append("-gid")
+        xcmdargs.append("0")
+        xcmdargs.append("-D")
+        xcmdargs.append("-R")
+
+        xcmdargs.append("-print-size")
+        xcmdargs.append("-quiet")
+
+        xcmdargs.append(srcdir)
+
+        m = _("Running {0} for {1}").format(xcmd, srcdir)
+        stmsg.put_status(m)
+        if verbose:
+            msg_line_INFO(m)
+
+        parm_obj = ChildProcParams(xcmd, xcmdargs)
+        ch_proc = ChildTwoStreamReader(parm_obj, self)
+
+        is_ok = ch_proc.go_and_read()
+
+        if not is_ok:
+            m = _(
+                "Failed iso blocks check of {0} with {1}"
+                ).format(srcdir, xcmd)
+            if verbose:
+                msg_line_ERROR(m)
+            stmsg.put_status(m)
+            return False
+        else:
+            stmsg.put_status(_("Waiting for {0}").format(xcmd))
+
+        ch_proc.wait()
+        is_ok = ch_proc.get_status()
+
+        if is_ok:
+            m = _(
+                "{0} failed status {1} for {2}"
+                ).format(xcmd, is_ok, srcdir)
+            if verbose:
+                msg_line_ERROR(m)
+            is_ok = False
+        else:
+            m = _("{0} succeeded for {1}").format(xcmd, srcdir)
+            if verbose:
+                msg_line_INFO(m)
+            is_ok = True
+
+        stmsg.put_status(m)
+
+        l1, l2, lx = ch_proc.get_read_lists()
+
+        if verbose:
+            for lin in l2:
+                lin = lin.rstrip()
+                msg_line_WARN(lin)
+
+        blks = 0
+        rx = re.compile('^\s*([0-9]+)\s*$')
+
+        for lin in l1:
+            m = rx.match(lin)
+            if m:
+                blks = int(m.group(1))
+                break
+
+        if not blks:
+            m = _("mkisofs has no size for {0} fs!").format(srcdir)
+            if verbose:
+                msg_line_ERROR(m)
+            stmsg.put_status(m)
+            return False
+        else:
+            m = _("mkisofs has size {sz} for {d} fs!").format(
+                sz = blks, d = srcdir)
+            if verbose:
+                msg_line_INFO(m)
+            stmsg.put_status(m)
+
+        got = self.checked_media_blocks
+        if blks > got:
+            m = _(
+                "need {bl} blocks needed for fs, only {got} available!"
+                ).format(bl = blks, got = got)
+            if verbose:
+                msg_line_ERROR(m)
+            stmsg.put_status(m)
+            return False
+
+        return True
+
 
     def do_dd_dvd_check(self, dev = None):
         stmsg = self.get_stat_wnd()
