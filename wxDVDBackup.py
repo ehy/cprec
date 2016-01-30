@@ -4407,7 +4407,7 @@ class ACoreLogiDat:
                     rpth = os.path.realpath(target_dev)
                     s1 = os.stat(rpth)
                     s2 = os.stat(self.checked_input_devnode)
-                    if s1.st_rdev != s2.st_rdev:
+                    if not os.path.samestat(s1.st_rdev, s2.st_rdev):
                         self.do_target_check(async_blank = True)
                 except:
                     pass
@@ -5116,7 +5116,7 @@ class ACoreLogiDat:
             spds = (2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 18.0, 24.0)
         chcs = []
 
-        prec = 2
+        prec = 8
         for s in spds:
             chcs.append("{flt:.{pr}} (~ {int}KB/s)".format(
                 flt = s, int = int(s * 1385), pr = prec))
@@ -5180,7 +5180,9 @@ class ACoreLogiDat:
         opth = cf.GetPath()
         cf.SetPath("/main/settings/tools")
         if cf.HasEntry(cmd):
-            cmd = cf.Read(cmd).strip()
+            t = cf.Read(cmd).strip()
+            if t:
+                cmd = t
         cf.SetPath(opth)
         return cmd
 
