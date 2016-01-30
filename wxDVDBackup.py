@@ -4616,7 +4616,7 @@ class ACoreLogiDat:
             bsig = ch.prockilled
 
             if mth:
-                _("Child process has {0}").format(
+                m = _("Child process has {0}").format(
                     ChildTwoStreamReader.status_string(stat, bsig))
                 if stat:
                     msg_line_ERROR(m)
