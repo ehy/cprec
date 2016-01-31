@@ -1717,7 +1717,7 @@ class AVolInfPanePanel(wx.Panel):
                 "volume information is copied as is.)\n"
                 "\n"
                 "Select whether to use DVD volume information "
-                "as found on the source DVD with \"copy from source\","
+                "as found on the source DVD with \"copy from source\", "
                 "or use a hand edited volume information set "
                 "with \"hand edit\".\n"
                 "\n"
@@ -1924,9 +1924,8 @@ class ATargetPanePanel(wx.Panel):
             "from the source drive. This option is only available "
             "if the \"simple\" backup type is selected"
             "\n\n"
-            "WARNING: the third 'direct' option is the least reliable "
-            "and might fail and waste the target disc. If you "
-            "use this option try a slow burn speed when prompted, "
+            "WARNING: the third 'direct' option is the least reliable. "
+            "If you use this option try a slow burn speed, "
             "and ensure that your computer is not busy with many tasks."
             )))
         self.add_child_wnd(self.type_opt)
@@ -2232,9 +2231,9 @@ class ASourcePanePanel(wx.Panel):
             "\n\n"
             "The second option will copy files from the disc into a "
             "new directory, allowing additional files and directories "
-            "to be added to the backup.  This new directory will "
-            "be the backup. This requires that the disc be mounted, "
-            "while the first \"simple\" option does not."
+            "to be added to the backup. This new directory will "
+            "be used for the backup. This requires that the disc be "
+            "mounted, while the first \"simple\" option does not."
             )))
         self.add_child_wnd(self.type_opt)
 
