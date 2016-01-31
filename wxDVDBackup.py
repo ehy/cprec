@@ -5588,7 +5588,8 @@ class ACoreLogiDat:
         try:
             if to_dev:
                 st = x_lstat(target_dev, True, False)
-                ist = self.checked_input_devstat
+                #ist = self.checked_input_devstat
+                ist = os.stat(self.checked_input_devnode)
                 if st and os.path.samestat(st, ist):
                     outf = target_dev
                 else:
