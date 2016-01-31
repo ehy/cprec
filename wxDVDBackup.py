@@ -5952,16 +5952,18 @@ class ACoreLogiDat:
 
         ch_proc.wait()
         is_ok = ch_proc.get_status()
+        is_sig = ch_proc.prockilled
+
+        sstr = ChildTwoStreamReader.status_string(is_ok, is_sig)
+        m = _(
+            "{process} has {stat} for {testdir}"
+            ).format(process = xcmd, stat = sstr, testdir = srcdir)
 
         if is_ok:
-            m = _(
-                "{0} failed status {1} for {2}"
-                ).format(xcmd, is_ok, srcdir)
             if verbose:
                 msg_line_ERROR(m)
             is_ok = False
         else:
-            m = _("{0} succeeded for {1}").format(xcmd, srcdir)
             if verbose:
                 msg_line_INFO(m)
             is_ok = True
@@ -5985,14 +5987,17 @@ class ACoreLogiDat:
                 break
 
         if not blks:
-            m = _("mkisofs has no size for {0} fs!").format(srcdir)
+            m = _(
+                "{process} found no size for {fsdir} fs!"
+                ).format(process = xcmd, fsdir = srcdir)
             if verbose:
                 msg_line_ERROR(m)
             stmsg.put_status(m)
             return False
         else:
-            m = _("mkisofs has size {sz} for {d} fs!").format(
-                sz = blks, d = srcdir)
+            m = _(
+                "{process} found {sz} blocks needed for {fsdir} fs!"
+                ).format(process = xcmd, sz = blks, fsdir = srcdir)
             if verbose:
                 msg_line_INFO(m)
             stmsg.put_status(m)
@@ -6000,8 +6005,8 @@ class ACoreLogiDat:
         got = self.checked_media_blocks
         if blks > got:
             m = _(
-                "need {bl} blocks needed for fs, only {got} available!"
-                ).format(bl = blks, got = got)
+                "need {blk} blocks for fs, only {got} free on medium!"
+                ).format(blk = blks, got = got)
             if verbose:
                 msg_line_ERROR(m)
             stmsg.put_status(m)
