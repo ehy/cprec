@@ -4316,7 +4316,7 @@ class ACoreLogiDat:
         return True
 
     # compare input size to capacity *after* data members are set
-    def do_in_out_size_check(self, blank_async = False):
+    def do_in_out_size_check(self, blank_async = False, verbose= False):
         stmsg = self.get_stat_wnd()
 
         d = self.target_data
@@ -4371,7 +4371,8 @@ class ACoreLogiDat:
 
         m = _("Good: {0} free blocks needed, medium has {1}.").format(
             self.checked_input_blocks, self.checked_media_blocks)
-        msg_line_GOOD(m)
+        if verbose:
+            msg_line_GOOD(m)
         stmsg.put_status(m)
 
         return True
@@ -4476,7 +4477,7 @@ class ACoreLogiDat:
                     rpth = os.path.realpath(target_dev)
                     s1 = os.stat(rpth)
                     s2 = os.stat(self.checked_input_devnode)
-                    if not os.path.samestat(s1.st_rdev, s2.st_rdev):
+                    if not os.path.samestat(s1, s2):
                         self.do_target_check(async_blank = True)
                 except:
                     pass
@@ -4993,7 +4994,9 @@ class ACoreLogiDat:
                 return self.check_target_dev(target_dev)
             return False
 
-        if not self.do_target_medium_check(target_dev):
+        s2 = os.stat(self.checked_input_devnode)
+        same = os.path.samestat(st, s2)
+        if not same and not self.do_target_medium_check(target_dev):
             return False
 
         return target_dev
@@ -5591,8 +5594,10 @@ class ACoreLogiDat:
                 #ist = self.checked_input_devstat
                 ist = os.stat(self.checked_input_devnode)
                 if st and os.path.samestat(st, ist):
+                    print "NO check_target_dev"
                     outf = target_dev
                 else:
+                    print "YES check_target_dev"
                     outf = self.check_target_dev(target_dev)
                 if outf:
                     target_dev = outf
