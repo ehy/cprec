@@ -718,18 +718,26 @@ class ChildTwoStreamReader:
 
 
     """
-    get child status, or -1 if called before child process has been
-    run -- if child has been run, this resets internal status to -1
+    get child status, return tuple integer code, boolean signalled --
+    stat is -1 if method is called before child process has been
+    run -- if child has been run, this optionally resets data -1, False
     so that object may be used again; hence this method can be called
     once per child run, or if running async e.g. in new thread then
-    other thread may call this to poll until return is not -1
+    other thread may call this to poll until status is not -1
     """
     def get_status(self, reset = False):
-        ret = self.procstat
+        ret = (self.procstat, self.prockilled)
         if reset:
             self.procstat = -1
+            self.prockilled = False
         return ret
 
+    """
+    get child status descriptive string, and optionally reset status
+    """
+    def get_status_string(self, reset = False):
+        stat, sig = self.get_status(reset)
+        return self.__class__.status_string(stat, sig)
 
     """
     simple helper for caller of go() below: it returns a 2 tuple
@@ -4628,12 +4636,11 @@ class ACoreLogiDat:
 
             ch = self.get_child_from_thread()
             st = self.ch_thread.get_status()
-            stat = ch.get_status()
-            bsig = ch.prockilled
+            sstr = ch.get_status_string(False)
+            stat, bsig = ch.get_status()
 
             if mth:
-                m = _("Child process status is \"{0}\"").format(
-                    ChildTwoStreamReader.status_string(stat, bsig))
+                m = _("Child process status is \"{0}\"").format(sstr)
                 if stat:
                     msg_line_ERROR(m)
                 else:
@@ -5782,7 +5789,7 @@ class ACoreLogiDat:
             stmsg.put_status(_("Waiting for {0}").format(xcmd))
 
         ch_proc.wait()
-        is_ok = ch_proc.get_status()
+        is_ok, is_sig = ch_proc.get_status()
 
         if is_ok == 0:
             m = _("{0} succeeded blanking {1}").format(xcmd, outdev)
@@ -5833,7 +5840,7 @@ class ACoreLogiDat:
             stmsg.put_status(_("Waiting for {0}").format(xcmd))
 
         ch_proc.wait()
-        is_ok = ch_proc.get_status()
+        is_ok, is_sig = ch_proc.get_status()
 
         if is_ok:
             m = _(
@@ -5951,10 +5958,9 @@ class ACoreLogiDat:
             stmsg.put_status(_("Waiting for {0}").format(xcmd))
 
         ch_proc.wait()
-        is_ok = ch_proc.get_status()
-        is_sig = ch_proc.prockilled
+        sstr = ch_proc.get_status_string(False)
+        is_ok, is_sig = ch_proc.get_status()
 
-        sstr = ChildTwoStreamReader.status_string(is_ok, is_sig)
         m = _(
             "{process} has {stat} for {testdir}"
             ).format(process = xcmd, stat = sstr, testdir = srcdir)
@@ -6110,7 +6116,7 @@ class ACoreLogiDat:
 
         msg_line_(_("\nChecked device '{0}':\n").format(dev))
 
-        stat = ch_proc.get_status()
+        stat, sig = ch_proc.get_status()
 
         if stat < 60 and stat > -1:
             # print what is available even if stat > 0
