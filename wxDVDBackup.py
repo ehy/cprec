@@ -44,6 +44,7 @@ import wx.aui
 # from wxPython samples
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.sized_controls as sc
+import wx.lib.scrolledpanel as scrollpanel
 from wx.lib.embeddedimage import PyEmbeddedImage
 try:
     import wx.lib.agw.multidirdialog as MDD
@@ -1272,9 +1273,7 @@ class AMsgWnd(wx.TextCtrl):
     def __init__(self, parent, wi, hi, id = -1):
         wx.TextCtrl.__init__(self,
             parent, id, "", wx.DefaultPosition, (wi, hi),
-            wx.TE_MULTILINE | wx.SUNKEN_BORDER | wx.TE_RICH |
-            wx.VSCROLL | wx.HSCROLL
-            )
+            wx.TE_MULTILINE|wx.SUNKEN_BORDER|wx.TE_RICH|wx.HSCROLL)
 
         self.parent = parent
 
@@ -1289,13 +1288,26 @@ class AMsgWnd(wx.TextCtrl):
             wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL,
             wx.FONTWEIGHT_NORMAL
         )
-        self.get_msg_obj().SetValue(_("Message window."))
+
         self.showpos = self.GetLastPosition()
 
         global _msg_obj
         _msg_obj = self
         global _msg_obj_init_is_done
         _msg_obj_init_is_done = True
+
+        msg_INFO(_("Message window line colour legend:"))
+        msg_line_GOOD(_("This is the 'good outcome' color"))
+        msg_line_WARN(_("This is the 'warning' colour"))
+        msg_line_ERROR(_("This is the 'error occurred' color"))
+        msg_line_INFO(_("This is the 'informational line' colour"))
+        msg_line_(_(
+            "This is the color of lines from child program output\n"
+            ))
+        msg_line_WARN(_(
+            "The author reserves the right to indulge in "
+            "inconsistency in applying the culler legend\n"
+            ))
 
         # Scroll top/bottom are not working -- apparently
         # only for scrolled windows and scroll bars --
@@ -1312,7 +1324,6 @@ class AMsgWnd(wx.TextCtrl):
         self.scroll_end = False
         self.scroll_end_user_set = False
         self.showpos = 0
-        #sys.stdout.write("Scroll TOP\n")
 
     def on_scroll_bottom(self, event):
         if event.GetOrientation() == wx.HORIZONTAL:
@@ -1320,7 +1331,6 @@ class AMsgWnd(wx.TextCtrl):
         self.scroll_end = True
         self.scroll_end_user_set = False
         self.showpos = self.GetLastPosition()
-        #sys.stdout.write("Scroll BOTTOM\n")
 
     # end private
     def set_mono_font(self):
@@ -1333,11 +1343,16 @@ class AMsgWnd(wx.TextCtrl):
         self.SetDefaultStyle(self.default_text_style)
 
 
-    def conditional_scroll_adjust(self, lastval = ""):
-        subt = lastval.rfind("\n")
-        if self.scroll_end == True and subt >= 0:
+    def conditional_scroll_adjust(self):
+        nlin = self.GetNumberOfLines()
+        if nlin <= 0:
+            return
+
+        llin = self.GetLineLength(nlin - 1)
+
+        if self.scroll_end == True and llin >= 0:
             self.SetInsertionPointEnd()
-            self.showpos = self.GetLastPosition() - subt
+            self.showpos = self.GetLastPosition() - llin
 
         self.ShowPosition(self.showpos)
 
@@ -1351,7 +1366,7 @@ class AMsgWnd(wx.TextCtrl):
 
     def SetValue(self, val):
         wx.TextCtrl.SetValue(self, val)
-        self.conditional_scroll_adjust(val)
+        self.conditional_scroll_adjust()
 
     def SetValueColored(self, val, clr):
         # Oy, GetDefaultStyle() does not return
@@ -1364,7 +1379,7 @@ class AMsgWnd(wx.TextCtrl):
 
     def AppendText(self, val):
         wx.TextCtrl.AppendText(self, val)
-        self.conditional_scroll_adjust(val)
+        self.conditional_scroll_adjust()
 
     def AppendTextColored(self, val, clr):
         # Ouch, GetDefaultStyle() does not return
@@ -1606,9 +1621,11 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
 """
 ABasePane -- a base class for scrolling panels used here
 """
-class ABasePane(wx.ScrolledWindow):
+#class ABasePane(wx.ScrolledWindow):
+class ABasePane(scrollpanel.ScrolledPanel):
     def __init__(self, parent, gist, wi, hi, id = -1):
-        wx.ScrolledWindow.__init__(self, parent, id)
+        #wx.ScrolledWindow.__init__(self, parent, id)
+        scrollpanel.ScrolledPanel.__init__(self, parent, id)
         self.parent = parent
         self.core_ld = gist
         self.sz = wx.Size(wi, hi)
@@ -1965,7 +1982,7 @@ class ATargetPanePanel(wx.Panel):
         self.input_select_node = wx.TextCtrl(
             self, wx.ID_ANY, "",
             wx.DefaultPosition, wx.DefaultSize,
-            wx.TE_PROCESS_ENTER|wx.TE_PROCESS_TAB)
+            wx.TE_PROCESS_ENTER)
         self.input_select_node.SetToolTip(wx.ToolTip(ttip))
         self.fgSizer_node_whole.Add(
             self.input_select_node, 1,
@@ -2272,7 +2289,7 @@ class ASourcePanePanel(wx.Panel):
         self.input_node_whole = wx.TextCtrl(
             self, wx.ID_ANY, "",
             wx.DefaultPosition, wx.DefaultSize,
-            wx.TE_PROCESS_ENTER|wx.TE_PROCESS_TAB)
+            wx.TE_PROCESS_ENTER)
         self.input_node_whole.SetToolTip(wx.ToolTip(ttip))
         self.fgSizer_node_whole.Add(
             self.input_node_whole, 1,
@@ -3332,9 +3349,9 @@ class AFrame(sc.SizedFrame):
     def do_file_settings(self):
         if self.core_ld.working():
             wx.MessageBox(
-                _("Please wait until current task finished, or "
-                  "cancel first."),
-                _("Confirm Quit"),
+                _("Please wait until the current task is finished, or "
+                  "if necessary, cancel the task first."),
+                _("A Task is Running!"),
                 wx.OK | wx.ICON_EXCLAMATION, self)
 
             return
