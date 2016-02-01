@@ -1304,10 +1304,6 @@ class AMsgWnd(wx.TextCtrl):
         msg_line_(_(
             "This is the color of lines from child program output\n"
             ))
-        msg_line_WARN(_(
-            "The author reserves the right to indulge in "
-            "inconsistency in applying the culler legend\n"
-            ))
 
         # Scroll top/bottom are not working -- apparently
         # only for scrolled windows and scroll bars --
