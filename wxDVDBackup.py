@@ -734,11 +734,12 @@ class ChildTwoStreamReader:
         return ret
 
     """
-    get child status descriptive string, and optionally reset status
+    get child status descriptive string in a tuple with
+    status and signalled boolean, and optionally reset status
     """
     def get_status_string(self, reset = False):
         stat, sig = self.get_status(reset)
-        return self.__class__.status_string(stat, sig)
+        return (stat, sig, self.__class__.status_string(stat, sig))
 
     """
     simple helper for caller of go() below: it returns a 2 tuple
@@ -4649,8 +4650,7 @@ class ACoreLogiDat:
 
             ch = self.get_child_from_thread()
             st = self.ch_thread.get_status()
-            sstr = ch.get_status_string(False)
-            stat, bsig = ch.get_status()
+            stat, bsig, sstr = ch.get_status_string(False)
 
             if mth:
                 m = _("Child process status is \"{0}\"").format(sstr)
@@ -5976,8 +5976,7 @@ class ACoreLogiDat:
             stmsg.put_status(_("Waiting for {0}").format(xcmd))
 
         ch_proc.wait()
-        sstr = ch_proc.get_status_string(False)
-        is_ok, is_sig = ch_proc.get_status()
+        is_ok, is_sig, sstr = ch_proc.get_status_string(False)
 
         m = _(
             "{process} has {stat} for {testdir}"
