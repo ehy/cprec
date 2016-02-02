@@ -50,7 +50,6 @@ try:
     import wx.lib.agw.multidirdialog as MDD
 except:
     pass
-_ = wx.GetTranslation
 # end from wxPython samples
 
 
@@ -114,6 +113,11 @@ SmallDnArrow = PyEmbeddedImage(
 """
     Global procedures
 """
+
+# E.g.: _("Sounds more poetic in Klingon.")
+# TODO: other hookup needed for i18n -- can wait
+# until translation volunteers materialize
+_ = wx.GetTranslation
 
 msg_red_color = wx.RED
 msg_green_color = wx.Colour(0, 227, 0)
@@ -1617,6 +1621,12 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
 
 """
 ABasePane -- a base class for scrolling panels used here
+(NOTE: use of wxPython wx.lib.scrolledpanel -- imported
+as scrollpanel here -- has some subtle advantages, e.g. the
+volume info panel, which is always larger than visible space and
+therefore has vertical a scroll bar, will auto-scroll to reveal
+a newly focused control that had been hidden when tabbing
+through controls; wx.ScrolledWindow does not do so.)
 """
 #class ABasePane(wx.ScrolledWindow):
 class ABasePane(scrollpanel.ScrolledPanel):
