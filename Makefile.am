@@ -36,6 +36,28 @@ SUBDIRS = lib_misc
 
 AM_CPPFLAGS = -I$(srcdir)/lib_misc
 
+# Version 0.2.1, wxPython front end
+python_PYTHON = wxDVDBackup.py
+dist_bin_SCRIPTS = wxDVDBackup
+bin_SCRIPTS = wxDVDBackup
+CLEANFILES = $(bin_SCRIPTS)
+EXTRA_DIST = wxDVDBackup.in
+wxpy_sub = sed \
+			-e 's;[@]PYTHON[@];$(PYTHON);g' \
+			-e 's;[@]PYTHON_VERSION[@];$(PYTHON_VERSION);g' \
+			-e 's;[@]PYTHON_PREFIX[@];$(PYTHON_PREFIX);g' \
+			-e 's;[@]PYTHON_EXEC_PREFIX[@];$(PYTHON_EXEC_PREFIX);g' \
+			-e 's;[@]PYTHON_PLATFORM[@];$(PYTHON_PLATFORM);g' \
+			-e 's;[@]pythondir[@];$(pythondir);g' \
+			-e 's;[@]pkgpythondir[@];$(pkgpythondir);g' \
+			-e 's;[@]pyexecdir[@];$(pyexecdir);g' \
+			-e 's;[@]pkgpyexecdir[@];$(pkgpyexecdir);g' \
+			-e 's;[@]PACKAGE[@];$(PACKAGE);g' \
+			-e 's;[@]VERSION[@];$(VERSION);g'
+
+wxDVDBackup: wxDVDBackup.in Makefile
+	$(wxpy_sub) < wxDVDBackup.in > wxDVDBackup
+	chmod +x wxDVDBackup
 
 #  if you write a self-test script named `chk', uncomment the
 #  following and add `chk' to the EXTRA_DIST list

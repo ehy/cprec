@@ -1,0 +1,18 @@
+#! /bin/sh
+
+PROG=${0##*/}
+e2 () { printf '%s: %s\n' "$PROG" "$*"; }
+fail () { e2 "$*"; exit 1; }
+
+PYINTERP=@PYTHON@
+inst_py_dir=@pythondir@
+
+bin_file="$inst_py_dir/${PROG}.pyo"
+test -f "$bin_file" || bin_file="$inst_py_dir/${PROG}.pyc"
+test -f "$bin_file" || bin_file="$inst_py_dir/${PROG}.py"
+
+test -f "$bin_file" || fail \
+    cannot find our python program code in \""$inst_py_dir"\"
+
+exec $PYINTERP "$bin_file" ${1+"$@"}
+exit 1

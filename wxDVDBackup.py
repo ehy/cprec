@@ -6099,8 +6099,31 @@ class ACoreLogiDat:
         xcmd = self.get_cmd_path('dd-dvd')
         xcmdargs = []
         xcmdargs.append("%s-%s" % (xcmd, devname))
+
+        optl = ("block-read-count", "retry-block-count", "libdvdr")
+        cf = self.get_config()
+        opth = cf.GetPath()
+        cf.SetPath("/main/settings/advanced")
+
+        for opt in optl:
+            if not cf.HasEntry(opt):
+                continue
+            if opt == "block-read-count" or opt == "retry-block-count":
+                s = "--{opt}={val}".format(
+                    opt = opt, val = cf.ReadInt(opt))
+            elif opt == "libdvdr":
+                s = "--{opt}={val}".format(
+                    opt = opt, val = cf.Read(opt).strip())
+            else:
+                continue
+
+            xcmdargs.append(s)
+
+        cf.SetPath(opth)
+
         xcmdargs.append("-vvn")
         xcmdargs.append(dev)
+
         xcmdenv = []
         xcmdenv.append( ('CPREC_LINEBUF', 'true') )
         xcmdenv.append( ('DDD_LINEBUF', 'true') )
