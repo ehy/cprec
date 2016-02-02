@@ -1358,7 +1358,7 @@ main(int argc, char* argv[])
     }
 
     if ( DVDVersion == NULL ) {
-        if ( verbose >= 2 ) {
+        if ( verbose > 2 ) {
             pfeopt(_("%s: dvdread library %s has no DVDVersion()\n"),
                 program_name, drd_libname);
         }
