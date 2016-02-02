@@ -1,7 +1,7 @@
 #! /bin/sh
 
 PROG=${0##*/}
-e2 () { printf '%s: %s\n' "$PROG" "$*"; }
+e2 () { printf '%s: %s\n' "$PROG" "$*" 1>&2; }
 fail () { e2 "$*"; exit 1; }
 
 PYINTERP=@PYTHON@

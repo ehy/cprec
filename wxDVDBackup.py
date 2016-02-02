@@ -6164,7 +6164,7 @@ class ACoreLogiDat:
             'total bad blocks', 'device name instead'
         )
 
-        msg_line_(_("\nChecked device '{0}':\n").format(dev))
+        msg_line_INFO(_("\nChecked device '{0}':\n").format(dev))
 
         stat, sig = ch_proc.get_status()
 

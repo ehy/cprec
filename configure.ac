@@ -166,7 +166,7 @@ dnl subdir configures
 AC_CONFIG_SUBDIRS(lib_misc)
 
 dnl Version 0.2.1, wxPython front end
-AM_PATH_PYTHON([2.6],, [:])
+AM_PATH_PYTHON([2.7],, [:])
 
 
 dnl this was original from autopackage: AC_OUTPUT(Makefile cprec.lsm cprec.spec)
