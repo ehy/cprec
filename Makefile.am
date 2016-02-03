@@ -57,7 +57,7 @@ python_PYTHON = wxDVDBackup.py
 dist_bin_SCRIPTS = wxDVDBackup
 bin_SCRIPTS = wxDVDBackup
 CLEANFILES = $(bin_SCRIPTS)
-EXTRA_DIST = wxDVDBackup.in
+EXTRA_DIST = wxDVDBackup.in xdg/*
 
 wxDVDBackup: wxDVDBackup.in Makefile
 	$(pyprog_sub) < wxDVDBackup.in > wxDVDBackup
@@ -68,11 +68,47 @@ if WITH_FRONTEND_XDG
 #install-data-local:
 #	echo HOOK INVOKED: install-data-local
 
+XDG_INST_ICON = xdg-icon-resource
+XDG_INST_MENU = xdg-desktop-menu
+XDG_INST_MIME = xdg-mime
+
+XICOARGS = install --noupdate --novendor --size
+XICOARGSU= uninstall --noupdate --size
+XICOSIZE = 16 24 32 48 64 96 128
+
+XDGRESNAME=wxdvdbackup
 install-data-hook:
-	echo HOOK INVOKED: install-data-hook
+	@echo Installing XDG desktop items: menu entry, icons
+	@XII=$$(which $(XDG_INST_ICON)) && XIM=$$(which $(XDG_INST_MENU)) \
+	&& XMM=$$(which $(XDG_INST_MIME)) \
+	|| { echo cannot find $(XDG_INST_ICON) or $(XDG_INST_MENU); \
+		echo will not do xdg icon and menu item install; exit 0; } ; \
+	for s in $(XICOSIZE) ; do \
+		I="./xdg/$(XDGRESNAME)-$${s}.png"; test -f "$$I" || \
+			{ echo icon "$$I" is missing; continue; } ; \
+		$$XII $(XICOARGS) $$s  "$$I" $(XDGRESNAME) || \
+			{ echo failed installing icon size $$s; true; } ; \
+	done; \
+	$$XII forceupdate; \
+	I="./xdg/$(XDGRESNAME).desktop"; test -f "$$I" || exit 0; \
+	$$XIM install --novendor "$$I" || \
+		{ echo failed to install "$$I"; true; }
+
 
 uninstall-local:
-	echo HOOK INVOKED: uninstall-local
+	@echo Uninstalling XDG desktop items: menu entry, icons
+	@XII=$$(which $(XDG_INST_ICON)) && XIM=$$(which $(XDG_INST_MENU)) \
+	&& XMM=$$(which $(XDG_INST_MIME)) \
+	|| { echo cannot find $(XDG_INST_ICON) or $(XDG_INST_MENU); \
+		echo will not do xdg icon and menu item uninstall; exit 0; } ; \
+	I="$(XDGRESNAME).desktop"; \
+	$$XIM uninstall "$$I" || \
+		{ echo failed to uninstall "$$I"; true; } ; \
+	for s in $(XICOSIZE) ; do \
+		$$XII $(XICOARGSU) $$s $(XDGRESNAME) || \
+			{ echo failed uninstalling icon size $$s; true; } ; \
+	done; \
+	$$XII forceupdate || true
 
 # if WITH_FRONTEND_XDG
 endif
