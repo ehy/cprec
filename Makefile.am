@@ -36,28 +36,51 @@ SUBDIRS = lib_misc
 
 AM_CPPFLAGS = -I$(srcdir)/lib_misc
 
-# Version 0.2.1, wxPython front end
+# Version 0.2.1: wxPython front end -- requires dd-dvd
+pyprog_sub = sed \
+			-e 's,[@]PYTHON[@],$(PYTHON),g' \
+			-e 's,[@]PYTHON_VERSION[@],$(PYTHON_VERSION),g' \
+			-e 's,[@]PYTHON_PREFIX[@],$(PYTHON_PREFIX),g' \
+			-e 's,[@]PYTHON_EXEC_PREFIX[@],$(PYTHON_EXEC_PREFIX),g' \
+			-e 's,[@]PYTHON_PLATFORM[@],$(PYTHON_PLATFORM),g' \
+			-e 's,[@]pythondir[@],$(pythondir),g' \
+			-e 's,[@]pkgpythondir[@],$(pkgpythondir),g' \
+			-e 's,[@]pyexecdir[@],$(pyexecdir),g' \
+			-e 's,[@]pkgpyexecdir[@],$(pkgpyexecdir),g' \
+			-e 's,[@]PACKAGE[@],$(PACKAGE),g' \
+			-e 's,[@]VERSION[@],$(VERSION),g'
+
+if WITH_DD_DVD
+if WITH_FRONTEND
+
 python_PYTHON = wxDVDBackup.py
 dist_bin_SCRIPTS = wxDVDBackup
 bin_SCRIPTS = wxDVDBackup
 CLEANFILES = $(bin_SCRIPTS)
 EXTRA_DIST = wxDVDBackup.in
-wxpy_sub = sed \
-			-e 's;[@]PYTHON[@];$(PYTHON);g' \
-			-e 's;[@]PYTHON_VERSION[@];$(PYTHON_VERSION);g' \
-			-e 's;[@]PYTHON_PREFIX[@];$(PYTHON_PREFIX);g' \
-			-e 's;[@]PYTHON_EXEC_PREFIX[@];$(PYTHON_EXEC_PREFIX);g' \
-			-e 's;[@]PYTHON_PLATFORM[@];$(PYTHON_PLATFORM);g' \
-			-e 's;[@]pythondir[@];$(pythondir);g' \
-			-e 's;[@]pkgpythondir[@];$(pkgpythondir);g' \
-			-e 's;[@]pyexecdir[@];$(pyexecdir);g' \
-			-e 's;[@]pkgpyexecdir[@];$(pkgpyexecdir);g' \
-			-e 's;[@]PACKAGE[@];$(PACKAGE);g' \
-			-e 's;[@]VERSION[@];$(VERSION);g'
 
 wxDVDBackup: wxDVDBackup.in Makefile
-	$(wxpy_sub) < wxDVDBackup.in > wxDVDBackup
+	$(pyprog_sub) < wxDVDBackup.in > wxDVDBackup
 	chmod +x wxDVDBackup
+
+
+if WITH_FRONTEND_XDG
+#install-data-local:
+#	echo HOOK INVOKED: install-data-local
+
+install-data-hook:
+	echo HOOK INVOKED: install-data-hook
+
+uninstall-local:
+	echo HOOK INVOKED: uninstall-local
+
+# if WITH_FRONTEND_XDG
+endif
+
+# if WITH_FRONTEND
+endif
+# if WITH_DD_DVD
+endif
 
 #  if you write a self-test script named `chk', uncomment the
 #  following and add `chk' to the EXTRA_DIST list

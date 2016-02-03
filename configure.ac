@@ -40,7 +40,8 @@ AC_SYS_LONG_FILE_NAMES
 
 dnl arg to allow disabling of linking libdvdread
 AC_ARG_WITH([libdvdread], AS_HELP_STRING([--with-libdvdread],
-  [link with -ldvdread (or ARG) (the better default is to use runtime loading)]),,
+  [link with -ldvdread (or ARG) (the default is to use runtime loading,
+   which is better, where possible)]),,
   [with_libdvdread=no])
 
 dnl dd-dvd made optional
@@ -53,6 +54,39 @@ AC_ARG_ENABLE([dd-dvd],
 	*) AC_MSG_ERROR([bad value ${enableval} for --enable-dd-dvd]) ;;
 	esac],[enable_dd_dvd=true])
 AM_CONDITIONAL([WITH_DD_DVD], [test x$enable_dd_dvd = xtrue])
+
+dnl Version 0.2.1, wxPython front end
+AC_ARG_ENABLE([wxpy-frontend],
+	AS_HELP_STRING([--disable-wxpy-frontend],
+		 [do not install the wxPython graphical backup frontend program:
+          requires Python 2.7 (not 3.x), wxPython, growisofs, dvd+rw-mediainfo,
+          dvd+rw-format (the latter three from the same package "dvd+rw-tools"
+          or maybe "growisofs"), genisoimage or mkisofs, and cprec and dd-dvd
+          from this package (--disable-dd-dvd will disable this frontend
+          application too)
+         ]),
+	[case "${enableval}" in
+	yes) enable_frontend=true ;;
+	no)  enable_frontend=false ;;
+	*) AC_MSG_ERROR([bad value ${enableval} for --enable-wxpy-frontend]) ;;
+	esac],[enable_frontend=true])
+AM_CONDITIONAL([WITH_FRONTEND], [test x$enable_frontend = xtrue])
+
+dnl Version 0.2.1, wxPython front end -- install xdg items?
+AC_ARG_ENABLE([wxpy-frontend-xdg],
+	AS_HELP_STRING([--disable-wxpy-frontend-xdg],
+		 [do not install the 'desktop' items (icons, menu, etc.) for the
+          wxPython graphical backup frontend program (--enable-wxpy-frontend) --
+          requires xdg-icon-resource, xdg-desktop-menu, xdg-mime
+          (from package possibly named "xdg-utils") -- installation will
+          *not* fail if those programs fail or are absent
+         ]),
+	[case "${enableval}" in
+	yes) enable_frontend_xdg=true ;;
+	no)  enable_frontend_xdg=false ;;
+	*) AC_MSG_ERROR([bad value ${enableval} for --enable-wxpy-frontend-xdg]) ;;
+	esac],[enable_frontend_xdg=true])
+AM_CONDITIONAL([WITH_FRONTEND_XDG], [test x$enable_frontend_xdg = xtrue])
 
 dnl Checks for programs.
 AC_PROG_INSTALL
