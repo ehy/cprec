@@ -57,7 +57,18 @@ except:
     Development hacks^Wsupport
 """
 
-PROG = os.path.split(sys.argv[0])[1]
+PROGLONG = os.path.split(sys.argv[0])[1]
+PROG = PROGLONG
+def __mk_PROG():
+    try:
+        tr = PROGLONG.rindex(".py")
+    except:
+        tr = len(PROGLONG)
+
+    global PROG
+    PROG = PROGLONG[:tr]
+
+__mk_PROG()
 
 if "-XGETTEXT" in sys.argv:
     try:
@@ -3321,7 +3332,7 @@ class AFrame(sc.SizedFrame):
             getwxdvdbackup_64Icon,
             )
 
-        icons = wx.IconBundle()
+        self.icons = icons = wx.IconBundle()
         for fimg in getters:
             icons.AddIcon(fimg())
 
@@ -3410,6 +3421,21 @@ class AFrame(sc.SizedFrame):
             # default ASCII
             t.SetCopyright("(C) 2016 Ed Hynan <ehynan@gmail.com>")
             t.SetWebSite("https://github.com/ehy/cprec")
+            t.SetIcon(self.icons.GetIcon((64, 64)))
+
+            dw = [
+                "Nona Wordsworth",
+                "Rita Manuel"
+                ]
+            t.SetDocWriters(dw)
+            tr = [
+                "Nona Wordsworth",
+                _("Translation volunteers welcome!"),
+                _("Contact {email}.").format(
+                    email = "<ehynan@gmail.com>")
+                ]
+            t.SetTranslators(tr)
+            t.SetArtists(["I. Burns"])
 
             self.__class__.about_info = t
 
