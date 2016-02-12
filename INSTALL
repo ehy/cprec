@@ -12,7 +12,7 @@ Peculiarities of this package:
   Without -d, cprec copies like cp -R, but does not treat DVD video
   in any special way and therefore might fail.
 
-  If wanted, the programs can be configured to implicitely link
+  If wanted, the programs can be configured to implicitly link
   libdvdread at build-time by giving the configure script the
   --with-libdvdread option, and a specific installation of the library
   can be specified with --with-libdvdread=/path/to/libdvdread. In the
@@ -66,7 +66,7 @@ Peculiarities of this package:
   versions of that library attempt to keep private in the shared build.
   ``Attempt'' because on most systems these programs have been tested
   on the symbols are not actually rendered private and can be used.
-  One excpetion is OpenIndiana using the SunStudio tools, and surely
+  One exception is OpenIndiana using the SunStudio tools, and surely
   there are others.  If the configure script notes 'UDFFindFile' and
   fails, make sure the build of libdvdread includes a static version
   and configure with --with-libdvdread=/path/to/libdvdread.a, or hack

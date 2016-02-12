@@ -1,16 +1,16 @@
 This package contains two command line tool programs -- the namesake
-'cprec' and dd-dvd (the latter can be disbabled by configure
+'cprec' and dd-dvd (the latter can be disabled by configure
 option --disable-dd-dvd) -- and a graphical front-end wxDVDBackup.
 These tools are helpers for making a backup of DVD video.
 
 The cprec and dd-dvd tools should be useful to those accustomed to
 working at the command line and developing their own procedures
-for accomplishing a task.  Manul pages cprec(1) and dd-dvd(1)
+for accomplishing a task.  Manual pages cprec(1) and dd-dvd(1)
 are installed.
 
 The front-end wxDVDBackup should be easy and convenient to use,
-paricularly for those willing to spend a few moments examining the
-interface.  There are several detailed ``tooltips''.
+particularly for those willing to spend a few moments examining the
+interface.  There are several detailed ``tool-tips''.
 
 Both cprec and dd-dvd depend on a library called libdvdread, but
 libdvdread is not a prerequisite to build and install the programs,
