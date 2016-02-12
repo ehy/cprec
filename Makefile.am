@@ -54,7 +54,6 @@ if WITH_DD_DVD
 if WITH_FRONTEND
 
 python_PYTHON = wxDVDBackup.py
-dist_bin_SCRIPTS = wxDVDBackup
 bin_SCRIPTS = wxDVDBackup
 CLEANFILES = $(bin_SCRIPTS)
 EXTRA_DIST = wxDVDBackup.in xdg/*

@@ -1,6 +1,7 @@
-This source package will build two tool programs: the namesake
+This source package will build three tool programs: the namesake
 'cprec' and dd-dvd (the latter can be disbabled by configure
-option --disable-dd-dvd).  These tools are helpers for making
+option --disable-dd-dvd) and wxDVDBackup.
+These tools are helpers for making
 a backup of DVD video.
 
 Both programs depend on a library called libdvdread, but libdvdread

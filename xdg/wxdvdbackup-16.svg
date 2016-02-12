@@ -16,9 +16,9 @@
    version="1.1"
    inkscape:version="0.48.4 r9939"
    sodipodi:docname="wxdvdbackup-16.svg"
-   inkscape:export-filename="/home/evh/code/active-proj/cprec/xdg/wxdvdbackup-24sq.png"
-   inkscape:export-xdpi="67.5"
-   inkscape:export-ydpi="67.5">
+   inkscape:export-filename="/home/evh/code/active-proj/cprec/xdg/wxdvdbackup-16.png"
+   inkscape:export-xdpi="45"
+   inkscape:export-ydpi="45">
   <defs
      id="defs4">
     <linearGradient
@@ -108,7 +108,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>

@@ -200,7 +200,6 @@ def msg_line_red(msg):
 
 def msg_line_green(msg):
     msg_line_(msg, msg_green_color)
-    #msg_line_(msg, wx.GREEN)
 
 def msg_line_blue(msg):
     msg_line_(msg, msg_blue_color)
@@ -283,7 +282,7 @@ for cmd, aargs, envmap in pipecmds:
     for arg in aargs:
         cmdargs.append(arg)
     try:
-        parm_obj = ChildProcParams(cmd, cmdargs, cmdenv, parm_obj)
+        parm_obj = ChildProcParams(cmd, cmdargs, envmap, parm_obj)
     except ChildProcParams.BadParam, strmsg:
         PutMsgLineERROR("Exception '%s'" % strmsg)
         exit(1)
@@ -3429,7 +3428,7 @@ class AFrame(sc.SizedFrame):
                 ]
             t.SetDocWriters(dw)
             tr = [
-                "Nona Wordsworth",
+                "Saul \"Greek\" Tomey",
                 _("Translation volunteers welcome!"),
                 _("Contact {email}.").format(
                     email = "<ehynan@gmail.com>")
