@@ -1505,8 +1505,9 @@ main(int argc, char* argv[])
 
     if ( numbadblk || verbose > 1 ) {
         pfeall(
-            "found %zu total bad blocks in %s; zeroed in output\n",
-            numbadblk, inname.c_str());
+            "found %zu total bad blocks in %s%s\n",
+            numbadblk, inname.c_str(),
+            numbadblk ? "; bad blocks are zeroed in output" : "");
     }
 
     DVDClose(drd);

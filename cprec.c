@@ -804,7 +804,8 @@ cprec(int texist, int tisdir)
 
     if ( numbadblk ) {
         pfeopt(_("%s: found %zu bad blocks\n"),
-            program_name, numbadblk);
+            program_name, numbadblk,
+            numbadblk ? "; bad blocks are zeroed in output" : "");
     }
 
     unset_paths();

@@ -1029,32 +1029,28 @@ class ChildTwoStreamReader:
                 if len(rl) == 0:
                     break
 
+                lin = ""
                 for fd, bits in rl:
                     if fd == exrfd1:
-                        if bits & select.POLLIN:
-                            lin = fr1.readline(self.szlin)
-                            if len(lin) > 0:
-                                pfx = self.prefix1
-                            else:
-                                flist.remove (exrfd1)
-                                pl.unregister(exrfd1)
-                        else:
-                            pl.unregister(exrfd1)
-                            flist.remove(exrfd1)
+                        pfx = self.prefix1
+                        frN = fr1
                     elif fd == exrfd2:
-                        if bits & select.POLLIN:
-                            lin = fr2.readline(self.szlin)
-                            if len(lin) > 0:
-                                pfx = self.prefix2
-                            else:
-                                flist.remove (exrfd2)
-                                pl.unregister(exrfd2)
-                        else:
-                            pl.unregister(exrfd2)
-                            flist.remove(exrfd2)
+                        pfx = self.prefix2
+                        frN = fr2
+                    else:
+                        continue
 
-                    if len(lin) > 0:
-                        wrlinepfx(fw, pfx, lin)
+                    if bits & select.POLLIN:
+                        lin = frN.readline(self.szlin)
+
+                        if len(lin) > 0:
+                            wrlinepfx(fw, pfx, lin)
+                        else:
+                            flist.remove(fd)
+                            pl.unregister(fd)
+                    else:
+                        flist.remove(fd)
+                        pl.unregister(fd)
 
                 if len(flist) == 0:
                     break
@@ -4078,8 +4074,7 @@ class ACoreLogiDat:
         try:
             self.ch_thread.set_quit()
         except:
-            #print PROG + ": Exception 1 in do_quit()"
-            pass
+            _dbg("self.ch_thread.set_quit(): Exception 1 in do_quit()")
 
         self.do_cancel(True)
 
@@ -4089,7 +4084,7 @@ class ACoreLogiDat:
             self.target.config_wr(config)
             self.topwnd.config_wr(config)
         except:
-            print PROG + ": Exception 2 in do_quit()"
+            _dbg("self.get_config(): Exception 2 in do_quit()")
 
     def do_idle(self, event):
         if self.iface_init == False:
@@ -4818,9 +4813,16 @@ class ACoreLogiDat:
 
         elif mth and typ == 'l-1':
             if not self.in_check_op:
-                self.mono_message(
-                    prefunc = lambda : msg_line_ERROR('ERROR'),
-                    monofunc = lambda : msg_(" %s" % m))
+                ok, m, dat = self.get_stat_data_line(m)
+                if ok:
+                    if dat[1]:
+                        msg_line_ERROR(m)
+                    else:
+                        msg_line_INFO(m)
+                else:
+                    self.mono_message(
+                        prefunc = lambda : msg_line_WARN('WARNING:'),
+                        monofunc = lambda : msg_(" %s" % m))
 
         elif mth and typ == 'enter run':
             self.target.set_cancel_label()
@@ -4867,6 +4869,29 @@ class ACoreLogiDat:
 
         elif mth:
             msg_line_ERROR(_("unknown thread event '{0}'").format(typ))
+
+    def get_stat_data_line(self, line, ch_proc = None):
+        if not ch_proc:
+            ch_proc = self.get_child_from_thread()
+        if not ch_proc:
+            return (False, line, None)
+
+        dat = ch_proc.get_stat_line_data(line)
+        if dat:
+            m = _(
+                "'{cmd}' has \"{sstr}\"; "
+                "exit status {code}, "
+                "terminated by signal is: '{sig}' -- "
+                "arguments and environment: {ae}"
+                ).format(
+                    cmd = dat[0], code = dat[1],
+                    sig = dat[2], sstr = dat[3],
+                    ae = dat[4]
+                )
+            return (True, m, dat)
+        else:
+            return (False, line, None)
+
 
     def dialog(self, msg, typ = "msg", sty = None):
         if typ == "msg":
@@ -5796,10 +5821,10 @@ class ACoreLogiDat:
                 #ist = self.checked_input_devstat
                 ist = os.stat(self.checked_input_devnode)
                 if st and os.path.samestat(st, ist):
-                    print "NO check_target_dev"
+                    _dbg("NO check_target_dev")
                     outf = target_dev
                 else:
-                    print "YES check_target_dev"
+                    _dbg("YES check_target_dev")
                     outf = self.check_target_dev(target_dev)
                 if outf:
                     target_dev = outf
@@ -5997,12 +6022,22 @@ class ACoreLogiDat:
 
         ch_proc.wait()
         is_ok, is_sig = ch_proc.get_status()
+        rlin1, rlin2, rlinx = ch_proc.get_read_lists()
+
+        m = ""
+        for l in rlinx:
+            ok, l, dat = self.get_stat_data_line(l, ch_proc)
+            if ok:
+                m = "{pre}\n{lin}".format(pre = m, lin = l)
+                is_ok = max(is_ok, dat[1])
 
         if is_ok == 0:
+            msg_INFO(m)
             m = _("{0} succeeded blanking {1}").format(xcmd, outdev)
             msg_line_GOOD(m)
             stmsg.put_status(m)
         else:
+            msg_ERROR(m)
             m = _(
                 "Failed media blank of {0} with {1} - status {2}"
                 ).format(outdev, xcmd, is_ok)
@@ -6048,14 +6083,24 @@ class ACoreLogiDat:
 
         ch_proc.wait()
         is_ok, is_sig = ch_proc.get_status()
+        rlin1, rlin2, rlinx = ch_proc.get_read_lists()
+
+        m = ""
+        for l in rlinx:
+            ok, l, dat = self.get_stat_data_line(l, ch_proc)
+            if ok:
+                m = "{pre}\n{lin}".format(pre = m, lin = l)
+                is_ok = max(is_ok, dat[1])
 
         if is_ok:
+            msg_ERROR(m)
             m = _(
                 "{0} failed status {1} for {2}"
                 ).format(xcmd, is_ok, target_dev)
             msg_line_ERROR(m)
             is_ok = False
         else:
+            msg_INFO(m)
             m = _("{0} succeeded for {1}").format(xcmd, target_dev)
             msg_line_INFO(m)
             is_ok = True
@@ -6166,33 +6211,42 @@ class ACoreLogiDat:
 
         ch_proc.wait()
         is_ok, is_sig, sstr = ch_proc.get_status_string(False)
+        rlin1, rlin2, rlinx = ch_proc.get_read_lists()
+
+        ms = ""
+        for l in rlinx:
+            ok, l, dat = self.get_stat_data_line(l, ch_proc)
+            if ok:
+                sstr = dat[3]
+                ms = "{pre}\n{lin}".format(pre = m, lin = l)
+                is_ok = max(is_ok, dat[1])
 
         m = _(
             "{process} has {stat} for {testdir}"
             ).format(process = xcmd, stat = sstr, testdir = srcdir)
 
         if is_ok:
+            msg_ERROR(ms)
             if verbose:
                 msg_line_ERROR(m)
             is_ok = False
         else:
+            msg_INFO(ms)
             if verbose:
                 msg_line_INFO(m)
             is_ok = True
 
         stmsg.put_status(m)
 
-        l1, l2, lx = ch_proc.get_read_lists()
-
         if verbose:
-            for lin in l2:
+            for lin in rlin2:
                 lin = lin.rstrip()
                 msg_line_WARN(lin)
 
         blks = 0
         rx = re.compile('^\s*([0-9]+)\s*$')
 
-        for lin in l1:
+        for lin in rlin1:
             m = rx.match(lin)
             if m:
                 blks = int(m.group(1))
@@ -6347,7 +6401,7 @@ class ACoreLogiDat:
 
         stat, sig = ch_proc.get_status()
 
-        if stat < 60 and stat > -1:
+        if stat > -1:
             # print what is available even if stat > 0
             rlin1, rlin2, rlinx = ch_proc.get_read_lists()
             for l in rlin2:
@@ -6409,23 +6463,12 @@ class ACoreLogiDat:
             self.vol_wnd.set_source_info(voldict)
 
             for l in rlinx:
-                dat = ch_proc.get_stat_line_data(l)
-                if dat:
-                    m = _(
-                        "STATUS: "
-                        "cmd='{cmd}' "
-                        "code='{code}' "
-                        "signalled='{sig}' "
-                        "status_string='{sstr}' "
-                        #"args: {ae}"
-                        ).format(
-                            cmd = dat[0], code = dat[1],
-                            sig = dat[2], sstr = dat[3] #, ae = dat[4])
-                        )
-                    if stat:
-                        msg_ERROR(m)
+                ok, l, dat = self.get_stat_data_line(l, ch_proc)
+                if ok:
+                    if dat[1]:
+                        msg_ERROR(l)
                     else:
-                        msg_INFO(m)
+                        msg_INFO(l)
                 else:
                     msg_WARN(_("AUXILIARY OUTPUT: '{0}'").format(l))
 
