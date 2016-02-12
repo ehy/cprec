@@ -375,6 +375,7 @@ See method comments in class definition
 class ChildTwoStreamReader:
     prefix1 = "1: "
     prefix2 = "2: "
+    prefixX = "x: " # Exceptional, errors
 
     catch_sigs = (
         signal.SIGINT,
@@ -404,6 +405,8 @@ class ChildTwoStreamReader:
     exec_wtf_status = 67
     pgrp_err_status = 68
 
+    # do not refer to this directly: use static _get_pipestat_rx
+    pipestat_rx = None
 
     def __init__(self,
                  child_params = None,
@@ -431,13 +434,14 @@ class ChildTwoStreamReader:
             self.xcmdargs = []
             self.xcmdenv = []
 
+        # this is orig, object, not result of a fork()
+        self.root = True
+
         self.extra_data = None
         self.error_tuple = None
-        self.prockilled = False
-        self.procstat = -1
-        # careful with curchild: -1 uninited, but < -1 pgid
-        self.curchild = -1
-        self.ch_pgrp = []
+        # list of tuple for pipeline each
+        # (pid, status, signalled, extra)
+        self.procstat = [ (-1, -1, False, None) ]
         # flag necessitated by growisofs signal handling:
         # blocks/unblocks sigs, and will exit(EINTR) on interrupted call
         # so cannot assume cancel signal yields signalled status --
@@ -522,12 +526,13 @@ class ChildTwoStreamReader:
         mpid = os.getpid()
         _dbg("handler pid %d, with signal %d" % (mpid, sig))
         # are we 1st child. grouper leader w/ children?
-        if self.ch_pgrp:
+        if not self.root:
             # USR1 used by this prog
             if sig == signal.SIGUSR1:
                 sig = signal.SIGINT
-                for p in self.ch_pgrp:
-                    _dbg("handler kill %d, with signal %d" % (p, sig))
+                for p, s, b, x in self.procstat:
+                    _dbg("handler kill {p}, with signal {s}".format(
+                        p = p, s = sig))
                     self.kill(sig, p)
             else:
                 self.kill(sig)
@@ -537,11 +542,86 @@ class ChildTwoStreamReader:
             os._exit(1)
 
     """
-    public: kill (signal) current child
+    static protected: get regex gor pipestatus lines
+    """
+    @staticmethod
+    def _get_pipestat_rx():
+        if ChildTwoStreamReader.pipestat_rx == None:
+            ChildTwoStreamReader.pipestat_rx = re.compile(
+                "status:\s+cmd='([^']*)'"
+                "\s+code='([^']*)'"
+                "\s+signalled='([^']*)'"
+                "\s+status_string='([^']*)'"
+                "(.*)$")
+
+        return ChildTwoStreamReader.pipestat_rx
+
+    """
+    static public: return list [cmd, code, bool_signalled, string]
+                   for a status line from pgrp child, or False
+    """
+    @staticmethod
+    def get_pipestat_line_data(line):
+        rx = ChildTwoStreamReader._get_pipestat_rx()
+        m = rx.search(line)
+        if not m:
+            return False
+
+        sig = True
+        if m.group(3) == "False":
+            sig = False
+
+        return [
+            m.group(1), int(m.group(2)), sig, m.group(4), m.group(5)
+            ]
+
+    """
+    method public: return list [cmd, code, bool_signalled, string]
+                   for a status line from pgrp child, or False
+    """
+    def get_stat_line_data(self, line):
+        return self.__class__.get_pipestat_line_data(line)
+
+    """
+    method public: return list of lists from get_stat_line_data(),
+                   in order -- call after self.wait()
+    """
+    def get_pipeline_status(self):
+        r = []
+
+        for l in self.rlinx:
+            dat = self.get_stat_line_data(l)
+            if dat:
+                r.append(dat)
+
+        return r
+
+    """
+    public: kill (signal) child pid
     """
     def kill(self, sig = 0, pid = None):
-        if not isinstance(pid, int):
-            pid = self.curchild
+        plen = len(self.procstat)
+        idx = -1
+
+        if pid != None:
+            for i in range(plen):
+                if pid == self.procstat[i][0]:
+                    idx = i
+                    break
+            if idx == -1:
+                _dbg("kill bad pid arg {pid}".format(pid = pid))
+                return -1
+
+        return self.kill_index(sig, idx)
+
+    """
+    public: kill child pid at index into pipeline
+    """
+    def kill_index(self, sig = 0, idx = -1):
+        if not (idx == -1 or idx in range(len(self.procstat))):
+            return -1
+        pid = self.procstat[idx][0]
+
         if pid > 0 or pid < -1:
             try:
                 os.kill(pid, sig)
@@ -554,108 +634,96 @@ class ChildTwoStreamReader:
         return -1
 
     """
-    public: wait on current child, mx trys maximum, sleep nsl in loop
-    -- note that for non-blocking, call as wait(1, 0) -- see opts
+    public: wait on child at index 'idx' in self.procstat
+    opts may be given os.WNOHANG, or string "nohang"
+    return status on success, -1 on error, -2 on none-ready
     """
-    def wait(self, mx = 1, nsl = 1, fpid = None):
-        wpid = fpid
-        if not isinstance(wpid, int):
-            wpid = self.curchild
-
-        if wpid in (-1, 0):
+    def wait(self, idx = -1, opts = 0):
+        if idx == -1 or idx in range(len(self.procstat)):
+            pidtuple = self.procstat[idx]
+        else:
             return -1
 
-        _dbg("wait pid %d with mx %d" % (wpid, mx))
+        wpid = pidtuple[0]
 
-        opts = 0
-        if nsl < 1:
-            opts = opts | os.WNOHANG
+        if wpid == -1 or not pidtuple[1] == -1:
+            return -1
 
-        global eintr, echild, efault, einval
+        if opts == "nohang":
+            opts = os.WNOHANG
+        elif opts != 0 and opts != os.WNOHANG:
+            return -1
 
-        # a return val, may be modified
-        cooked = 0
-
-        # What are we waiting for? if array self.ch_pgrp
-        # is empty then just self.curchild, else any in
-        # self.ch_pgrp, so just use self.ch_pgrp
-        if not self.ch_pgrp:
-            p = wpid
-            _dbg("wait adding pid %d to ch_pgrp" % p)
-            self.ch_pgrp.append(p)
-        else:
-            p = wpid
-            _dbg("wait with pid %d to len ch_pgrp == %d" %
-                (p, len(self.ch_pgrp)))
-
-        while mx > 0:
-            mx -= 1
+        while True:
             try:
                 pid, stat = os.waitpid(wpid, opts)
+
+                # had WNOHANG and nothing ready:
+                if pid == 0 and stat == 0:
+                    return -2
+
+                # not handling WIFSTOPPED; we're not tracing and
+                # opt WUNTRACED is disallowed
+                # likewise WIFCONTINUED as WCONTINUED is disallowed
+
                 if os.WIFSIGNALED(stat):
                     cooked = os.WTERMSIG(stat)
-                    if pid in self.ch_pgrp:
-                        self.curchild = -1
-                        self.prockilled = True
-                        self.procstat = cooked
-                        self.ch_pgrp.remove(pid)
-                        _dbg("wait signalled known pid %d with %d" %
-                            (pid, cooked))
-                    else:
-                        _dbg("wait signalled unknown pid %d with %d" %
-                            (pid, cooked))
-                    if len(self.ch_pgrp) == 0:
-                        return cooked
-                    else:
-                        continue
-
-                if os.WIFEXITED(stat):
+                    bsig = True
+                elif os.WIFEXITED(stat):
                     cooked = os.WEXITSTATUS(stat)
-                    if pid in self.ch_pgrp:
-                        self.curchild = -1
-                        self.prockilled = False
-                        self.procstat = cooked
-                        self.ch_pgrp.remove(pid)
-                        _dbg("wait exited known pid %d with %d" %
-                            (pid, cooked))
-                    else:
-                        _dbg("wait exited unknown pid %d with %d" %
-                            (pid, cooked))
-                    if len(self.ch_pgrp) == 0:
-                        return cooked
-                    else:
-                        continue
+                    bsig = False
+                else:
+                    _dbg("wait not {tsts}: {stat}".format(
+                        tsts = "WIFSIGNALED or WIFEXITED",
+                        stat = stat))
+                    return -1
+
+                self.procstat[idx] = (
+                    pid, cooked, bsig, self.procstat[idx][3])
+                return cooked
 
             except OSError, (errno, strerror):
                 if errno  == eintr:
                     continue
-                if errno  == einval:
-                    opts = 0
-                    continue
                 if errno  == echild:
-                    # id children to wait on > 1, cooked is last
-                    self.curchild = -1
-                    self.procstat = cooked
-                    _dbg("wait exiting ECHILD %d with %d (%d remain)" %
-                        (wpid, cooked, len(self.ch_pgrp)))
-                    return cooked
+                    _dbg("wait failing ECHILD {p}".format(p = wpid))
+                else:
+                    _dbg("wait fail error \"{s}\" (errno {n})".format(
+                        s = strerror, n = errno))
                 return -1
 
-            if mx > 0:
-                _dbg("wait sleep(%u) pid %d with mx %d"
-                    % (nsl, wpid, mx))
-                time.sleep(nsl)
-
-        _dbg("wait pid %d FAILURE" % wpid)
+        _dbg("wait pid {p} FAILURE".format(p = wpid))
         return -1
+
+    """
+    protected: child wait on all in process group
+    """
+    def _child_wait_all(self):
+        aw = self.procstat
+
+        lr = r = -1
+        ls = False
+        awlen = len(aw)
+        _dbg("WAIT_ALL num {n}".format(n = awlen))
+        for i in range(awlen):
+            stat = self.wait(i)
+            r = max(r, stat)
+            if r > lr:
+                lr = r
+                _dbg("New stat {c}, signalled is {s}".format(
+                    c = lr, s = aw[i][2]))
+            _dbg("WAIT_ALL pid {p}, stat {s}".format(
+                p = aw[i][0], s = stat))
+
+        return r
 
     """
     public: do kill and wait on current child
     """
-    def kill_wait(self, sig = 0, mx = 1, nsl = 1):
+    def kill_wait(self, sig = 0):
         if self.kill(sig) != 0:
             return -1
-        return self.wait(mx, nsl)
+        return self.wait()
 
     """
     set extra data that instance will carry
@@ -681,17 +749,13 @@ class ChildTwoStreamReader:
     def is_growisofs(self):
         return self.growisofs
 
+
     """
     command may be set after object init
     """
     def set_command(self, cmd, cmdargs, cmdenv = None, l_rdsize = 4096):
-        self.params = None
-
-        self.szlin = l_rdsize
-        self.xcmd = cmd
-        self.xcmdargs = cmdargs
-        self.xcmdenv = self.params.xcmdenv
-
+        p = ChildProcParams(cmd, cmdargs, cmdenv)
+        self.set_command_params(p, l_rdsize)
 
     """
     command may be set after object init
@@ -727,9 +791,9 @@ class ChildTwoStreamReader:
     output can accumulate, or this can be called to reset output store
     """
     def reset_read_lists(self):
-        del self.rlin1[:]
-        del self.rlin2[:]
-        del self.rlinx[:]
+        self.rlin1 = []
+        self.rlin2 = []
+        self.rlinx = []
 
 
     """
@@ -741,10 +805,10 @@ class ChildTwoStreamReader:
     other thread may call this to poll until status is not -1
     """
     def get_status(self, reset = False):
-        ret = (self.procstat, self.prockilled)
+        ret = (self.procstat[-1][1], self.procstat[-1][2])
         if reset:
-            self.procstat = -1
-            self.prockilled = False
+            self.procstat = [ (-1, -1, False, None) ]
+
         return ret
 
     """
@@ -766,6 +830,8 @@ class ChildTwoStreamReader:
     def go_return_ok(self, fpid, rfd):
         if isinstance(rfd, str):
             return False
+        if fpid < 1:
+            return False
         return True
 
     """
@@ -775,8 +841,8 @@ class ChildTwoStreamReader:
     about it
     """
     def go(self):
-        if self.xcmd == None:
-            self.error_tuple = (0, _("Internal: no child command arg"))
+        if not isinstance(self.params, ChildProcParams):
+            self.error_tuple = (0, "error: no child process command")
             return self.error_tuple
 
         is_path = os.path.split(self.xcmd)
@@ -791,18 +857,72 @@ class ChildTwoStreamReader:
             self.error_tuple = (errno, strerror)
             return self.error_tuple
 
-        fpid = -1
-
         try:
-            self.curchild = fpid = os.fork()
+            fpid = os.fork()
         except OSError, (errno, strerror):
             os.close(rfd)
             os.close(wfd)
-            self.curchild = -1
             self.error_tuple = (errno, strerror)
             return self.error_tuple
 
+        # Novelty: nested procs
+        def wrlinepfx(fp, pfx, lin):
+            fp.write(pfx)
+            fp.write(lin)
+
+        def s_procdata(args, env):
+            __s = ""
+            for __t in args:
+                __s = "{s} - arg \"{a}\"".format(s = __s, a = __t)
+            #for __t in env:
+            #    wrlinepfx(fp, __p, "\t\t env \"{0}\"".format(__t))
+            try:
+                if isinstance(env, dict):
+                    for k in env:
+                        __s = "{s} - env \"{k}\"=\"{v}\"".format(
+                            s = __s, k = k, v = env[k])
+                elif (isinstance(env, tuple) or isinstance(env, list)):
+                    for envtuple in env:
+                        __s = "{s} - env \"{k}\"=\"{v}\"".format(
+                            s = __s, k = envtuple[0], v = envtuple[1])
+            except:
+                pass
+
+            return __s
+
+        def wrprocstat(fp, cmd, args, env, status, signalled, sstr):
+            __p = self.prefixX
+            wrlinepfx(fw, __p,
+                "status: "
+                "cmd='{cmd}' "
+                "code='{code}' "
+                "signalled='{sig}' "
+                "status_string='{sstr}'"
+                "{argenv}\n".format(
+                    cmd = cmd, code = status,
+                    sig = signalled, sstr = sstr,
+                    argenv = s_procdata(args, env))
+                )
+
+        def wrexecfail(fp, cmd, args, env, nerr, serr):
+            __p = self.prefixX
+            wrlinepfx(fp, __p, " execfail {n} \"{s}\"".format(
+                n = nerr, s = serr))
+            wrprocdata(fp, cmd, args, env)
+
+        def doexecfail(fp, cmd, args, env, nerr, serr):
+            wrexecfail(fp, cmd, args, env, nerr, serr)
+            for __p, __s, __b, __x in self.procstat:
+                self.kill(signal.SIGINT, __p)
+            self._child_wait_all()
+
         if fpid == 0:
+            # clear proc list
+            self.procstat = []
+
+            # for reference in methods
+            self.root = False
+
             # start new group
             mpid = os.getpid()
             try:
@@ -821,172 +941,186 @@ class ChildTwoStreamReader:
 
             os.close(rfd)
 
+            # make file-pointer-like object
+            ndup = 3
+            if wfd < ndup:
+                os.dup2(wfd, ndup)
+                os.close(wfd)
+                wfd = ndup
+            fw = os.fdopen(wfd, "w", 0)
+
             exrfd1, exwfd1 = os.pipe()
             exrfd2, exwfd2 = os.pipe()
 
             # do stdin, making pipeline as needed
-            if self.params != None:
-                fd = self.params.infd
-                lastparams = self.params
+            ifd = exrfd1
+            pipelist = [self.params]
+            lastparams = self.params
 
-                # ChildProcParams may be a linked list with
-                # member infd as the next-pointer, but they
-                # need to be handled tail-first, so collect
-                # them in a list[] using .insert(0,) to reverse
-                pipelist = []
-                while isinstance(fd, ChildProcParams):
-                    pipelist.insert(0, fd)
-                    lastparams = fd
-                    fd = fd.infd
+            # ChildProcParams may be a linked list with
+            # member infd as the next-pointer, but they
+            # need to be handled tail-first, so collect
+            # them in a list[] using .insert(0,) to reverse
+            fd = self.params.infd
+            while isinstance(fd, ChildProcParams):
+                pipelist.insert(0, fd)
+                lastparams = fd
+                fd = fd.infd
 
-                if isinstance(fd, int) and fd > 0:
-                    os.dup2(fd, 0)
+            # otherwise member infd should be a file descriptor
+            if isinstance(fd, int) and fd > 0:
+                os.dup2(fd, 0)
+                if lastparams != None:
                     lastparams.close_infd()
 
-                for fd in pipelist:
-                    ifd = self._mk_input_proc(fd, exwfd1, exwfd2)
-                    if ifd < 0:
-                        os._exit(self.exec_err_status)
-                    if ifd != 0:
-                        os.dup2(ifd, 0)
-                        os.close(ifd)
-
-            try:
-                self.curchild = fpid = os.fork()
-                if fpid > 0:
-                    self.ch_pgrp.append(fpid)
-                    _dbg("go %d add pid %d, inp len %d" %
-                        (os.getpid(), fpid, len(self.ch_pgrp)))
-            except OSError, (errno, strerror):
-                os._exit(self.fork_err_status)
-
-            if fpid == 0:
-                os.close(exrfd1)
-                os.close(exrfd2)
-                os.close(wfd)
-
-                if exwfd1 != 1:
-                    os.dup2(exwfd1, 1)
-                    os.close(exwfd1)
-                if exwfd2 != 2:
-                    os.dup2(exwfd2, 2)
-                    os.close(exwfd2)
-
-                self._child_sigs_defaults()
-                try:
-                    self._putenv_cntnr(self.xcmdenv)
-                    if is_path:
-                        os.execv(self.xcmd, self.xcmdargs)
-                    else:
-                        os.execvp(self.xcmd, self.xcmdargs)
-                    os._exit(self.exec_wtf_status)
-                except OSError, (errno, strerror):
+            # fork/exec pipe list items in _mk_pipe_proc()
+            for fd in pipelist:
+                ifd, pid, cmd, parms = self._mk_pipe_proc(
+                                        fd, exwfd1, exwfd2)
+                # (-1, -errno, sys-errno-string, paramobj)
+                if ifd < 0:
+                    _dbg(
+                        "EXEC FAIL {cmd} -- \"{s}\" ({e})".format(
+                            cmd = parms.xcmd, e = -pid, s = cmd)
+                        )
+                    doexecfail(fw,
+                        parms.xcmd, parms.xcmdargs, parms.xcmdenv,
+                        -pid, cmd)
                     os._exit(self.exec_err_status)
+                elif ifd > 0:
+                    os.dup2(ifd, 0)
+                    os.close(ifd)
+                    self.procstat.append((pid, -1, False, parms))
+                    ifd = 0
 
-            else:
-                # we setpgid, and will deal w/ kids in new pgrp,
-                # as stored in self.ch_pgrp[]
-                self.curchild = 0 - mpid
+            if exrfd1 != ifd:
+                os.close(exrfd1)
+                exrfd1 = ifd
 
-                os.close(exwfd1)
-                os.close(exwfd2)
-                # The FILE* equivalents are opened with 0 third arg to
-                # disable buffering, to work in concert with poll(),
-                # and provide parent timely info
-                fr1 = os.fdopen(exrfd1, "r", 0)
-                fr2 = os.fdopen(exrfd2, "r", 0)
-                fw  = os.fdopen(wfd, "w", 0)
+            fpid = pid
 
-                flist = []
-                flist.append(exrfd1)
-                flist.append(exrfd2)
+            os.close(exwfd1)
+            os.close(exwfd2)
+            # The FILE* equivalents are opened with 0 third arg to
+            # disable buffering, to work in concert with poll(),
+            # and provide parent timely info
+            fr1 = os.fdopen(exrfd1, "r", 0)
+            fr2 = os.fdopen(exrfd2, "r", 0)
 
-                errbits = select.POLLERR|select.POLLHUP|select.POLLNVAL
-                pl = select.poll()
-                pl.register(flist[0], select.POLLIN|errbits)
-                pl.register(flist[1], select.POLLIN|errbits)
+            flist = []
+            flist.append(exrfd1)
+            flist.append(exrfd2)
 
-                global eintr
+            errbits = select.POLLERR|select.POLLHUP|select.POLLNVAL
+            pl = select.poll()
+            pl.register(flist[0], select.POLLIN|errbits)
+            pl.register(flist[1], select.POLLIN|errbits)
 
-                while True:
-                    try:
-                        rl = pl.poll(None)
-                    except select.error, (errno, strerror):
-                        if errno == eintr:
-                            continue
-                        break
+            pfx = self.prefix1
+            lin = ""
+            while True:
+                try:
+                    rl = pl.poll(None)
+                except select.error, (errno, strerror):
+                    if errno == eintr:
+                        continue
+                    break
 
-                    if len(rl) == 0:
-                        break
+                if len(rl) == 0:
+                    break
 
-                    for fd, bits in rl:
-                        lin = ""
-                        if fd == exrfd1:
-                            if bits & select.POLLIN:
-                                tlin = fr1.readline(self.szlin)
-                                if len(tlin) > 0:
-                                    lin = self.prefix1 + tlin
-                                else:
-                                    flist.remove (exrfd1)
-                                    pl.unregister(exrfd1)
+                for fd, bits in rl:
+                    if fd == exrfd1:
+                        if bits & select.POLLIN:
+                            lin = fr1.readline(self.szlin)
+                            if len(lin) > 0:
+                                pfx = self.prefix1
                             else:
+                                flist.remove (exrfd1)
                                 pl.unregister(exrfd1)
-                                flist.remove(exrfd1)
-                        elif fd == exrfd2:
-                            if bits & select.POLLIN:
-                                tlin = fr2.readline(self.szlin)
-                                if len(tlin) > 0:
-                                    lin = self.prefix2 + tlin
-                                else:
-                                    flist.remove (exrfd2)
-                                    pl.unregister(exrfd2)
+                        else:
+                            pl.unregister(exrfd1)
+                            flist.remove(exrfd1)
+                    elif fd == exrfd2:
+                        if bits & select.POLLIN:
+                            lin = fr2.readline(self.szlin)
+                            if len(lin) > 0:
+                                pfx = self.prefix2
                             else:
+                                flist.remove (exrfd2)
                                 pl.unregister(exrfd2)
-                                flist.remove(exrfd2)
+                        else:
+                            pl.unregister(exrfd2)
+                            flist.remove(exrfd2)
 
-                        if len(lin) > 0:
-                            fw.write(lin)
+                    if len(lin) > 0:
+                        wrlinepfx(fw, pfx, lin)
 
-                    if len(flist) == 0:
-                        break
+                if len(flist) == 0:
+                    break
 
+            stat = self._child_wait_all()
+
+            if stat < 0:
+                _dbg("In go() do stat < 0 exit %d"  % self.procstat)
                 fw.close()
 
-                _dbg("In go() before wait")
-                stat = self.wait(mx = 25, nsl = 2)
-                _dbg("In go() after wait")
+                # bad failure, like pid n.g.
+                os._exit(1)
+            else:
+                highstat = stat
 
-                if stat < 0:
-                    _dbg("In go() do stat < 0 exit %d"  % self.procstat)
-                    # bad failure, like pid n.g.
+                for pid, stat, sig, parms in self.procstat:
+                    if parms == None:
+                        cmd = "[unknown command]"
+                        aa  = []
+                        ae  = []
+                    else:
+                        cmd = parms.xcmd
+                        aa  = parms.xcmdargs
+                        ae  = parms.xcmdenv
+
+                    sstr = self.__class__.status_string(stat, sig)
+                    wrprocstat(fw, cmd, aa, ae, stat, sig, sstr)
+
+                if sig:
+                    fw.close()
+                    # want to provide same status to parent, so
+                    # suicide with same signal -- python does not
+                    # seem to have {os,signal}.raise() so os.kill()
+                    self._child_sigs_defaults()
+                    _dbg("In go() do self-signal %d"
+                        % stat)
+                    os.kill(os.getpid(), stat)
+                    signal.pause()
+                    # should not reach here!
                     os._exit(1)
                 else:
-                    if self.prockilled == True:
-                        # want to provide same status to parent, so
-                        # suicide with same signal -- python does not
-                        # seem to have {os,signal}.raise() so os.kill()
-                        self._child_sigs_defaults()
-                        _dbg("In go() do self-signal %d"
-                            % self.procstat)
-                        os.kill(os.getpid(), self.procstat)
-                        signal.pause()
-                        # should not reach here!
-                        os._exit(1)
-                    else:
-                        _dbg("In go() do exit %d"  % self.procstat)
-                        os._exit(self.procstat)
+                    _dbg("In go() do exit %d (pid %d)"  % (
+                        stat, pid))
+                    fw.close()
+                    os._exit(stat)
 
         else:
             os.close(wfd)
             self.error_tuple = None
+            self.procstat[0] = (fpid,
+                self.procstat[0][1],
+                self.procstat[0][2],
+                self.procstat[0][3])
             return (fpid, rfd)
 
+        # Not reached
+        self.error_tuple = (0, "error: internal logic error")
+        return self.error_tuple
 
-    def _mk_input_proc(self, paramobj, fd1, fd2):
-        parms = paramobj
-        xcmd = parms.xcmd
-        xcmdargs = parms.xcmdargs
-        xcmdenv = parms.xcmdenv
+    # 'protected' proc for self.go() -- fork and exec for pipleline --
+    # return (child-stdout-fd, child-pid, command, paramobj) on success,
+    # or (-1, -errno, sys-errno-string, paramobj) on failure
+    def _mk_pipe_proc(self, paramobj, fd1, fd2):
+        xcmd = paramobj.xcmd
+        xcmdargs = paramobj.xcmdargs
+        xcmdenv = paramobj.xcmdenv
 
         is_path = os.path.split(xcmd)
         if len(is_path[0]) > 0:
@@ -997,19 +1131,17 @@ class ChildTwoStreamReader:
         try:
             rfd, wfd = os.pipe()
         except OSError, (errno, strerror):
-            self.error_tuple = (errno, strerror)
-            return -1
+            return (-1, -errno, strerror, paramobj)
 
         try:
             fpid = os.fork()
             if fpid > 0:
-                self.ch_pgrp.append(fpid)
-                _dbg("_mk_input_proc %d add pid %d, inp len %d" %
-                    (os.getpid(), fpid, len(self.ch_pgrp)))
+                _dbg("_mk_pipe_proc {this} new pid {new}".format(
+                    this = os.getpid(), new = fpid))
         except OSError, (errno, strerror):
             os.close(rfd)
             os.close(wfd)
-            return -1
+            return (-1, -errno, strerror, paramobj)
 
         if fpid == 0:
             os.close(rfd)
@@ -1039,7 +1171,7 @@ class ChildTwoStreamReader:
         else:
             os.close(wfd)
 
-        return rfd
+        return (rfd, fpid, xcmd, paramobj)
 
     def _putenv_cntnr(self, cntnr):
         try:
@@ -1086,7 +1218,7 @@ class ChildTwoStreamReader:
         return False
 
     def read_curchild(self, rfd, cb = None):
-        return self.read(self.curchild, rfd, cb)
+        return self.read(self.procstat[-1][0], rfd, cb)
 
     def read(self, fpid, rfd, cb = None):
         if not self.go_return_ok(fpid, rfd):
@@ -1094,26 +1226,31 @@ class ChildTwoStreamReader:
 
         fr = os.fdopen(rfd, "r", 0)
 
-        flens = (len(self.prefix1), len(self.prefix2))
-
         if cb == None:
             cb = self.null_cb_go_and_read
 
+        l1 = len(self.prefix1)
+        l2 = len(self.prefix1)
+        lX = len(self.prefixX)
         while True:
             lin = fr.readline(self.szlin + 3)
 
             if len(lin) > 0:
-                if lin.find(self.prefix1, 0, flens[0]) == 0:
-                    l = lin[flens[0]:]
+                if self.prefix1 == lin[:l1]:
+                    l = lin[l1:]
                     self.rlin1.append(l)
                     self.kill_for_cb_go_and_read(fpid, cb(1, l))
-                elif lin.find(self.prefix2, 0, flens[1]) == 0:
-                    l = lin[flens[1]:]
+                elif self.prefix2 == lin[:l2]:
+                    l = lin[l2:]
                     self.rlin2.append(l)
                     self.kill_for_cb_go_and_read(fpid, cb(2, l))
+                elif self.prefixX == lin[:lX]:
+                    l = lin[lX:]
+                    self.rlinx.append(l)
+                    self.kill_for_cb_go_and_read(fpid, cb(-1, l))
                 else:
                     self.rlinx.append(lin)
-                    self.kill_for_cb_go_and_read(fpid, cb(-1, l))
+                    self.kill_for_cb_go_and_read(fpid, cb(-1, lin))
             else:
                 break
 
@@ -6184,10 +6321,10 @@ class ACoreLogiDat:
 
         r = ch_proc.read_curchild(rfd, self.cb_go_and_read)
         if r:
-            ch_proc.wait(4, 20)
+            ch_proc.wait()
             return 0
         else:
-            ch_proc.kill_wait(4, 20)
+            ch_proc.kill_wait()
 
         return 1
 
@@ -6272,13 +6409,27 @@ class ACoreLogiDat:
             self.vol_wnd.set_source_info(voldict)
 
             for l in rlinx:
-                msg_ERROR(_("AUXILIARY OUTPUT: '{0}'").format(l))
+                dat = ch_proc.get_stat_line_data(l)
+                if dat:
+                    m = _(
+                        "STATUS: "
+                        "cmd='{cmd}' "
+                        "code='{code}' "
+                        "signalled='{sig}' "
+                        "status_string='{sstr}' "
+                        #"args: {ae}"
+                        ).format(
+                            cmd = dat[0], code = dat[1],
+                            sig = dat[2], sstr = dat[3] #, ae = dat[4])
+                        )
+                    if stat:
+                        msg_ERROR(m)
+                    else:
+                        msg_INFO(m)
+                else:
+                    msg_WARN(_("AUXILIARY OUTPUT: '{0}'").format(l))
 
-            if stat != 0:
-                msg_line_ERROR(_(
-                    "!!! {0} check of '{1}' FAILED code {2}").format(
-                        xcmd, dev, stat))
-            else:
+            if stat == 0:
                 self.checked_input_devnode = nod
                 st = x_lstat(self.checked_input_devnode)
                 self.checked_input_devstat = st
