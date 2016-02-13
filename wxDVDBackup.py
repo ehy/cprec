@@ -22,8 +22,6 @@ DVD Backup fronted for cprec and dd-dvd, growisofs, genisoimage/mkisofs
 
 import collections
 import errno
-# use errno.ECONSTANT in a exception handler, and get:
-#UnboundLocalError: local variable 'errno' referenced before assignment
 eintr  = errno.EINTR
 echild = errno.ECHILD
 efault = errno.EFAULT
@@ -100,6 +98,16 @@ _dbg("debug file opened")
 """
     Global data
 """
+
+# version globals: r/o
+version_string = "0.0.2"
+version_name   = "Begin Constrict"
+version_mjr    = 0
+version_njrrev = 0
+version_mnr    = 2
+version_mnrrev = 0
+version = (
+    version_mjr<<24|version_njrrev<<16|version_mnr<<8|version_mnrrev)
 
 _msg_obj = None
 _msg_obj_init_is_done = False
@@ -3540,7 +3548,8 @@ class AFrame(sc.SizedFrame):
             t = wx.AboutDialogInfo()
 
             t.SetName(PROG)
-            t.SetVersion("0.0.1 First Molt")
+            t.SetVersion("{vs} {vn}".format(
+                vs = version_string, vn = version_name))
             t.SetDevelopers(['Ed Hynan'])
             t.SetLicence(zlib.decompress(base64.b64decode(lic)))
             t.SetDescription(self._get_about_desc())
