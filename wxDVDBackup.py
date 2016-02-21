@@ -82,7 +82,7 @@ if "-XGETTEXT" in sys.argv:
 
 
 if "-DBG" in sys.argv:
-    _ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-py")
+    _ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-")
     _fdbg = os.fdopen(_ofd, "w", 0)
 else:
     _fdbg = None
@@ -100,14 +100,14 @@ _dbg("debug file opened")
 """
 
 # version globals: r/o
-version_string = "0.0.2"
-version_name   = "Begin Constrict"
+version_string = "0.0.1.1"
+version_name   = "First Molt"
 version_mjr    = 0
-version_njrrev = 0
-version_mnr    = 2
-version_mnrrev = 0
+version_mjrrev = 0
+version_mnr    = 1
+version_mnrrev = 1
 version = (
-    version_mjr<<24|version_njrrev<<16|version_mnr<<8|version_mnrrev)
+    version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
 
 _msg_obj = None
 _msg_obj_init_is_done = False
@@ -244,6 +244,20 @@ def x_lstat(path, quiet = False, use_l = True):
             msg_line_ERROR(m)
         return None
 
+
+# There are important changes from wxWidgets 2.8 -> 3.x -- need to know
+_wxpy_is_v3 = None
+def is_wxpy_v3():
+    global _wxpy_is_v3
+    if _wxpy_is_v3 == None:
+        if wx.MAJOR_VERSION >= 3:
+            _wxpy_is_v3 = True
+        elif wx.MAJOR_VERSION == 2 and wx.MINOR_VERSION >= 9:
+            _wxpy_is_v3 = True
+        else:
+            _wxpy_is_v3 = False
+
+    return _wxpy_is_v3
 
 """
     Classes
@@ -1438,9 +1452,25 @@ class AMsgWnd(wx.TextCtrl):
         self.showpos = 0
 
         self.default_text_style = self.GetDefaultStyle()
-        self.orig_font = self.default_text_style.GetFont()
+
+        # wx 3.x: self.default_text_style.GetFont() returns
+        # an invalid font, making self.orig_font.GetPointSize()
+        # throw an exception. Workaround:
+        if is_wxpy_v3():
+            fntsz = 9
+            self.orig_font = wx.Font(
+                fntsz,
+                wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL,
+                wx.FONTWEIGHT_NORMAL
+            )
+            self.default_text_style.SetFont(self.orig_font)
+            self.SetDefaultStyle(self.default_text_style)
+        else:
+            self.orig_font = self.default_text_style.GetFont()
+            fntsz = self.orig_font.GetPointSize()
+
         self.mono_font = wx.Font(
-            self.orig_font.GetPointSize(),
+            fntsz,
             wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL,
             wx.FONTWEIGHT_NORMAL
         )
@@ -1933,7 +1963,8 @@ class AVolInfPanePanel(wx.Panel):
             txt = wx.TextCtrl(
                 self, wx.ID_ANY, "", wx.DefaultPosition, wx.DefaultSize,
                 sty, wx.DefaultValidator, key)
-            txt.SetMaxLength(flen)
+            if not sty & wx.TE_MULTILINE:
+                txt.SetMaxLength(flen)
             txt.SetValue(deflt)
             box.Add(txt, 1, wx.ALL|wx.EXPAND, 2)
             self.ctls.append(txt)
@@ -1941,7 +1972,7 @@ class AVolInfPanePanel(wx.Panel):
 
             if flen > 80:
                 self.bSizer1.Add(box, 1, wx.ALL|wx.EXPAND, 3)
-                self.bSizer1.AddGrowableRow(rn, 2)
+                #self.bSizer1.AddGrowableRow(rn, 2)
             else:
                 self.bSizer1.Add(box, 1, wx.ALL|wx.EXPAND, 3)
 
@@ -2129,7 +2160,7 @@ class ATargetPanePanel(wx.Panel):
         self.select_label.Wrap(-1)
         self.box_whole.Add(self.select_label, 0, wx.ALL, 5)
 
-        self.fgSizer_node_whole = wx.FlexGridSizer(2, 1, 0, 0)
+        self.fgSizer_node_whole = wx.FlexGridSizer(0, 1, 0, 0)
         self.fgSizer_node_whole.AddGrowableCol(0)
         self.fgSizer_node_whole.AddGrowableRow(0, 1)
         self.fgSizer_node_whole.AddGrowableRow(1, 2)
@@ -2191,7 +2222,7 @@ class ATargetPanePanel(wx.Panel):
             wx.VERTICAL
             )
 
-        self.fgSizer1 = wx.FlexGridSizer(1, 2, 0, 0)
+        self.fgSizer1 = wx.FlexGridSizer(0, 2, 0, 0)
         self.fgSizer1.AddGrowableCol(0)
         self.fgSizer1.AddGrowableCol(1)
         self.fgSizer1.AddGrowableRow(0)
@@ -2386,7 +2417,7 @@ class ASourcePanePanel(wx.Panel):
         self.set_hier = []
 
         # top level sizer
-        self.bSizer1 = wx.FlexGridSizer(3, 1, 0, 0)
+        self.bSizer1 = wx.FlexGridSizer(0, 1, 0, 0)
         self.bSizer1.AddGrowableCol(0)
         self.bSizer1.AddGrowableRow(2)
         self.bSizer1.SetMinSize(size)
@@ -2441,7 +2472,7 @@ class ASourcePanePanel(wx.Panel):
         staticText3.Wrap(-1)
         self.box_whole.Add(staticText3, 0, wx.ALL, 5)
 
-        self.fgSizer_node_whole = wx.FlexGridSizer(2, 1, 0, 0)
+        self.fgSizer_node_whole = wx.FlexGridSizer(0, 1, 0, 0)
         self.fgSizer_node_whole.AddGrowableCol(0)
 
         self.input_node_whole = wx.TextCtrl(
@@ -2490,7 +2521,7 @@ class ASourcePanePanel(wx.Panel):
             wx.VERTICAL
             )
 
-        self.fgSizer_extra_hier = wx.FlexGridSizer(1, 1, 0, 0)
+        self.fgSizer_extra_hier = wx.FlexGridSizer(0, 1, 0, 0)
         self.fgSizer_extra_hier.AddGrowableCol(0)
         self.fgSizer_extra_hier.AddGrowableRow(0)
         self.fgSizer_extra_hier.SetFlexibleDirection(wx.BOTH)
@@ -2941,8 +2972,10 @@ class AChildSashWnd(wx.SashWindow):
 ASashWnd -- adjustable child of top frame
 """
 class ASashWnd(wx.SashWindow):
-    def __init__(self, parent, ID, title, gist, init_build = True):
-        wx.SashWindow.__init__(self, parent, ID, name = title)
+    def __init__(self, parent, ID, title, gist,
+                       init_build = True, size = (800, 600)):
+        wx.SashWindow.__init__(self,
+                               parent, ID, name = title, size = size)
 
         self.core_ld = gist
 
@@ -2964,13 +2997,13 @@ class ASashWnd(wx.SashWindow):
 
         self.msg_minh = 40
         self.msg_inith = 100
-        sz = parent.GetClientSize()
+        sz = self.GetSize()
         sz.height -= self.msg_inith
 
         self.swnd = []
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (30, 30),
+                self, -1, wx.DefaultPosition, (300, 300),
                 wx.NO_BORDER|wx.SW_3D
             ))
         self.swnd[0].SetDefaultSize((sz.width, sz.height))
@@ -2982,7 +3015,7 @@ class ASashWnd(wx.SashWindow):
 
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (30, 30),
+                self, -1, wx.DefaultPosition, (300, 300),
                 wx.NO_BORDER|wx.SW_3D
             ))
         self.swnd[1].SetDefaultSize((sz.width, self.msg_minh))
@@ -3200,8 +3233,10 @@ class ASettingsDialog(sc.SizedDialog):
                     border = (["right", "bottom"], bdr),
                     proportion = 10)
             elif typ == "blank":
-                s = wx.Panel(pane, id = i0)
-                t = wx.Panel(pane, id = i1)
+                #s = wx.Panel(pane, id = i0)
+                #t = wx.Panel(pane, id = i1)
+                s = wx.Window(pane, id = i0, style = wx.BORDER_NONE)
+                t = wx.Window(pane, id = i1, style = wx.BORDER_NONE)
                 t.SetSizerProps(expand = True, proportion = a[1])
             elif typ == "hline":
                 s = wx.StaticLine(pane, i0, style = wx.LI_HORIZONTAL)
@@ -3244,6 +3279,7 @@ class ASettingsDialog(sc.SizedDialog):
 
         # advanced tab
         self._data_advanced = [
+            ["blank", 5],
             ["cprec_option", # booleans
                 _("Do not fail if file exists:"),
                 "ignore-existing",
@@ -3279,6 +3315,7 @@ class ASettingsDialog(sc.SizedDialog):
 
         # tool paths tab
         self._data_paths = [
+            ["blank", 5],
             ["text", # extra: default
                 _("growisofs program:"),
                 "growisofs",
@@ -3439,7 +3476,7 @@ class AFrame(sc.SizedFrame):
         self.sash_wnd = ASashWnd(
             panel, gist.get_new_idval(),
             "main_sash_window",
-            gist, True)
+            gist, True, size = size)
 
         self.sash_wnd.SetSizerProps(
             expand = True,
