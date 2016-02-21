@@ -3448,8 +3448,8 @@ class ASettingsDialog(sc.SizedDialog):
 
 
 # top/main frame window class
-#class AFrame(wx.Frame):
-class AFrame(sc.SizedFrame):
+class AFrame(wx.Frame):
+#class AFrame(sc.SizedFrame):
     about_info = None
 
     def __init__(self,
@@ -3457,8 +3457,8 @@ class AFrame(sc.SizedFrame):
             pos = wx.DefaultPosition, size = wx.DefaultSize,
             # gauge toolbar range:
             rang = 1000):
-        #wx.Frame.__init__(self, parent, ID, title, pos, size)
-        sc.SizedFrame.__init__(self, parent, ID, title, pos, size)
+        wx.Frame.__init__(self, parent, ID, title, pos, size)
+        #sc.SizedFrame.__init__(self, parent, ID, title, pos, size)
 
         self.core_ld = gist
 
@@ -3470,24 +3470,52 @@ class AFrame(sc.SizedFrame):
 
         self._do_app_art()
 
-        panel = self.GetContentsPane()
-        panel.SetSizerType("vertical")
+        if True:
+            # using base wx.Frame
+            panel_sizer = wx.BoxSizer(wx.VERTICAL)
+            panel = wx.Panel(self, gist.get_new_idval())
 
-        self.sash_wnd = ASashWnd(
-            panel, gist.get_new_idval(),
-            "main_sash_window",
-            gist, True, size = size)
+            item_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.sash_wnd.SetSizerProps(
-            expand = True,
-            proportion = 600)
+            self.sash_wnd = ASashWnd(
+                panel, gist.get_new_idval(),
+                "main_sash_window",
+                gist, True, size = size)
 
-        self.gauge = AProgBarPanel(
-            panel, gist, gist.get_new_idval(), rang)
+            self.gauge = AProgBarPanel(
+                panel, gist, gist.get_new_idval(), rang)
 
-        self.gauge.SetSizerProps(
-            expand = True,
-            proportion = 24)
+            item_sizer.Add(self.sash_wnd, 600, wx.EXPAND, 0)
+            item_sizer.SetItemMinSize(self.sash_wnd, 0, 48)
+            item_sizer.Add(self.gauge, 24, wx.EXPAND, 0)
+            item_sizer.SetItemMinSize(self.gauge, 0, 24)
+            panel_sizer.Add(panel, 1, wx.EXPAND, 0)
+
+            panel.SetSizer(item_sizer)
+            self.SetSizer(panel_sizer)
+        else:
+            # using base sc.SizedFrame
+            panel = self.GetContentsPane()
+            panel.SetSizerType("vertical")
+
+            self.sash_wnd = ASashWnd(
+                panel, gist.get_new_idval(),
+                "main_sash_window",
+                gist, True, size = size)
+
+            self.sash_wnd.SetSizerProps(
+                expand = True,
+                proportion = 600)
+
+            self.gauge = AProgBarPanel(
+                panel, gist, gist.get_new_idval(), rang)
+
+            self.gauge.SetSizerProps(
+                expand = False,
+                proportion = 24,
+                valign = "bottom",
+                minsize = "fixed")
+            self.gauge.SetMinSize((0, 24))
 
         self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_CLOSE, self.on_quit)
