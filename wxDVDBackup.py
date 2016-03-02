@@ -53,84 +53,6 @@ except:
 
 
 """
-    Development hacks^Wsupport
-"""
-
-PROGLONG = os.path.split(sys.argv[0])[1]
-PROG = PROGLONG
-def __mk_PROG():
-    try:
-        tr = PROGLONG.rindex(".py")
-    except:
-        tr = len(PROGLONG)
-
-    global PROG
-    PROG = PROGLONG[:tr]
-
-__mk_PROG()
-
-if "-XGETTEXT" in sys.argv:
-    try:
-        # argv[0] is unreliable, but this is not for general use.
-        _xgt = "xgettext"
-        _xgtargs = (_xgt, "-o", "-", "-L", "Python",
-                "--keyword=_", "--add-comments", sys.argv[0])
-        os.execvp(_xgt, _xgtargs)
-    except OSError, (err, serr):
-        sys.stderr.write("Exec {0} {p}: {1} ({2})\n".format(
-            _xgt, serr, err, p = sys.argv[0]))
-        exit(1)
-
-
-if "-DBG" in sys.argv:
-    _ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-")
-    _fdbg = os.fdopen(_ofd, "w", 0)
-else:
-    _fdbg = None
-
-def _dbg(msg):
-    if not _fdbg:
-        return
-    _fdbg.write(u"{0}: {1}\n".format(time.time(), msg))
-
-_dbg("debug file opened")
-
-
-"""
-    Global data
-"""
-
-# version globals: r/o
-version_string = "0.0.1.1"
-version_name   = "First Molt"
-version_mjr    = 0
-version_mjrrev = 0
-version_mnr    = 1
-version_mnrrev = 1
-version = (
-    version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
-
-_msg_obj = None
-_msg_obj_init_is_done = False
-
-# Two arrow images courtesy of wxPython demo/images.py,
-# for list control columns indicating sort order
-SmallUpArrow = PyEmbeddedImage(
-    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYA"
-    "AAAf8/9hAAAABHNCSVQICAgIfAhkiAAAADxJ"
-    "REFUOI1jZGRiZqAEMFGke2gY8P/f3/9kGwDT"
-    "jM8QnAaga8JlCG3CAJdt2MQxDCAUaOjyjKMp"
-    "cRAYAABS2CPsss3BWQAAAABJRU5ErkJggg==")
-
-SmallDnArrow = PyEmbeddedImage(
-    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYA"
-    "AAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAEhJ"
-    "REFUOI1jZGRiZqAEMFGke9QABgYGBgYWdIH/"
-    "//7+J6SJkYmZEacLkCUJacZqAD5DsInTLhDR"
-    "bcPlKrwugGnCFy6Mo3mBAQChDgRlP4RC7wAAAABJRU5ErkJggg==")
-
-
-"""
     Global procedures
 """
 
@@ -163,8 +85,6 @@ else:
 
 # use _T as necessary
 def _Tnec(s):
-    if isinstance(s, unicode):
-        return s
     if isinstance(s, str):
         return _T(s)
     return s
@@ -183,9 +103,24 @@ def _(s):
 # handles encoding, but a wrapper for fdopen() is absent
 # (or undocumented) -- so use this fp_write()
 def fp_write(f_object, s):
-    if _ucode_type == None:
-        return f_object.write(s)
-    return f_object.write(codecs.encode(_Tnec(s), _ucode_type))
+    if isinstance(s, unicode):
+        if _ucode_type == None:
+            _cod = 'ascii'
+        else:
+            _cod = _ucode_type
+        return f_object.write(codecs.encode(_Tnec(s), _cod))
+    return f_object.write(s)
+
+# inefficient string equality test, unicode vs. ascii safe
+def steq(s1, s2):
+    if _Tnec(s1) == _Tnec(s2):
+        return True
+    return False
+
+def stne(s1, s2):
+    if _Tnec(s1) != _Tnec(s2):
+        return True
+    return False
 
 msg_red_color = wx.RED
 msg_green_color = wx.Colour(0, 227, 0)
@@ -307,6 +242,85 @@ def is_wxpy_v3():
             _wxpy_is_v3 = False
 
     return _wxpy_is_v3
+
+"""
+    Development hacks^Wsupport
+"""
+
+PROGLONG = os.path.split(sys.argv[0])[1]
+PROG = PROGLONG
+def __mk_PROG():
+    try:
+        tr = PROGLONG.rindex(".py")
+    except:
+        tr = len(PROGLONG)
+
+    global PROG
+    PROG = PROGLONG[:tr]
+
+__mk_PROG()
+
+if "-XGETTEXT" in sys.argv:
+    try:
+        # argv[0] is unreliable, but this is not for general use.
+        _xgt = "xgettext"
+        _xgtargs = (_xgt, "-o", "-", "-L", "Python",
+                "--keyword=_", "--add-comments", sys.argv[0])
+        os.execvp(_xgt, _xgtargs)
+    except OSError, (err, serr):
+        sys.stderr.write("Exec {0} {p}: {1} ({2})\n".format(
+            _xgt, serr, err, p = sys.argv[0]))
+        exit(1)
+
+
+if "-DBG" in sys.argv:
+    _ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-")
+    _fdbg = os.fdopen(_ofd, "w", 0)
+else:
+    _fdbg = None
+
+def _dbg(msg):
+    if not _fdbg:
+        return
+    fp_write(_fdbg, u"{0}: {1}\n".format(time.time(), msg))
+
+_dbg(_T("debug file opened"))
+
+
+"""
+    Global data
+"""
+
+# version globals: r/o
+version_string = _T("0.0.1.1")
+version_name   = _("First Molt")
+version_mjr    = 0
+version_mjrrev = 0
+version_mnr    = 1
+version_mnrrev = 1
+version = (
+    version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
+
+_msg_obj = None
+_msg_obj_init_is_done = False
+
+# Two arrow images courtesy of wxPython demo/images.py,
+# for list control columns indicating sort order
+SmallUpArrow = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYA"
+    "AAAf8/9hAAAABHNCSVQICAgIfAhkiAAAADxJ"
+    "REFUOI1jZGRiZqAEMFGke2gY8P/f3/9kGwDT"
+    "jM8QnAaga8JlCG3CAJdt2MQxDCAUaOjyjKMp"
+    "cRAYAABS2CPsss3BWQAAAABJRU5ErkJggg==")
+
+SmallDnArrow = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYA"
+    "AAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAEhJ"
+    "REFUOI1jZGRiZqAEMFGke9QABgYGBgYWdIH/"
+    "//7+J6SJkYmZEacLkCUJacZqAD5DsInTLhDR"
+    "bcPlKrwugGnCFy6Mo3mBAQChDgRlP4RC7wAAAABJRU5ErkJggg==")
+
+
 
 """
     Classes
@@ -639,7 +653,7 @@ class ChildTwoStreamReader:
             return False
 
         sig = True
-        if m.group(3) == "False":
+        if steq(m.group(3), "False"):
             sig = False
 
         return [
@@ -717,7 +731,7 @@ class ChildTwoStreamReader:
         if wpid == -1 or not pidtuple[1] == -1:
             return -1
 
-        if opts == _T("nohang"):
+        if steq(opts, "nohang"):
             opts = os.WNOHANG
         elif opts != 0 and opts != os.WNOHANG:
             return -1
@@ -1294,7 +1308,7 @@ class ChildTwoStreamReader:
         l2 = len(self.prefix1)
         lX = len(self.prefixX)
         while True:
-            lin = _T(fr.readline(self.szlin + 3))
+            lin = _Tnec(fr.readline(self.szlin + 3))
 
             if len(lin) > 0:
                 if self.prefix1 == lin[:l1]:
@@ -1401,7 +1415,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
 
         while item_id:
             lbl = treectrl.GetItemText(item_id)
-            if lbl == _T('Desktop'):
+            if steq(lbl, 'Desktop'):
                 rm_items.insert(0, item_id)
             elif lbl in bug:
                 treectrl.SetItemText(item_id, init_dir)
@@ -1447,14 +1461,14 @@ class RepairedMDDialog(MDD.MultiDirDialog):
         rm_idx = []
         for i in range(len(pts)):
             p = pts[i]
-            if p[:2] == _T('//'):
+            if steq(p[:2], '//'):
                 p = p.replace(_T('//'), _T('/'))
             # the 'Macintosh HD' stuff is *untested*!
             elif p[:len_machd] == str_machd:
                 if p == str_machd or p == dir_machd:
                     rm_idx.insert(0, i)
                     continue
-                if p[len_machd] == _T('/'):
+                if steq(p[len_machd], '/'):
                     p = p[len_machd:]
             else:
                 for misguided in bug:
@@ -1706,7 +1720,7 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
                     ).format(p))
                 idx = self.add_slink(p, idx) + 1
             elif stat.S_ISDIR(st.st_mode):
-                if p == "/":
+                if steq(p, "/"):
                     msg_line_ERROR(_(
                         "Error: '/' is the root directory;"
                         " you must be joking."))
@@ -3271,7 +3285,7 @@ class ASettingsDialog(sc.SizedDialog):
             i0 = self.core_ld.get_new_idval()
             i1 = self.core_ld.get_new_idval()
 
-            if typ == _T("text"):
+            if steq(typ, "text"):
                 s = wx.StaticText(pane, i0, a[1])
                 s.SetSizerProps(
                     valign = _T("center"), border = ([_T("left")], bdr))
@@ -3281,25 +3295,25 @@ class ASettingsDialog(sc.SizedDialog):
                     valign = _T("center"),
                     border = ([_T("right"), _T("bottom")], bdr),
                     proportion = 10)
-            elif typ == _T("blank"):
+            elif steq(typ, "blank"):
                 #s = wx.Panel(pane, id = i0)
                 #t = wx.Panel(pane, id = i1)
                 s = wx.Window(pane, id = i0, style = wx.BORDER_NONE)
                 t = wx.Window(pane, id = i1, style = wx.BORDER_NONE)
                 t.SetSizerProps(expand = True, proportion = a[1])
-            elif typ == _T("hline"):
+            elif steq(typ, "hline"):
                 s = wx.StaticLine(pane, i0, style = wx.LI_HORIZONTAL)
                 s.SetSizerProps(expand = True, proportion = a[1])
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
                 t.SetSizerProps(expand = True, proportion = a[1])
-            elif typ == _T("txthline"):
+            elif steq(typ, "txthline"):
                 s = wx.StaticText(pane, i0, a[2],
                     style = wx.ALIGN_CENTRE)
                 s.SetSizerProps(expand = False, proportion = a[1],
                     halign = _T("center"), valign = _T("center"))
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
                 t.SetSizerProps(expand = True, proportion = a[1])
-            elif typ == _T("spin_int"):
+            elif steq(typ, "spin_int"):
                 df, mn, mx = a[4]
                 s = wx.StaticText(pane, i0, a[1])
                 s.SetSizerProps(
@@ -3307,7 +3321,7 @@ class ASettingsDialog(sc.SizedDialog):
                 t = wx.SpinCtrl(pane, i1, str(df), name = a[2],
                     initial = df, min = mn, max = mx)
                 t.SetSizerProps(expand = False, valign = _T("center"))
-            elif typ == _T("cprec_option"):
+            elif steq(typ, "cprec_option"):
                 s = wx.StaticText(pane, i0, a[1])
                 s.SetSizerProps(
                     valign = _T("center"), border = ([_T("left")], bdr))
@@ -3409,9 +3423,9 @@ class ASettingsDialog(sc.SizedDialog):
                 a = dat[idx]
                 typ = a[0]
 
-                if not (typ == _T("text") or
-                        typ == _T("spin_int") or
-                        typ == _T("cprec_option")):
+                if not (steq(typ, "text") or
+                        steq(typ, "spin_int") or
+                        steq(typ, "cprec_option")):
                     continue
 
                 ctl = self.FindWindowByName(a[2])
@@ -3420,19 +3434,19 @@ class ASettingsDialog(sc.SizedDialog):
 
                 cfkey = a[2]
 
-                if typ == _T("text"):
+                if steq(typ, "text"):
                     if config.HasEntry(cfkey):
                         v = config.Read(cfkey)
                         ctl.SetValue(v)
                     else:
                         ctl.SetValue(a[4])
-                elif typ == _T("spin_int"):
+                elif steq(typ, "spin_int"):
                     if config.HasEntry(cfkey):
                         v = config.ReadInt(cfkey)
                         ctl.SetValue(v)
                     else:
                         ctl.SetValue(a[4][0])
-                elif typ == _T("cprec_option"):
+                elif steq(typ, "cprec_option"):
                     if config.HasEntry(cfkey):
                         v = config.ReadInt(cfkey)
                         ctl.SetValue(bool(v))
@@ -3454,9 +3468,9 @@ class ASettingsDialog(sc.SizedDialog):
                 a = dat[idx]
                 typ = a[0]
 
-                if not (typ == _T("text") or
-                        typ == _T("spin_int") or
-                        typ == _T("cprec_option")):
+                if not (steq(typ, "text") or
+                        steq(typ, "spin_int") or
+                        steq(typ, "cprec_option")):
                     continue
 
                 ctl = self.FindWindowByName(a[2])
@@ -3465,21 +3479,21 @@ class ASettingsDialog(sc.SizedDialog):
 
                 cfkey = a[2]
 
-                if typ == _T("text"):
+                if steq(typ, "text"):
                     v = ctl.GetValue().strip()
                     df = a[4]
-                    if len(v) and v != df:
+                    if len(v) and stne(v, df):
                         config.Write(cfkey, v)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
-                elif typ == _T("spin_int"):
+                elif steq(typ, "spin_int"):
                     v = ctl.GetValue()
                     df = a[4][0]
                     if v != df:
                         config.WriteInt(cfkey, v)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
-                elif typ == _T("cprec_option"):
+                elif steq(typ, "cprec_option"):
                     v = ctl.GetValue()
                     df = a[3]
                     if bool(v) != df:
@@ -3817,7 +3831,7 @@ class APeriodThread(threading.Thread):
         self.tid = 0
         self.tmsg = msg
 
-        if os.name == _T('posix'):
+        if steq(os.name, 'posix'):
             self.run_internal = self.run_posix
         else:
             self.run_internal = self.run_other
@@ -3963,13 +3977,13 @@ class MediaDrive:
         for k in self.regx:
             m = self.regx[k].match(lin)
             if m:
-                if k == _T("drive"):
+                if steq(k, "drive"):
                     for i in (1, 2, 3):
                         if m.group(i):
                             self.data[k][i - 1] = m.group(i).strip()
-                elif k == _T("medium id"):
+                elif steq(k, "medium id"):
                     self.data[k] = m.group(1)
-                elif k == _T("medium"):
+                elif steq(k, "medium"):
                     self.data[k][_T("id")] = m.group(1)
                     self.data[k][_T("type")] = m.group(3)
                     if m.group(5):
@@ -3977,19 +3991,19 @@ class MediaDrive:
                     else:
                         self.data[k][_T("type_ext")] = _T("")
                     self.data[k][_T("type_all")] = m.group(2)
-                elif k == _T("medium book"):
+                elif steq(k, "medium book"):
                     self.data[k] = m.group(2)
-                elif k == _T("medium freespace"):
+                elif steq(k, "medium freespace"):
                     self.data[k] = int(m.group(1))
-                elif k == _T("write speed"):
+                elif steq(k, "write speed"):
                     self.data[k].append(float(m.group(2)))
-                elif k == _T("current write speed"):
+                elif steq(k, "current write speed"):
                     self.data[k] = float(m.group(1))
-                elif k == _T("write performance"):
+                elif steq(k, "write performance"):
                     self.data[k] = m.group(1)
-                elif k == _T("presence"):
+                elif steq(k, "presence"):
                     self.data[k] = m.group(1)
-                elif k == _T("speed descriptor"):
+                elif steq(k, "speed descriptor"):
                     self.data[k].append(
                         (
                             float(m.group(3)),
@@ -4420,17 +4434,17 @@ class ACoreLogiDat:
             try:
                 self.cur_task_items[lambda_key](g)
             except:
-                if nm == _T('blanking'):
+                if steq(nm, 'blanking'):
                     l = lambda g: self.update_working_blanking(g)
-                elif nm == _T('cprec'):
+                elif steq(nm, 'cprec'):
                     l = lambda g: self.update_working_cprec(g)
-                elif nm == _T('dd-dvd'):
+                elif steq(nm, 'dd-dvd'):
                     l = lambda g: self.update_working_dd_dvd(g)
-                elif nm == _T('growisofs-hier'):
+                elif steq(nm, 'growisofs-hier'):
                     l = lambda g: self.update_working_growisofs_hier(g)
-                elif nm == _T('growisofs-whole'):
+                elif steq(nm, 'growisofs-whole'):
                     l = lambda g: self.update_working_growisofs(g)
-                elif nm == _T('growisofs-direct'):
+                elif steq(nm, 'growisofs-direct'):
                     l = lambda g: self.update_working_growisofs(g)
                 else:
                     l = lambda g: g.Pulse()
@@ -4906,16 +4920,16 @@ class ACoreLogiDat:
         except:
             _dbg(_T("%s: <no data>") % typ)
 
-        if mth and typ == _T('time period'):
+        if mth and steq(typ, 'time period'):
             if not self.in_check_op:
                 self.update_working_gauge()
                 self.update_working_msg(slno)
 
-            if dat and dat == _T("pulse"):
+            if dat and steq(dat, "pulse"):
                 if self.gauge_wnd:
                     self.gauge_wnd.Pulse()
 
-        elif mth and typ == _T('l1'):
+        elif mth and steq(typ, 'l1'):
             if not self.in_check_op:
                 self.mono_message(
                     prefunc = lambda : msg_line_INFO(_T('1:')),
@@ -4925,7 +4939,7 @@ class ACoreLogiDat:
                 self.cur_task_items[_T("linelevel")] = 1
                 self.cur_task_items[_T("line")] = m
 
-        elif mth and typ == _T('l2'):
+        elif mth and steq(typ, 'l2'):
             if not self.in_check_op:
                 self.mono_message(
                     prefunc = lambda : msg_line_WARN(_T('2:')),
@@ -4935,7 +4949,7 @@ class ACoreLogiDat:
                 self.cur_task_items[_T("linelevel")] = 2
                 self.cur_task_items[_T("line")] = m
 
-        elif mth and typ == _T('l-1'):
+        elif mth and steq(typ, 'l-1'):
             if not self.in_check_op:
                 ok, m, dat = self.get_stat_data_line(m)
                 if ok:
@@ -4948,14 +4962,14 @@ class ACoreLogiDat:
                         prefunc = lambda : msg_line_WARN(_T('WARNING:')),
                         monofunc = lambda : msg_(_T(" %s") % m))
 
-        elif mth and typ == _T('enter run'):
+        elif mth and steq(typ, 'enter run'):
             self.target.set_cancel_label()
             m = _(
                 "New thread {0} started for child processes").format(m)
             msg_line_INFO(m)
             slno.put_status(m)
 
-        elif typ == _T('exit run'):
+        elif steq(typ, 'exit run'):
             # thread join() can throw
             j_ok = True
             try:
@@ -5018,31 +5032,31 @@ class ACoreLogiDat:
 
 
     def dialog(self, msg, typ = _T("msg"), sty = None):
-        if typ == _T("msg"):
+        if steq(typ, "msg"):
             if sty == None:
                 sty = wx.OK | wx.ICON_INFORMATION
             return wx.MessageBox(msg, PROG, sty, self.topwnd)
 
-        if typ == _T("yesno"):
+        if steq(typ, "yesno"):
             if sty == None:
                 sty = wx.YES_NO | wx.ICON_QUESTION
             return wx.MessageBox(msg, PROG, sty, self.topwnd)
 
-        if typ == _T("sty"):
+        if steq(typ, "sty"):
             # just use 'sty' argument
             return wx.MessageBox(msg, PROG, sty, self.topwnd)
 
-        if typ == _T("input"):
+        if steq(typ, "input"):
             # use 'sty' argument as default text
             return wx.GetTextFromUser(msg, PROG, sty, self.topwnd)
 
-        if typ == _T("intinput"):
+        if steq(typ, "intinput"):
             # use 'sty' argument as tuple w/ addl. args
             prmt, mn, mx, dflt = sty
             return wx.GetNumberFromUser(
                 msg, prmt, PROG, dflt, mn, mx, self.topwnd)
 
-        if typ == _T("choiceindex"):
+        if steq(typ, "choiceindex"):
             # use 'sty' argument as default text
             return wx.GetSingleChoiceIndex(msg, PROG, sty, self.topwnd)
 
@@ -5446,12 +5460,12 @@ class ACoreLogiDat:
 
         typ = dat[_T("source_type")]
 
-        if typ == _T("hier"):
+        if steq(typ, "hier"):
             if self.do_mkiso_blocks():
                 do_it = self.do_burn_hier(ch_proc, dat)
             else:
                 return False
-        elif typ == _T("whole"):
+        elif steq(typ, "whole"):
             do_it = self.do_burn_whole(ch_proc, dat)
         else:
             msg_line_ERROR(typ)
@@ -5775,7 +5789,7 @@ class ACoreLogiDat:
 
         origdev = dev
         realdev = os.path.realpath(dev)
-        if realdev and realdev != dev:
+        if realdev and stne(realdev, dev):
             dev = realdev
             msg_line_INFO(_(
                 'using source mount "{0}" for "{1}"').format(
@@ -5839,11 +5853,11 @@ class ACoreLogiDat:
         for opt in optl:
             if not cf.HasEntry(opt):
                 continue
-            if (opt == _T("block-read-count") or
-                opt == _T("retry-block-count")):
+            if (steq(opt, "block-read-count") or
+                steq(opt, "retry-block-count")):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.ReadInt(opt))
-            elif opt == _T("libdvdr"):
+            elif steq(opt, "libdvdr"):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.Read(opt).strip())
             else:
@@ -5906,7 +5920,7 @@ class ACoreLogiDat:
 
         origdev = dev
         realdev = os.path.realpath(dev)
-        if realdev and realdev != dev:
+        if realdev and stne(realdev, dev):
             dev = realdev
             msg_line_INFO(_(
                 'using source node "{0}" for "{1}"').format(
@@ -5993,11 +6007,11 @@ class ACoreLogiDat:
         for opt in optl:
             if not cf.HasEntry(opt):
                 continue
-            if (opt == _T("block-read-count") or
-                opt == _T("retry-block-count")):
+            if (steq(opt, "block-read-count") or
+                steq(opt, "retry-block-count")):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.ReadInt(opt))
-            elif opt == _T("libdvdr"):
+            elif steq(opt, "libdvdr"):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.Read(opt).strip())
             else:
@@ -6429,7 +6443,7 @@ class ACoreLogiDat:
 
         self.checked_input_arg = origdev = dev
         realdev = os.path.realpath(dev)
-        if realdev and realdev != dev:
+        if realdev and stne(realdev, dev):
             dev = realdev
             msg_line_INFO(_(
                 'using source node "{0}" for "{1}"'
@@ -6470,11 +6484,11 @@ class ACoreLogiDat:
         for opt in optl:
             if not cf.HasEntry(opt):
                 continue
-            if (opt == _T("block-read-count") or
-                opt == _T("retry-block-count")):
+            if (steq(opt, "block-read-count") or
+                steq(opt, "retry-block-count")):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.ReadInt(opt))
-            elif opt == _T("libdvdr"):
+            elif steq(opt, "libdvdr"):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.Read(opt).strip())
             else:
@@ -6559,7 +6573,7 @@ class ACoreLogiDat:
                     val = val.rstrip(_T(' \n\r\t'))
 
                 m = val
-                if lbl == _T('input_arg'):
+                if steq(lbl, 'input_arg'):
                     mnt, sep, nod = val.partition(_T('|'))
                     lbl = _('device node')
                     self.checked_input_arg = dev
@@ -6577,13 +6591,13 @@ class ACoreLogiDat:
                         self.checked_input_mountpt = mnt
                 else:
                     voldict[lbl] = val
-                    if lbl == _T('filesystem_block_count'):
+                    if steq(lbl, 'filesystem_block_count'):
                         self.checked_input_blocks = int(val.strip())
 
-                    if m == _T(""):
+                    if steq(m, ""):
                         m = _("[field is not set]")
 
-                    m = _("{0}: {1}").format(lbl, m)
+                    m = _T("{0}: {1}").format(lbl, m)
 
                 self.mono_message(
                     prefunc = lambda : msg_GOOD(_("DVD volume info:")),
