@@ -74,8 +74,7 @@ try:
 except UnicodeEncodeError:
     _ucode_type = None
 
-# use _T (or _) for all strings for string safety -- at least if
-# lang env is utf-8
+# use _T (or _) for all strings for string safety
 if _ucode_type == None:
     def _T(s):
         return s
@@ -292,12 +291,12 @@ _dbg(_T("debug file opened"))
 """
 
 # version globals: r/o
-version_string = _T("0.0.1.1")
-version_name   = _("First Molt")
+version_string = _T("0.0.1.2")
+version_name   = _("Rudimentary Limbs Begone")
 version_mjr    = 0
 version_mjrrev = 0
 version_mnr    = 1
-version_mnrrev = 1
+version_mnrrev = 2
 version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
 
