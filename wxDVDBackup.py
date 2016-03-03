@@ -1634,10 +1634,9 @@ class AMsgWnd(wx.TextCtrl):
 AFileListCtrl -- Control to display additional file/dir selections
 """
 class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
-    def __init__(self, parent, gist, id = -1):
-        wx.ListCtrl.__init__(self,
-            parent, id,
-            wx.DefaultPosition, wx.DefaultSize,
+    def __init__(self, parent, gist, id = -1, size = wx.DefaultSize):
+        wx.ListCtrl.__init__(self, parent, id,
+            wx.DefaultPosition, size,
             wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES)
 
         self.parent = parent
@@ -1858,18 +1857,20 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
 
 """
 ABasePane -- a base class for scrolling panels used here
-(NOTE: use of wxPython wx.lib.scrolledpanel -- imported
+(NOTE: alternative wxPython wx.lib.scrolledpanel -- imported
 as scrollpanel here -- has some subtle advantages, e.g. the
 volume info panel, which is always larger than visible space and
 therefore has vertical a scroll bar, will auto-scroll to reveal
 a newly focused control that had been hidden when tabbing
-through controls; wx.ScrolledWindow does not do so.)
+through controls; wx.ScrolledWindow does not do so. BUT,
+a major disadvantage: click any text text field and it might
+scroll to bottom! N.G.)
 """
-#class ABasePane(wx.ScrolledWindow):
-class ABasePane(scrollpanel.ScrolledPanel):
+class ABasePane(wx.ScrolledWindow):
+#class ABasePane(scrollpanel.ScrolledPanel):
     def __init__(self, parent, gist, wi, hi, id = -1):
-        #wx.ScrolledWindow.__init__(self, parent, id)
-        scrollpanel.ScrolledPanel.__init__(self, parent, id)
+        wx.ScrolledWindow.__init__(self, parent, id)
+        #scrollpanel.ScrolledPanel.__init__(self, parent, id)
         self.parent = parent
         self.core_ld = gist
         self.sz = wx.Size(wi, hi)
@@ -1925,7 +1926,7 @@ class AVolInfPane(ABasePane):
 
         self.SetMinSize(wx.Size(self.sz.width, self.sz.height / 4))
         self.panel = AVolInfPanePanel(self, gist, self.sz)
-        self.SetVirtualSize(self.sz)
+        self.SetVirtualSize(self.panel.GetSize())
 
     def get_panel(self):
         return self.panel
@@ -1941,16 +1942,12 @@ AVolInfPanePanel -- Panel window for operation volume info fields setup
 """
 class AVolInfPanePanel(wx.Panel):
     def __init__(self, parent, gist, size, id = -1):
-        size.height *= 2
         wx.Panel.__init__(self, parent, id, wx.DefaultPosition, size)
         self.parent = parent
         self.parent.attach_methods(self)
 
         self.core_ld = gist
         self.core_ld.set_vol_wnd(self)
-
-        self.SetMinSize(wx.Size(size.width, size.height / 4))
-        self.SetMaxSize(size)
 
         self.ctls = []
 
@@ -2039,7 +2036,7 @@ class AVolInfPanePanel(wx.Panel):
         self.dict_user = {}
 
         self.SetSizer(self.bSizer1)
-        self.Layout()
+        self.Fit()
 
         self.type_opt.Bind(
             wx.EVT_RADIOBOX, self.on_type_opt)
@@ -2152,9 +2149,6 @@ class ATargetPanePanel(wx.Panel):
         self.core_ld = gist
         self.core_ld.set_target_wnd(self)
 
-        #self.SetMinSize(size)
-        #self.SetMaxSize(size)
-
         # top level sizer
         self.bSizer1 = wx.FlexGridSizer(0, 1, 0, 0)
         self.bSizer1.AddGrowableCol(0)
@@ -2170,26 +2164,54 @@ class ATargetPanePanel(wx.Panel):
             self, wx.ID_ANY, _("output type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
-        self.type_opt.SetToolTip(wx.ToolTip(_(
-            "Select the output type of the backup. "
-            "The first option 'file/directory' will simply put a "
-            "filesystem image (an .iso) or a directory hierarchy "
-            "on your hard drive."
+
+        self.type_opt.SetItemToolTip(0,
+            _(
+            "The option 'file/directory' will write a filesystem image "
+            "file (an .iso; if the 'simple' backup type is selected) "
+            "or a directory hierarchy (if the 'advanced' "
+            "backup type is selected) on your hard drive."
             "\n\n"
-            "The second option 'burner' will write a temporary "
-            "file or directory and then prompt you to make sure "
-            "the burner is ready with a disc."
+            "The backup data will not be burned to DVD disc."
+            ))
+        self.type_opt.SetItemToolTip(1,
+            _(
+            "The option 'burner' will write the backup to a DVD blank "
+            "in the burner drive specified in 'output target' below, "
+            "after reading the source DVD and writing temporary data "
+            "on the hard drive (in the default temporary directory, "
+            "or $TMPDIR)."
             "\n\n"
-            "The third option 'simultaneous' may be used if you "
-            "have two devices: one to read and one to write. This "
-            "option attempts to write the backup disc as it is read "
-            "from the source drive. This option is only available "
-            "if the \"simple\" backup type is selected"
+            "When a burn operation succeeds, you will be asked whether "
+            "you would like to burn another backup copy.  If you "
+            "select 'yes' then the same temporary data is used so "
+            "that the source disc does not need to be read again."
             "\n\n"
-            "WARNING: the third 'direct' option is the least reliable. "
-            "If you use this option try a slow burn speed, "
-            "and ensure that your computer is not busy with many tasks."
-            )))
+            "When burning is done, or on error, temporary data is "
+            "deleted."
+            ))
+        self.type_opt.SetItemToolTip(2,
+            _(
+            "The option 'simultaneous' is useful if you have two "
+            "DVD drives: one to read and one to write on. This option "
+            "is only available when the 'simple' backup type "
+            "is selected."
+            "\n\n"
+            "The backup is burned as it is read from the source disc, "
+            "without a temporary copy. For several reasons, this "
+            "might be the least reliable method. Data should be ready "
+            "for the burner drive when it is needed, so the source "
+            "disc must be readable at a rate that exceeds the burn "
+            "speed."
+            "\n\n"
+            "Using this, you should make sure your computer is not "
+            "very busy, and that the source disc is in good condition "
+            "and unlikely to be difficult to read."
+            "\n\n"
+            "Noting the caution above, this option remains useful for "
+            "a quick backup."
+            ))
+
         self.add_child_wnd(self.type_opt)
 
         ttip = _(
@@ -2526,19 +2548,8 @@ class ASourcePanePanel(wx.Panel):
             "mounted (see the mount(1) manual page). This is because "
             "its files must be available for regular access."
             ))
-        #self.type_opt.SetToolTip(
-        #    wx.ToolTip(_(
-        #    "Select the type of backup to perform: the first option "
-        #    "will make an exact backup copy of the disc."
-        #    "\n\n"
-        #    "The second option will copy files from the disc into a "
-        #    "new directory, allowing additional files and directories "
-        #    "to be added to the backup. This new directory will "
-        #    "be used for the backup. This requires that the disc be "
-        #    "mounted, while the first \"simple\" option does not."
-        #    )))
-        self.add_child_wnd(self.type_opt)
 
+        self.add_child_wnd(self.type_opt)
 
         self.box_whole = wx.StaticBoxSizer(
             wx.StaticBox(
@@ -2624,7 +2635,8 @@ class ASourcePanePanel(wx.Panel):
         self.fgSizer_extra_hier.SetNonFlexibleGrowMode(
             wx.FLEX_GROWMODE_SPECIFIED)
 
-        self.addl_list_ctrl = AFileListCtrl(self, gist)
+        flsz = wx.Size(wx.DefaultSize.width, 12 * 5)
+        self.addl_list_ctrl = AFileListCtrl(self, gist, size = flsz)
         self.addl_list_ctrl.SetToolTip(
             wx.ToolTip(_(
                 "If the \"advanced\" backup type is selected, "
@@ -2964,8 +2976,6 @@ class AChildSashWnd(wx.SashWindow):
         self.core_ld = gist
 
         self.pane_minw = 40
-#        szw1 = wx.GetApp().GetTopWindow().GetClientSize()
-#        szw1 = parent.GetClientSize()
         szw1 = parent.GetSize()
         pane_width = sz.width / 2
 
@@ -2995,7 +3005,7 @@ class AChildSashWnd(wx.SashWindow):
         self.swnd[1].SetExtraBorderSize(1)
 
         w_adj = 20
-        h_adj = 20
+        h_adj = 40
         self.child1_maxw = pane_width
         self.child1_maxh = sz.height
 
@@ -3023,7 +3033,7 @@ class AChildSashWnd(wx.SashWindow):
 
         self.Bind(
             wx.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
-            id =ids[0], id2=ids[len(ids) - 1]
+            id = ids[0], id2 = ids[1]
             )
 
         self.Bind(wx.EVT_SIZE, self.OnSize)
@@ -3105,7 +3115,7 @@ class ASashWnd(wx.SashWindow):
         pparent = parent.GetParent()
         gist = self.core_ld
 
-        self.msg_minh = 40
+        self.msg_minh = 72
         self.msg_inith = 100
         sz = self.GetSize()
         sz.height -= self.msg_inith
@@ -3141,7 +3151,7 @@ class ASashWnd(wx.SashWindow):
         self.child2_maxw = 16000
         self.child2_maxh = 16000
 
-        self.w0adj = 6
+        self.w0adj = 16
         sz1 = wx.Size(sz.width, sz.height - self.w0adj)
         self.child1 = AChildSashWnd(
             self.swnd[0], sz1, parent, gist.get_new_idval(),
