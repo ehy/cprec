@@ -111,12 +111,12 @@ def fp_write(f_object, s):
     return f_object.write(s)
 
 # inefficient string equality test, unicode vs. ascii safe
-def steq(s1, s2):
+def s_eq(s1, s2):
     if _Tnec(s1) == _Tnec(s2):
         return True
     return False
 
-def stne(s1, s2):
+def s_ne(s1, s2):
     if _Tnec(s1) != _Tnec(s2):
         return True
     return False
@@ -246,11 +246,11 @@ def is_wxpy_v3():
     Development hacks^Wsupport
 """
 
-PROGLONG = os.path.split(sys.argv[0])[1]
+PROGLONG = _T(os.path.split(sys.argv[0])[1])
 PROG = PROGLONG
 def __mk_PROG():
     try:
-        tr = PROGLONG.rindex(".py")
+        tr = PROGLONG.rindex(_T(".py"))
     except:
         tr = len(PROGLONG)
 
@@ -292,7 +292,7 @@ _dbg(_T("debug file opened"))
 
 # version globals: r/o
 version_string = _T("0.0.1.2")
-version_name   = _("Rudimentary Limbs Begone")
+version_name   = _("Vestigial Limbs Wiggling!")
 version_mjr    = 0
 version_mjrrev = 0
 version_mnr    = 1
@@ -401,7 +401,7 @@ class ChildProcParams:
             self.__except_init()
             raise ChildProcParams.BadParam, _("cmdenv is wrong type")
 
-        if isinstance(stdin_fd, str):
+        if isinstance(stdin_fd, str) or isinstance(stdin_fd, unicode):
             self.infd = os.open(stdin_fd, os.O_RDONLY)
             self.infd_opened = True
             self.proc_input  = False
@@ -566,7 +566,7 @@ class ChildTwoStreamReader:
             elif stat == signal.SIGALRM:
                 s = _T("SIGALRM")
             else:
-                s = str(stat)
+                s = _T(str(stat))
 
             return r.format(n = s)
 
@@ -652,7 +652,7 @@ class ChildTwoStreamReader:
             return False
 
         sig = True
-        if steq(m.group(3), "False"):
+        if s_eq(m.group(3), "False"):
             sig = False
 
         return [
@@ -730,7 +730,7 @@ class ChildTwoStreamReader:
         if wpid == -1 or not pidtuple[1] == -1:
             return -1
 
-        if steq(opts, "nohang"):
+        if s_eq(opts, "nohang"):
             opts = os.WNOHANG
         elif opts != 0 and opts != os.WNOHANG:
             return -1
@@ -908,7 +908,7 @@ class ChildTwoStreamReader:
     a str (but this may change)
     """
     def go_return_ok(self, fpid, rfd):
-        if isinstance(rfd, str):
+        if not isinstance(rfd, int):
             return False
         if fpid < 1:
             return False
@@ -1414,7 +1414,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
 
         while item_id:
             lbl = treectrl.GetItemText(item_id)
-            if steq(lbl, 'Desktop'):
+            if s_eq(lbl, 'Desktop'):
                 rm_items.insert(0, item_id)
             elif lbl in bug:
                 treectrl.SetItemText(item_id, init_dir)
@@ -1460,14 +1460,14 @@ class RepairedMDDialog(MDD.MultiDirDialog):
         rm_idx = []
         for i in range(len(pts)):
             p = pts[i]
-            if steq(p[:2], '//'):
+            if s_eq(p[:2], '//'):
                 p = p.replace(_T('//'), _T('/'))
             # the 'Macintosh HD' stuff is *untested*!
             elif p[:len_machd] == str_machd:
                 if p == str_machd or p == dir_machd:
                     rm_idx.insert(0, i)
                     continue
-                if steq(p[len_machd], '/'):
+                if s_eq(p[len_machd], '/'):
                     p = p[len_machd:]
             else:
                 for misguided in bug:
@@ -1719,7 +1719,7 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
                     ).format(p))
                 idx = self.add_slink(p, idx) + 1
             elif stat.S_ISDIR(st.st_mode):
-                if steq(p, "/"):
+                if s_eq(p, "/"):
                     msg_line_ERROR(_(
                         "Error: '/' is the root directory;"
                         " you must be joking."))
@@ -1973,7 +1973,7 @@ class AVolInfPanePanel(wx.Panel):
         self.type_opt.SetToolTip(
             wx.ToolTip(_(
                 "These fields allow editing of DVD volume "
-                "information when the 'new filesystem' backup "
+                "information when the 'advanced' backup "
                 "type is selected. (With the 'simple' backup type "
                 "volume information is copied as is.)\n"
                 "\n"
@@ -2163,8 +2163,8 @@ class ATargetPanePanel(wx.Panel):
 
         type_optChoices = []
         type_optChoices.append(_("file/directory"))
-        type_optChoices.append(_("burner device"))
-        type_optChoices.append(_("direct to burner"))
+        type_optChoices.append(_("burner"))
+        type_optChoices.append(_("simultaneous"))
 
         self.type_opt = wx.RadioBox(
             self, wx.ID_ANY, _("output type:"),
@@ -2176,11 +2176,11 @@ class ATargetPanePanel(wx.Panel):
             "filesystem image (an .iso) or a directory hierarchy "
             "on your hard drive."
             "\n\n"
-            "The second option 'burner device' will write a temporary "
+            "The second option 'burner' will write a temporary "
             "file or directory and then prompt you to make sure "
             "the burner is ready with a disc."
             "\n\n"
-            "The third option 'direct to burner' may be used if you "
+            "The third option 'simultaneous' may be used if you "
             "have two devices: one to read and one to write. This "
             "option attempts to write the backup disc as it is read "
             "from the source drive. This option is only available "
@@ -2196,7 +2196,7 @@ class ATargetPanePanel(wx.Panel):
             "If you select the \"file/directory\" option, then "
             "provide a path and name for the hard drive output."
             "\n\n"
-            "If you select \"burner device\" or \"direct to burner\" "
+            "If you select \"burner\" or \"simultaneous\" "
             "then select the device node associated with the DVD "
             "burner you wish to use."
             "\n\n"
@@ -2288,6 +2288,9 @@ class ATargetPanePanel(wx.Panel):
         self.check_button = wx.Button(
             self, wx.ID_ANY,
             _("Check"), wx.DefaultPosition, wx.DefaultSize, 0)
+        self.check_button.SetToolTip(wx.ToolTip(
+            _("Run check on source (and optionally target) disc.")))
+
         self.fgSizer1.Add(
             self.check_button, 0,
             wx.ALIGN_CENTER|wx.EXPAND|wx.ALL, 5)
@@ -2365,6 +2368,8 @@ class ATargetPanePanel(wx.Panel):
     def on_select_node(self, event):
         self.dev = self.input_select_node.GetValue()
         self.core_ld.target_select_node(self.dev)
+        if not self.dev:
+            return
         msg_line_INFO(_("set target to {0}").format(self.dev))
 
     def set_button_select_node_label(self):
@@ -2411,7 +2416,15 @@ class ATargetPanePanel(wx.Panel):
             self.on_select_node(None)
 
     def do_opt_id_change(self, t_id):
-        pass
+        if t_id == 0:
+            self.select_label.SetLabel(
+                _("specify name for file/directory:"))
+        elif t_id == 1:
+            self.select_label.SetLabel(
+                _("specify device node for burner:"))
+        elif t_id == 2:
+            self.select_label.SetLabel(
+                _("specify device node for second burner:"))
 
     def on_type_opt(self, event):
         t_id = event.GetEventObject().GetSelection()
@@ -2483,23 +2496,47 @@ class ASourcePanePanel(wx.Panel):
 
         type_optChoices = []
         type_optChoices.append(_("simple"))
-        type_optChoices.append(_("new filesystem"))
+        type_optChoices.append(_("advanced"))
 
         self.type_opt = wx.RadioBox(
             self, wx.ID_ANY, _("backup type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
-        self.type_opt.SetToolTip(
-            wx.ToolTip(_(
-            "Select the type of backup to perform: the first option "
-            "will make an exact backup copy of the disc."
+        self.type_opt.SetItemToolTip(0,
+            _(
+            "Simply make an exact backup copy of the DVD, "
+            "without additional options."
             "\n\n"
-            "The second option will copy files from the disc into a "
-            "new directory, allowing additional files and directories "
-            "to be added to the backup. This new directory will "
-            "be used for the backup. This requires that the disc be "
-            "mounted, while the first \"simple\" option does not."
-            )))
+            "With this backup type the source DVD does not need "
+            "to be mounted."
+            ))
+        self.type_opt.SetItemToolTip(1,
+            _(
+            "Make a backup copy of the DVD allowing additional "
+            "options. Two additional options exist:"
+            "\n\n"
+            "1) Files and directories may be added to the backup copy "
+            "(using 'optional extras' below)."
+            "\n"
+            "2) Some information fields may set in the backup copy "
+            "filesystem (using 'target volume info fields' "
+            "on the right."
+            "\n\n"
+            "When this option is selected, the source DVD must be "
+            "mounted (see the mount(1) manual page). This is because "
+            "its files must be available for regular access."
+            ))
+        #self.type_opt.SetToolTip(
+        #    wx.ToolTip(_(
+        #    "Select the type of backup to perform: the first option "
+        #    "will make an exact backup copy of the disc."
+        #    "\n\n"
+        #    "The second option will copy files from the disc into a "
+        #    "new directory, allowing additional files and directories "
+        #    "to be added to the backup. This new directory will "
+        #    "be used for the backup. This requires that the disc be "
+        #    "mounted, while the first \"simple\" option does not."
+        #    )))
         self.add_child_wnd(self.type_opt)
 
 
@@ -2511,7 +2548,7 @@ class ASourcePanePanel(wx.Panel):
             )
 
         ttip = _(
-            "If you're using \"new filesystem\", the "
+            "If you're using \"advanced\", the "
             "second option, use the 'Select Mount' button to "
             "use a directory selector dialog to specify the mount "
             "point. You may place the mount point in the text field "
@@ -2523,11 +2560,11 @@ class ASourcePanePanel(wx.Panel):
             "by hand (and then press enter/return)."
             )
 
-        staticText3 = wx.StaticText(
+        staticText3 = self.static_nodelabel = wx.StaticText(
             self, wx.ID_ANY,
-            _("use 'Select Node' for \"simple\", "
-                "otherwise 'Select Mount':"),
+            _("select device node or mount point:"),
             wx.DefaultPosition, wx.DefaultSize, 0)
+        self.static_nodelabel.SetToolTip(wx.ToolTip(ttip))
         staticText3.Wrap(-1)
         self.box_whole.Add(staticText3, 0, wx.ALL, 5)
 
@@ -2576,7 +2613,7 @@ class ASourcePanePanel(wx.Panel):
 
         self.box_hier = wx.StaticBoxSizer(
             wx.StaticBox(self, wx.ID_ANY,
-                _("optional extras for \"new filesystem\" option:")),
+                _("optional extras:")),
             wx.VERTICAL
             )
 
@@ -2590,7 +2627,7 @@ class ASourcePanePanel(wx.Panel):
         self.addl_list_ctrl = AFileListCtrl(self, gist)
         self.addl_list_ctrl.SetToolTip(
             wx.ToolTip(_(
-                "If the \"new filesystem\" backup type is selected, "
+                "If the \"advanced\" backup type is selected, "
                 "additional files and directories may be included in "
                 "the backup, subject to available space remaining "
                 "after the source disc files, of course.\n"
@@ -2738,9 +2775,13 @@ class ASourcePanePanel(wx.Panel):
         if t_id == 0:
             set_off = self.set_hier
             set_on  = self.set_whole
+            self.static_nodelabel.SetLabel(
+                _("select DVD device node or mount point:"))
         else:
             set_on  = self.set_hier
             set_off = self.set_whole
+            self.static_nodelabel.SetLabel(
+                _("select DVD mount point directory:"))
 
         for c in set_off:
             c.Enable(False)
@@ -2755,6 +2796,8 @@ class ASourcePanePanel(wx.Panel):
     def on_nodepick_whole(self, event):
         self.dev = self.input_node_whole.GetValue()
         self.core_ld.source_select_node(self.dev)
+        if not self.dev:
+            return
         msg_line_INFO(_("set source device to {0}").format(self.dev))
 
     def on_nodepick_whole_evtext(self, event):
@@ -2921,8 +2964,10 @@ class AChildSashWnd(wx.SashWindow):
         self.core_ld = gist
 
         self.pane_minw = 40
-        szw1 = wx.GetApp().GetTopWindow().GetClientSize()
-        szw2 = sz.width / 2
+#        szw1 = wx.GetApp().GetTopWindow().GetClientSize()
+#        szw1 = parent.GetClientSize()
+        szw1 = parent.GetSize()
+        pane_width = sz.width / 2
 
         self.swnd = []
         self.swnd.append(
@@ -2930,7 +2975,7 @@ class AChildSashWnd(wx.SashWindow):
                 self, -1, wx.DefaultPosition, (240, 30),
                 wx.NO_BORDER|wx.SW_3D
             ))
-        self.swnd[0].SetDefaultSize((szw2, 1000))
+        self.swnd[0].SetDefaultSize((pane_width, 1000))
         self.swnd[0].SetOrientation(wx.LAYOUT_VERTICAL)
         self.swnd[0].SetAlignment(wx.LAYOUT_LEFT)
         self.swnd[0].SetBackgroundColour(wx.Colour(240, 240, 240))
@@ -2942,7 +2987,7 @@ class AChildSashWnd(wx.SashWindow):
                 self, -1, wx.DefaultPosition, (240, 30),
                 wx.NO_BORDER|wx.SW_3D
             ))
-        self.swnd[1].SetDefaultSize((szw2, 1000))
+        self.swnd[1].SetDefaultSize((pane_width, 1000))
         self.swnd[1].SetOrientation(wx.LAYOUT_VERTICAL)
         self.swnd[1].SetAlignment(wx.LAYOUT_LEFT)
         self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
@@ -2951,10 +2996,10 @@ class AChildSashWnd(wx.SashWindow):
 
         w_adj = 20
         h_adj = 20
-        self.child1_maxw = szw2
+        self.child1_maxw = pane_width
         self.child1_maxh = sz.height
 
-        self.child2_maxw = szw2
+        self.child2_maxw = pane_width
         self.child2_maxh = sz.height
 
         self.child1 = ASourcePane(
@@ -2967,6 +3012,9 @@ class AChildSashWnd(wx.SashWindow):
             )
 
         self.remainingSpace = self.swnd[1]
+
+        self.child1_maxw += w_adj
+        self.child2_maxw += w_adj
 
         ids = []
         ids.append(self.swnd[0].GetId())
@@ -3096,7 +3144,7 @@ class ASashWnd(wx.SashWindow):
         self.w0adj = 6
         sz1 = wx.Size(sz.width, sz.height - self.w0adj)
         self.child1 = AChildSashWnd(
-            self.swnd[0], sz1, parent, -1,
+            self.swnd[0], sz1, parent, gist.get_new_idval(),
             _T("Source and Destination"), gist
             )
         self.child2 = AMsgWnd(self.swnd[1], 100, self.msg_minh)
@@ -3260,7 +3308,7 @@ class ASettingsDialog(sc.SizedDialog):
                 "\n"
                 "dd-dvd is the program used when backup type "
                 "\"simple\" is selected, and cprec is used when "
-                "the \"new filesystem\" type is selected.\n"
+                "the \"advanced\" type is selected.\n"
                 "\n"
                 "To understand these options, see the cprec(1) "
                 "and dd-dvd(1) manual pages."
@@ -3284,7 +3332,7 @@ class ASettingsDialog(sc.SizedDialog):
             i0 = self.core_ld.get_new_idval()
             i1 = self.core_ld.get_new_idval()
 
-            if steq(typ, "text"):
+            if s_eq(typ, "text"):
                 s = wx.StaticText(pane, i0, a[1])
                 s.SetSizerProps(
                     valign = _T("center"), border = ([_T("left")], bdr))
@@ -3294,25 +3342,25 @@ class ASettingsDialog(sc.SizedDialog):
                     valign = _T("center"),
                     border = ([_T("right"), _T("bottom")], bdr),
                     proportion = 10)
-            elif steq(typ, "blank"):
+            elif s_eq(typ, "blank"):
                 #s = wx.Panel(pane, id = i0)
                 #t = wx.Panel(pane, id = i1)
                 s = wx.Window(pane, id = i0, style = wx.BORDER_NONE)
                 t = wx.Window(pane, id = i1, style = wx.BORDER_NONE)
                 t.SetSizerProps(expand = True, proportion = a[1])
-            elif steq(typ, "hline"):
+            elif s_eq(typ, "hline"):
                 s = wx.StaticLine(pane, i0, style = wx.LI_HORIZONTAL)
                 s.SetSizerProps(expand = True, proportion = a[1])
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
                 t.SetSizerProps(expand = True, proportion = a[1])
-            elif steq(typ, "txthline"):
+            elif s_eq(typ, "txthline"):
                 s = wx.StaticText(pane, i0, a[2],
                     style = wx.ALIGN_CENTRE)
                 s.SetSizerProps(expand = False, proportion = a[1],
                     halign = _T("center"), valign = _T("center"))
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
                 t.SetSizerProps(expand = True, proportion = a[1])
-            elif steq(typ, "spin_int"):
+            elif s_eq(typ, "spin_int"):
                 df, mn, mx = a[4]
                 s = wx.StaticText(pane, i0, a[1])
                 s.SetSizerProps(
@@ -3320,13 +3368,12 @@ class ASettingsDialog(sc.SizedDialog):
                 t = wx.SpinCtrl(pane, i1, str(df), name = a[2],
                     initial = df, min = mn, max = mx)
                 t.SetSizerProps(expand = False, valign = _T("center"))
-            elif steq(typ, "cprec_option"):
+            elif s_eq(typ, "cprec_option"):
                 s = wx.StaticText(pane, i0, a[1])
                 s.SetSizerProps(
                     valign = _T("center"), border = ([_T("left")], bdr))
                 t = wx.CheckBox(pane, i1, name = a[2],
-                    label = _("cprec option: {0}").format(
-                        _T("--") + a[2]))
+                    label = _("option: {0}").format(_T("--") + a[2]))
                 t.SetValue(a[3])
                 t.SetSizerProps(expand = False, valign = _T("center"))
 
@@ -3342,7 +3389,7 @@ class ASettingsDialog(sc.SizedDialog):
 
         # advanced tab
         self._data_advanced = [
-            [_T("blank"), 5],
+            [_T("txthline"), 5, _("cprec options:")],
             [_T("cprec_option"), # booleans
                 _("Do not fail if file exists:"),
                 _T("ignore-existing"),
@@ -3422,9 +3469,9 @@ class ASettingsDialog(sc.SizedDialog):
                 a = dat[idx]
                 typ = a[0]
 
-                if not (steq(typ, "text") or
-                        steq(typ, "spin_int") or
-                        steq(typ, "cprec_option")):
+                if not (s_eq(typ, "text") or
+                        s_eq(typ, "spin_int") or
+                        s_eq(typ, "cprec_option")):
                     continue
 
                 ctl = self.FindWindowByName(a[2])
@@ -3433,19 +3480,19 @@ class ASettingsDialog(sc.SizedDialog):
 
                 cfkey = a[2]
 
-                if steq(typ, "text"):
+                if s_eq(typ, "text"):
                     if config.HasEntry(cfkey):
                         v = config.Read(cfkey)
                         ctl.SetValue(v)
                     else:
                         ctl.SetValue(a[4])
-                elif steq(typ, "spin_int"):
+                elif s_eq(typ, "spin_int"):
                     if config.HasEntry(cfkey):
                         v = config.ReadInt(cfkey)
                         ctl.SetValue(v)
                     else:
                         ctl.SetValue(a[4][0])
-                elif steq(typ, "cprec_option"):
+                elif s_eq(typ, "cprec_option"):
                     if config.HasEntry(cfkey):
                         v = config.ReadInt(cfkey)
                         ctl.SetValue(bool(v))
@@ -3467,9 +3514,9 @@ class ASettingsDialog(sc.SizedDialog):
                 a = dat[idx]
                 typ = a[0]
 
-                if not (steq(typ, "text") or
-                        steq(typ, "spin_int") or
-                        steq(typ, "cprec_option")):
+                if not (s_eq(typ, "text") or
+                        s_eq(typ, "spin_int") or
+                        s_eq(typ, "cprec_option")):
                     continue
 
                 ctl = self.FindWindowByName(a[2])
@@ -3478,21 +3525,21 @@ class ASettingsDialog(sc.SizedDialog):
 
                 cfkey = a[2]
 
-                if steq(typ, "text"):
+                if s_eq(typ, "text"):
                     v = ctl.GetValue().strip()
                     df = a[4]
-                    if len(v) and stne(v, df):
+                    if len(v) and s_ne(v, df):
                         config.Write(cfkey, v)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
-                elif steq(typ, "spin_int"):
+                elif s_eq(typ, "spin_int"):
                     v = ctl.GetValue()
                     df = a[4][0]
                     if v != df:
                         config.WriteInt(cfkey, v)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
-                elif steq(typ, "cprec_option"):
+                elif s_eq(typ, "cprec_option"):
                     v = ctl.GetValue()
                     df = a[3]
                     if bool(v) != df:
@@ -3830,7 +3877,7 @@ class APeriodThread(threading.Thread):
         self.tid = 0
         self.tmsg = msg
 
-        if steq(os.name, 'posix'):
+        if s_eq(os.name, 'posix'):
             self.run_internal = self.run_posix
         else:
             self.run_internal = self.run_other
@@ -3976,13 +4023,13 @@ class MediaDrive:
         for k in self.regx:
             m = self.regx[k].match(lin)
             if m:
-                if steq(k, "drive"):
+                if s_eq(k, "drive"):
                     for i in (1, 2, 3):
                         if m.group(i):
                             self.data[k][i - 1] = m.group(i).strip()
-                elif steq(k, "medium id"):
+                elif s_eq(k, "medium id"):
                     self.data[k] = m.group(1)
-                elif steq(k, "medium"):
+                elif s_eq(k, "medium"):
                     self.data[k][_T("id")] = m.group(1)
                     self.data[k][_T("type")] = m.group(3)
                     if m.group(5):
@@ -3990,19 +4037,19 @@ class MediaDrive:
                     else:
                         self.data[k][_T("type_ext")] = _T("")
                     self.data[k][_T("type_all")] = m.group(2)
-                elif steq(k, "medium book"):
+                elif s_eq(k, "medium book"):
                     self.data[k] = m.group(2)
-                elif steq(k, "medium freespace"):
+                elif s_eq(k, "medium freespace"):
                     self.data[k] = int(m.group(1))
-                elif steq(k, "write speed"):
+                elif s_eq(k, "write speed"):
                     self.data[k].append(float(m.group(2)))
-                elif steq(k, "current write speed"):
+                elif s_eq(k, "current write speed"):
                     self.data[k] = float(m.group(1))
-                elif steq(k, "write performance"):
+                elif s_eq(k, "write performance"):
                     self.data[k] = m.group(1)
-                elif steq(k, "presence"):
+                elif s_eq(k, "presence"):
                     self.data[k] = m.group(1)
-                elif steq(k, "speed descriptor"):
+                elif s_eq(k, "speed descriptor"):
                     self.data[k].append(
                         (
                             float(m.group(3)),
@@ -4285,8 +4332,8 @@ class ACoreLogiDat:
                     msg_line_WARN(_("Warning:"))
                     msg_INFO(_(
                         " The destination has"
-                        " been changed from 'burner device'"
-                        " to 'direct to burner' (as it was earlier)."
+                        " been changed from 'burner'"
+                        " to 'simultaneous' (as it was earlier)."
                         ))
 
         elif s_id == ov.s_hier:
@@ -4297,10 +4344,10 @@ class ACoreLogiDat:
                 if not quiet:
                     msg_line_WARN(_("Warning:"))
                     msg_INFO(_(
-                        " filesystem hierarchy type backup"
-                        " cannot be direct to burner; a temporary"
+                        " advanced type backup"
+                        " cannot be simultaneous; a temporary"
                         " directory is necessary --\n\tthe destination"
-                        " has been changed to 'burner device'."
+                        " has been changed to 'burner'."
                         ))
 
             self.target.type_opt.EnableItem(ov.t_direct, False)
@@ -4433,17 +4480,17 @@ class ACoreLogiDat:
             try:
                 self.cur_task_items[lambda_key](g)
             except:
-                if steq(nm, 'blanking'):
+                if s_eq(nm, 'blanking'):
                     l = lambda g: self.update_working_blanking(g)
-                elif steq(nm, 'cprec'):
+                elif s_eq(nm, 'cprec'):
                     l = lambda g: self.update_working_cprec(g)
-                elif steq(nm, 'dd-dvd'):
+                elif s_eq(nm, 'dd-dvd'):
                     l = lambda g: self.update_working_dd_dvd(g)
-                elif steq(nm, 'growisofs-hier'):
+                elif s_eq(nm, 'growisofs-hier'):
                     l = lambda g: self.update_working_growisofs_hier(g)
-                elif steq(nm, 'growisofs-whole'):
+                elif s_eq(nm, 'growisofs-whole'):
                     l = lambda g: self.update_working_growisofs(g)
-                elif steq(nm, 'growisofs-direct'):
+                elif s_eq(nm, 'growisofs-direct'):
                     l = lambda g: self.update_working_growisofs(g)
                 else:
                     l = lambda g: g.Pulse()
@@ -4919,16 +4966,16 @@ class ACoreLogiDat:
         except:
             _dbg(_T("%s: <no data>") % typ)
 
-        if mth and steq(typ, 'time period'):
+        if mth and s_eq(typ, 'time period'):
             if not self.in_check_op:
                 self.update_working_gauge()
                 self.update_working_msg(slno)
 
-            if dat and steq(dat, "pulse"):
+            if dat and s_eq(dat, "pulse"):
                 if self.gauge_wnd:
                     self.gauge_wnd.Pulse()
 
-        elif mth and steq(typ, 'l1'):
+        elif mth and s_eq(typ, 'l1'):
             if not self.in_check_op:
                 self.mono_message(
                     prefunc = lambda : msg_line_INFO(_T('1:')),
@@ -4938,7 +4985,7 @@ class ACoreLogiDat:
                 self.cur_task_items[_T("linelevel")] = 1
                 self.cur_task_items[_T("line")] = m
 
-        elif mth and steq(typ, 'l2'):
+        elif mth and s_eq(typ, 'l2'):
             if not self.in_check_op:
                 self.mono_message(
                     prefunc = lambda : msg_line_WARN(_T('2:')),
@@ -4948,7 +4995,7 @@ class ACoreLogiDat:
                 self.cur_task_items[_T("linelevel")] = 2
                 self.cur_task_items[_T("line")] = m
 
-        elif mth and steq(typ, 'l-1'):
+        elif mth and s_eq(typ, 'l-1'):
             if not self.in_check_op:
                 ok, m, dat = self.get_stat_data_line(m)
                 if ok:
@@ -4961,14 +5008,14 @@ class ACoreLogiDat:
                         prefunc = lambda : msg_line_WARN(_T('WARNING:')),
                         monofunc = lambda : msg_(_T(" %s") % m))
 
-        elif mth and steq(typ, 'enter run'):
+        elif mth and s_eq(typ, 'enter run'):
             self.target.set_cancel_label()
             m = _(
                 "New thread {0} started for child processes").format(m)
             msg_line_INFO(m)
             slno.put_status(m)
 
-        elif steq(typ, 'exit run'):
+        elif s_eq(typ, 'exit run'):
             # thread join() can throw
             j_ok = True
             try:
@@ -5031,31 +5078,31 @@ class ACoreLogiDat:
 
 
     def dialog(self, msg, typ = _T("msg"), sty = None):
-        if steq(typ, "msg"):
+        if s_eq(typ, "msg"):
             if sty == None:
                 sty = wx.OK | wx.ICON_INFORMATION
             return wx.MessageBox(msg, PROG, sty, self.topwnd)
 
-        if steq(typ, "yesno"):
+        if s_eq(typ, "yesno"):
             if sty == None:
                 sty = wx.YES_NO | wx.ICON_QUESTION
             return wx.MessageBox(msg, PROG, sty, self.topwnd)
 
-        if steq(typ, "sty"):
+        if s_eq(typ, "sty"):
             # just use 'sty' argument
             return wx.MessageBox(msg, PROG, sty, self.topwnd)
 
-        if steq(typ, "input"):
+        if s_eq(typ, "input"):
             # use 'sty' argument as default text
             return wx.GetTextFromUser(msg, PROG, sty, self.topwnd)
 
-        if steq(typ, "intinput"):
+        if s_eq(typ, "intinput"):
             # use 'sty' argument as tuple w/ addl. args
             prmt, mn, mx, dflt = sty
             return wx.GetNumberFromUser(
                 msg, prmt, PROG, dflt, mn, mx, self.topwnd)
 
-        if steq(typ, "choiceindex"):
+        if s_eq(typ, "choiceindex"):
             # use 'sty' argument as default text
             return wx.GetSingleChoiceIndex(msg, PROG, sty, self.topwnd)
 
@@ -5459,12 +5506,12 @@ class ACoreLogiDat:
 
         typ = dat[_T("source_type")]
 
-        if steq(typ, "hier"):
+        if s_eq(typ, "hier"):
             if self.do_mkiso_blocks():
                 do_it = self.do_burn_hier(ch_proc, dat)
             else:
                 return False
-        elif steq(typ, "whole"):
+        elif s_eq(typ, "whole"):
             do_it = self.do_burn_whole(ch_proc, dat)
         else:
             msg_line_ERROR(typ)
@@ -5788,7 +5835,7 @@ class ACoreLogiDat:
 
         origdev = dev
         realdev = os.path.realpath(dev)
-        if realdev and stne(realdev, dev):
+        if realdev and s_ne(realdev, dev):
             dev = realdev
             msg_line_INFO(_(
                 'using source mount "{0}" for "{1}"').format(
@@ -5852,11 +5899,11 @@ class ACoreLogiDat:
         for opt in optl:
             if not cf.HasEntry(opt):
                 continue
-            if (steq(opt, "block-read-count") or
-                steq(opt, "retry-block-count")):
+            if (s_eq(opt, "block-read-count") or
+                s_eq(opt, "retry-block-count")):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.ReadInt(opt))
-            elif steq(opt, "libdvdr"):
+            elif s_eq(opt, "libdvdr"):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.Read(opt).strip())
             else:
@@ -5919,7 +5966,7 @@ class ACoreLogiDat:
 
         origdev = dev
         realdev = os.path.realpath(dev)
-        if realdev and stne(realdev, dev):
+        if realdev and s_ne(realdev, dev):
             dev = realdev
             msg_line_INFO(_(
                 'using source node "{0}" for "{1}"').format(
@@ -5987,7 +6034,7 @@ class ACoreLogiDat:
                 'using target fs image file "{0}"').format(outf))
         else:
             msg_line_INFO(_(
-                'target direct to burner ({0})').format(outf))
+                'target simultaneous ({0})').format(outf))
 
         self.cur_out_file = outf
         self.cur_task_items[_T("taskname")] = _T('dd-dvd')
@@ -6006,11 +6053,11 @@ class ACoreLogiDat:
         for opt in optl:
             if not cf.HasEntry(opt):
                 continue
-            if (steq(opt, "block-read-count") or
-                steq(opt, "retry-block-count")):
+            if (s_eq(opt, "block-read-count") or
+                s_eq(opt, "retry-block-count")):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.ReadInt(opt))
-            elif steq(opt, "libdvdr"):
+            elif s_eq(opt, "libdvdr"):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.Read(opt).strip())
             else:
@@ -6095,7 +6142,8 @@ class ACoreLogiDat:
         fpid, rfd = ch_proc.go()
 
         if not ch_proc.go_return_ok(fpid, rfd):
-            if isinstance(rfd, str) and isinstance(fpid, int):
+            if ((isinstance(rfd, str) or isinstance(rfd, unicode))
+                 and isinstance(fpid, int)):
                 ei = fpid
                 es = rfd
                 m = _(
@@ -6442,7 +6490,7 @@ class ACoreLogiDat:
 
         self.checked_input_arg = origdev = dev
         realdev = os.path.realpath(dev)
-        if realdev and stne(realdev, dev):
+        if realdev and s_ne(realdev, dev):
             dev = realdev
             msg_line_INFO(_(
                 'using source node "{0}" for "{1}"'
@@ -6483,11 +6531,11 @@ class ACoreLogiDat:
         for opt in optl:
             if not cf.HasEntry(opt):
                 continue
-            if (steq(opt, "block-read-count") or
-                steq(opt, "retry-block-count")):
+            if (s_eq(opt, "block-read-count") or
+                s_eq(opt, "retry-block-count")):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.ReadInt(opt))
-            elif steq(opt, "libdvdr"):
+            elif s_eq(opt, "libdvdr"):
                 s = _T("--{opt}={val}").format(
                     opt = opt, val = cf.Read(opt).strip())
             else:
@@ -6572,7 +6620,7 @@ class ACoreLogiDat:
                     val = val.rstrip(_T(' \n\r\t'))
 
                 m = val
-                if steq(lbl, 'input_arg'):
+                if s_eq(lbl, 'input_arg'):
                     mnt, sep, nod = val.partition(_T('|'))
                     lbl = _('device node')
                     self.checked_input_arg = dev
@@ -6590,10 +6638,10 @@ class ACoreLogiDat:
                         self.checked_input_mountpt = mnt
                 else:
                     voldict[lbl] = val
-                    if steq(lbl, 'filesystem_block_count'):
+                    if s_eq(lbl, 'filesystem_block_count'):
                         self.checked_input_blocks = int(val.strip())
 
-                    if steq(m, ""):
+                    if s_eq(m, ""):
                         m = _("[field is not set]")
 
                     m = _T("{0}: {1}").format(lbl, m)
