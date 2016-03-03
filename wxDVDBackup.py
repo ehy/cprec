@@ -3649,6 +3649,8 @@ class AFrame(wx.Frame):
             getwxdvdbackup_64Icon,
             )
 
+        #self.SetIcon(getwxdvdbackup_32Icon())
+
         self.icons = icons = wx.IconBundle()
         for fimg in getters:
             icons.AddIcon(fimg())
