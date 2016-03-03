@@ -88,10 +88,6 @@ install-data-hook:
 		$$XII $(XICOARGS) $$s  "$$I" $(XDGRESNAME) || \
 			{ echo failed installing icon size $$s; true; } ; \
 	done; \
-	I="./xdg/$(XDGRESNAME).svg; test -f "$$I" && { \
-		$$XII $(XICOARGS) scalable "$$I" || \
-			{ echo failed installing scalable icon; true; } ; \
-	}; \
 	$$XII forceupdate; \
 	I="./xdg/$(XDGRESNAME).desktop"; test -f "$$I" || exit 0; \
 	$$XIM install --novendor "$$I" || \
@@ -107,7 +103,7 @@ uninstall-local:
 	I="$(XDGRESNAME).desktop"; \
 	$$XIM uninstall "$$I" || \
 		{ echo failed to uninstall "$$I"; true; } ; \
-	for s in $(XICOSIZE) scalable ; do \
+	for s in $(XICOSIZE) ; do \
 		$$XII $(XICOARGSU) $$s $(XDGRESNAME) || \
 			{ echo failed uninstalling icon size $$s; true; } ; \
 	done; \
