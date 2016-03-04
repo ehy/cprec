@@ -3659,8 +3659,6 @@ class AFrame(wx.Frame):
             getwxdvdbackup_64Icon,
             )
 
-        #self.SetIcon(getwxdvdbackup_32Icon())
-
         self.icons = icons = wx.IconBundle()
         for fimg in getters:
             icons.AddIcon(fimg())
@@ -3742,11 +3740,15 @@ class AFrame(wx.Frame):
             t.SetDevelopers([_T('Ed Hynan')])
             t.SetLicence(zlib.decompress(base64.b64decode(lic)))
             t.SetDescription(self._get_about_desc())
+            cpyrt = _T("(C) 2016 Ed Hynan <ehynan@gmail.com>")
             if _ucode_type == 'utf-8':
-                cpyrt = _T("© 2016 Ed Hynan <ehynan@gmail.com>")
+                try:
+                    t.SetCopyright(
+                        _T("© 2016 Ed Hynan <ehynan@gmail.com>"))
+                except:
+                    t.SetCopyright(cpyrt)
             else:
-                cpyrt = _T("(C) 2016 Ed Hynan <ehynan@gmail.com>")
-            t.SetCopyright(cpyrt)
+                t.SetCopyright(cpyrt)
             t.SetWebSite(_T("https://github.com/ehy/cprec"))
             t.SetIcon(self.icons.GetIcon((64, 64)))
 
