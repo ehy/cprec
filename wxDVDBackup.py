@@ -1930,8 +1930,9 @@ class AVolInfPane(ABasePane):
     def __init__(self, parent, gist, wi, hi, id = -1):
         ABasePane.__init__(self, parent, gist, wi, hi, id)
 
-        self.SetMinSize(wx.Size(self.sz.width, self.sz.height / 4))
-        self.panel = AVolInfPanePanel(self, gist, self.sz)
+        self.SetMinSize(wx.Size(self.sz.width, 64))
+        self.panel = AVolInfPanePanel(self, gist,
+            wx.Size(self.sz.width, self.sz.height * 2))
         self.SetVirtualSize(self.panel.GetSize())
 
     def get_panel(self):
@@ -1960,10 +1961,8 @@ class AVolInfPanePanel(wx.Panel):
         inf_keys, inf_map, inf_vec = self.core_ld.get_vol_datastructs()
 
         # top level sizer
-        self.bSizer1 = wx.FlexGridSizer(0, 1, 0, 0)
-        self.bSizer1.SetMinSize(size)
-        self.bSizer1.AddGrowableCol(0)
-        self.bSizer1.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_ALL)
+        self.mainszr = wx.BoxSizer(wx.VERTICAL)
+        self.mainszr.SetMinSize((size.width, wx.DefaultSize.height))
 
         type_optChoices = []
         type_optChoices.append(_("copy from source"))
@@ -2003,46 +2002,44 @@ class AVolInfPanePanel(wx.Panel):
         self.add_child_wnd(self.type_opt)
 
         # type opt in top level sizer
-        self.bSizer1.Add(self.type_opt, 0, wx.ALL, 5)
+        self.mainszr.Add(self.type_opt, 0, wx.ALL, 5)
 
         rn = 1
         for key, flen, opt, deflt, label in inf_keys:
             box = wx.StaticBoxSizer(
                 wx.StaticBox(
                     self, wx.ID_ANY,
-                    _("{0} ({1} characters maximum)").format(
+                    _("{0} ({1} characters max.)").format(
                         label, flen)),
                 wx.VERTICAL
                 )
 
             sty = 0
-            if flen > 60:
+            tsz = wx.DefaultSize
+            if flen > 64:
                 sty = sty | wx.TE_MULTILINE
 
             txt = wx.TextCtrl(
-                self, wx.ID_ANY, "", wx.DefaultPosition, wx.DefaultSize,
+                self, wx.ID_ANY, "", wx.DefaultPosition, tsz,
                 sty, wx.DefaultValidator, key)
             if not sty & wx.TE_MULTILINE:
                 txt.SetMaxLength(flen)
             txt.SetValue(deflt)
-            box.Add(txt, 1, wx.ALL|wx.EXPAND, 2)
+
+            box.Add(txt, 1, wx.EXPAND|wx.ALL, 2)
             self.ctls.append(txt)
             self.add_child_wnd(txt)
 
-            if flen > 80:
-                self.bSizer1.Add(box, 1, wx.ALL|wx.EXPAND, 3)
-                #self.bSizer1.AddGrowableRow(rn, 2)
+            if flen > 64:
+                self.mainszr.Add(box, 3, wx.EXPAND|wx.ALL, 3)
             else:
-                self.bSizer1.Add(box, 1, wx.ALL|wx.EXPAND, 3)
-
-            rn = rn + 1
-
+                self.mainszr.Add(box, 0, wx.EXPAND|wx.ALL, 3)
 
         self.dict_source = {}
         self.dict_user = {}
 
-        self.SetSizer(self.bSizer1)
-        self.Fit()
+        self.SetSizer(self.mainszr)
+        self.Layout()
 
         self.type_opt.Bind(
             wx.EVT_RADIOBOX, self.on_type_opt)
