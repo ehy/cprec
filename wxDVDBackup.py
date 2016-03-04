@@ -299,6 +299,12 @@ version_mnr    = 1
 version_mnrrev = 2
 version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
+maintainer_name = _T("Ed Hynan")
+maintainer_addr = _T("<ehynan@gmail.com>")
+copyright_year  = _T("2016")
+program_site    = _T("https://github.com/ehy/cprec")
+program_desc    = _T("Flexible backup for video DVD discs.")
+program_devs    = [maintainer_name]
 
 _msg_obj = None
 _msg_obj_init_is_done = False
@@ -2542,7 +2548,7 @@ class ASourcePanePanel(wx.Panel):
             "\n"
             "2) Some information fields may set in the backup copy "
             "filesystem (using 'target volume info fields' "
-            "on the right."
+            "on the right)."
             "\n\n"
             "When this option is selected, the source DVD must be "
             "mounted (see the mount(1) manual page). This is because "
@@ -2560,13 +2566,13 @@ class ASourcePanePanel(wx.Panel):
 
         ttip = _(
             "If you're using \"advanced\", the "
-            "second option, use the 'Select Mount' button to "
-            "use a directory selector dialog to specify the mount "
-            "point. You may place the mount point in the text field "
+            "second backup type option, use the 'Select Mount' button "
+            "to use a directory selector dialog to select the mount "
+            "point. You may enter the mount point in the text field "
             "by hand (and then press enter/return)."
             "\n\n"
             "For the \"simple\" option use 'Select Node' to select "
-            "the device node with a file selector dialog, or place "
+            "the device node with a file selector dialog, or enter "
             "the device node path in the text field "
             "by hand (and then press enter/return)."
             )
@@ -3737,19 +3743,21 @@ class AFrame(wx.Frame):
             t.SetName(PROG)
             t.SetVersion(_T("{vs} {vn}").format(
                 vs = version_string, vn = version_name))
-            t.SetDevelopers([_T('Ed Hynan')])
+            t.SetDevelopers(program_devs)
             t.SetLicence(zlib.decompress(base64.b64decode(lic)))
             t.SetDescription(self._get_about_desc())
-            cpyrt = _T("(C) 2016 Ed Hynan <ehynan@gmail.com>")
+            cpyrt = _T("{year} {name} {addr}").format(
+                year = copyright_year,
+                name = maintainer_name,
+                addr = maintainer_addr)
             if _ucode_type == 'utf-8':
                 try:
-                    t.SetCopyright(
-                        _T("© 2016 Ed Hynan <ehynan@gmail.com>"))
+                    t.SetCopyright(_T("© ") + cpyrt)
                 except:
-                    t.SetCopyright(cpyrt)
+                    t.SetCopyright(_T("(C) ") + cpyrt)
             else:
-                t.SetCopyright(cpyrt)
-            t.SetWebSite(_T("https://github.com/ehy/cprec"))
+                t.SetCopyright(_T("(C) ") + cpyrt)
+            t.SetWebSite(program_site)
             t.SetIcon(self.icons.GetIcon((64, 64)))
 
             dw = [
@@ -3760,8 +3768,7 @@ class AFrame(wx.Frame):
             tr = [
                 _T("Saul \"Greek\" Tomey"),
                 _("Translation volunteers welcome!"),
-                _("Contact {email}.").format(
-                    email = _T("<ehynan@gmail.com>"))
+                _("Contact {email}.").format(email = maintainer_addr)
                 ]
             t.SetTranslators(tr)
             t.SetArtists([_T("I. Burns")])
@@ -3771,7 +3778,7 @@ class AFrame(wx.Frame):
         wx.AboutBox(self.__class__.about_info)
 
     def _get_about_desc(self):
-        desc = _("Flexible backup for video DVD discs.")
+        desc = program_desc
         return desc
 
     def config_rd(self, config):
