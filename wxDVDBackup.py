@@ -2641,7 +2641,8 @@ class ASourcePanePanel(wx.Panel):
         self.fgSizer_extra_hier.SetNonFlexibleGrowMode(
             wx.FLEX_GROWMODE_SPECIFIED)
 
-        flsz = wx.Size(wx.DefaultSize.width, 12 * 5)
+        ln_sz = self.static_nodelabel.GetClientSize()
+        flsz = wx.Size(wx.DefaultSize.width, ln_sz.height * 3) #12 * 5)
         self.addl_list_ctrl = AFileListCtrl(self, gist, size = flsz)
         self.addl_list_ctrl.SetToolTip(
             wx.ToolTip(_(
@@ -3123,16 +3124,20 @@ class ASashWnd(wx.SashWindow):
 
         self.msg_minh = 72
         self.msg_inith = 100
-        sz = self.GetSize()
-        sz.height -= self.msg_inith
+        sz = self.GetClientSize()
+        #sz.height -= 32 #
+        #sz.height -= self.msg_inith
+        #sz.height -= self.msg_minh
+        top_ht = sz.height - self.msg_inith
 
         self.swnd = []
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (300, 300),
+                self, -1, wx.DefaultPosition,
+                (300, top_ht),
                 wx.NO_BORDER|wx.SW_3D
             ))
-        self.swnd[0].SetDefaultSize((sz.width, sz.height))
+        self.swnd[0].SetDefaultSize((sz.width, top_ht))
         self.swnd[0].SetOrientation(wx.LAYOUT_HORIZONTAL)
         self.swnd[0].SetAlignment(wx.LAYOUT_TOP)
         self.swnd[0].SetBackgroundColour(wx.Colour(240, 240, 240))
@@ -3141,7 +3146,8 @@ class ASashWnd(wx.SashWindow):
 
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (300, 300),
+                self, -1, wx.DefaultPosition,
+                (300, self.msg_minh),
                 wx.NO_BORDER|wx.SW_3D
             ))
         self.swnd[1].SetDefaultSize((sz.width, self.msg_minh))
@@ -3157,8 +3163,11 @@ class ASashWnd(wx.SashWindow):
         self.child2_maxw = 16000
         self.child2_maxh = 16000
 
-        self.w0adj = 16
-        sz1 = wx.Size(sz.width, sz.height - self.w0adj)
+        # It's not clear why, but top section height
+        # must be further reduced on some GUI systems,
+        # e.g., Xubuntu
+        fudge_ht = 28
+        sz1 = wx.Size(sz.width, top_ht - fudge_ht)
         self.child1 = AChildSashWnd(
             self.swnd[0], sz1, parent, gist.get_new_idval(),
             _T("Source and Destination"), gist
@@ -3201,25 +3210,26 @@ class ASashWnd(wx.SashWindow):
         self.child2.conditional_scroll_adjust()
 
     def OnSize(self, event):
-        ssz = self.GetSize()
-        sz  = self.swnd[0].GetSize()
+        ssz = self.GetClientSize()
+        sz0 = self.swnd[0].GetSize()
         sz1 = self.swnd[1].GetSize()
-        h1 = sz.height
+        h0 = sz0.height
+        h1 = sz1.height
+
+        ssz.height -= sz1.height
+
+        if sz0.height > ssz.height:
+            if ssz.height >= self.msg_minh:
+                h0 = ssz.height
+            else:
+                h0 = self.msg_inith
+
+        h1 = ssz.height - h0
+
+        self.swnd[0].SetDefaultSize((sz0.width, h0))
+        self.swnd[1].SetDefaultSize((sz0.width, h1))
 
         wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
-
-        sz.width   += self.w0adj
-        ssz.height -= self.msg_minh
-
-        if sz.height > ssz.height:
-            if ssz.height >= self.msg_minh:
-                self.swnd[0].SetDefaultSize((sz.width, ssz.height))
-            else:
-                self.swnd[0].SetDefaultSize((sz.width, self.msg_inith))
-            wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
-        elif h1 > sz.height:
-            self.swnd[0].SetDefaultSize((sz.width, h1))
-            wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
 
         self.child2.conditional_scroll_adjust()
 
@@ -3598,6 +3608,9 @@ class AFrame(wx.Frame):
 
         self._do_app_art()
 
+        # Trim some sash window height, for the progress bar
+        trim_ht = 24
+
         if True:
             # using base wx.Frame
             panel_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -3608,7 +3621,7 @@ class AFrame(wx.Frame):
             self.sash_wnd = ASashWnd(
                 panel, gist.get_new_idval(),
                 _T("main_sash_window"),
-                gist, True, size = size)
+                gist, True, size = (size.width, size.height - trim_ht))
 
             self.gauge = AProgBarPanel(
                 panel, gist, gist.get_new_idval(), rang)
@@ -3629,7 +3642,7 @@ class AFrame(wx.Frame):
             self.sash_wnd = ASashWnd(
                 panel, gist.get_new_idval(),
                 _T("main_sash_window"),
-                gist, True, size = size)
+                gist, True, size = (size.width, size.height - trim_ht))
 
             self.sash_wnd.SetSizerProps(
                 expand = True,
@@ -3650,7 +3663,7 @@ class AFrame(wx.Frame):
         # Custom event from child handler threads
         self.Bind(EVT_CHILDPROC_MESSAGE, self.on_chmsg, id=self.GetId())
 
-        self.Fit()
+        self.Layout()
         self.SetMinSize((150, 100))
 
         self.dlg_settings = ASettingsDialog(
