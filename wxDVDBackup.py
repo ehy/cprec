@@ -1932,7 +1932,8 @@ class AVolInfPane(ABasePane):
 
         self.SetMinSize(wx.Size(self.sz.width, 64))
         self.panel = AVolInfPanePanel(self, gist,
-            wx.Size(self.sz.width, self.sz.height * 2))
+            wx.Size(self.sz.width, self.sz.height * 2),
+            id = gist.get_new_idval())
         self.SetVirtualSize(self.panel.GetSize())
 
     def get_panel(self):
@@ -1969,7 +1970,7 @@ class AVolInfPanePanel(wx.Panel):
         type_optChoices.append(_("hand edit"))
 
         self.type_opt = wx.RadioBox(
-            self, wx.ID_ANY, _("select field content"),
+            self, gist.get_new_idval(), _("select field content"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
         self.type_opt.SetToolTip(
@@ -2008,19 +2009,19 @@ class AVolInfPanePanel(wx.Panel):
         for key, flen, opt, deflt, label in inf_keys:
             box = wx.StaticBoxSizer(
                 wx.StaticBox(
-                    self, wx.ID_ANY,
+                    self, gist.get_new_idval(),
                     _("{0} ({1} characters max.)").format(
                         label, flen)),
                 wx.VERTICAL
                 )
 
             sty = 0
-            tsz = wx.DefaultSize
             if flen > 64:
                 sty = sty | wx.TE_MULTILINE
 
             txt = wx.TextCtrl(
-                self, wx.ID_ANY, "", wx.DefaultPosition, tsz,
+                self, gist.get_new_idval(), "",
+                wx.DefaultPosition, wx.DefaultSize,
                 sty, wx.DefaultValidator, key)
             if not sty & wx.TE_MULTILINE:
                 txt.SetMaxLength(flen)
@@ -2164,7 +2165,7 @@ class ATargetPanePanel(wx.Panel):
         type_optChoices.append(_("simultaneous"))
 
         self.type_opt = wx.RadioBox(
-            self, wx.ID_ANY, _("output type:"),
+            self, gist.get_new_idval(), _("output type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
 
@@ -2230,12 +2231,13 @@ class ATargetPanePanel(wx.Panel):
             )
 
         self.box_whole = wx.StaticBoxSizer(
-            wx.StaticBox(self, wx.ID_ANY, _("output target:")),
+            wx.StaticBox(
+                self, gist.get_new_idval(), _("output target:")),
             wx.VERTICAL
             )
 
         self.select_label = wx.StaticText(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("specify a name for 'file/directory', or burner device:"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         self.select_label.Wrap(-1)
@@ -2250,20 +2252,20 @@ class ATargetPanePanel(wx.Panel):
             wx.FLEX_GROWMODE_SPECIFIED)
 
         self.input_select_node = wx.TextCtrl(
-            self, wx.ID_ANY, "",
+            self, gist.get_new_idval(), "",
             wx.DefaultPosition, wx.DefaultSize,
             wx.TE_PROCESS_ENTER)
         self.input_select_node.SetToolTip(wx.ToolTip(ttip))
         self.fgSizer_node_whole.Add(
             self.input_select_node, 1,
-            wx.ALIGN_CENTER|wx.ALL|wx.EXPAND, 2)
+            wx.ALL|wx.EXPAND, 2)
         self.add_child_wnd(self.input_select_node)
         self.set_select.append(self.input_select_node)
 
         nodbuttsz = wx.BoxSizer(wx.HORIZONTAL)
 
         self.button_select_node = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Select Target"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         self.button_select_node.SetToolTip(wx.ToolTip(ttip))
@@ -2274,31 +2276,29 @@ class ATargetPanePanel(wx.Panel):
         self.set_select.append(self.button_select_node)
 
         self.fgSizer_node_whole.Add(
-            nodbuttsz, 5,
-            wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 1)
+            nodbuttsz, 5, wx.EXPAND, 1)
 
         self.box_whole.Add(
-            self.fgSizer_node_whole, 1,
-            wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 1)
+            self.fgSizer_node_whole, 1, wx.EXPAND, 1)
 
         # begin vol info panel
         self.box_volinfo = wx.StaticBoxSizer(
-            wx.StaticBox(self, wx.ID_ANY,
+            wx.StaticBox(self, gist.get_new_idval(),
                 _("target volume info fields (optional):")),
             wx.VERTICAL
             )
 
         self.panel_volinfo = AVolInfPane(
-            self, self.core_ld, size.width - 40, size.height - 40)
+            self, self.core_ld, size.width - 40, size.height - 40,
+            id = gist.get_new_idval())
         self.add_child_wnd(self.panel_volinfo)
 
         self.box_volinfo.Add(
-            self.panel_volinfo, 1,
-            wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 1)
+            self.panel_volinfo, 1, wx.EXPAND, 1)
         # end vol info panel
 
         self.box_check = wx.StaticBoxSizer(
-            wx.StaticBox(self, wx.ID_ANY,
+            wx.StaticBox(self, gist.get_new_idval(),
                 _("check first, then run:")),
             wx.VERTICAL
             )
@@ -2311,31 +2311,28 @@ class ATargetPanePanel(wx.Panel):
         self.fgSizer1.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_NONE)
 
         self.check_button = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Check"), wx.DefaultPosition, wx.DefaultSize, 0)
         self.check_button.SetToolTip(wx.ToolTip(
             _("Run check on source (and optionally target) disc.")))
 
         self.fgSizer1.Add(
-            self.check_button, 0,
-            wx.ALIGN_CENTER|wx.EXPAND|wx.ALL, 5)
+            self.check_button, 0, wx.EXPAND|wx.ALL, 5)
         self.add_child_wnd(self.check_button)
 
         self.run_label = _("Run it")
         self.cancel_label = _("Cancel")
         self.cancel_mode = False
         self.run_button = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             self.run_label, wx.DefaultPosition, wx.DefaultSize, 0)
         self.fgSizer1.Add(
-            self.run_button, 0,
-            wx.ALIGN_CENTER|wx.EXPAND|wx.ALL, 5)
+            self.run_button, 0, wx.EXPAND|wx.ALL, 5)
         self.run_button.Enable(False)
         self.add_child_wnd(self.run_button)
 
         self.box_check.Add(
-            self.fgSizer1, 1,
-            wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 5)
+            self.fgSizer1, 1, wx.EXPAND, 5)
 
 
         # type opt in top level sizer
@@ -2352,8 +2349,7 @@ class ATargetPanePanel(wx.Panel):
 
         # check select in top level sizer
         self.bSizer1.Add(
-            self.box_check, 1,
-            wx.EXPAND|wx.ALL|wx.BOTTOM, 5)
+            self.box_check, 1, wx.EXPAND|wx.ALL, 5)
 
         self.bSizer1.AddGrowableRow(2, 2)
 
@@ -2491,7 +2487,8 @@ ASourcePane -- Pane window for operation source setup
 class ASourcePane(ABasePane):
     def __init__(self, parent, gist, wi, hi, id = -1):
         ABasePane.__init__(self, parent, gist, wi, hi, id)
-        self.panel = ASourcePanePanel(self, gist, self.sz)
+        self.panel = ASourcePanePanel(
+            self, gist, self.sz, gist.get_new_idval())
 
 """
 ASourcePanePanel -- Pane window for operation source setup
@@ -2524,7 +2521,7 @@ class ASourcePanePanel(wx.Panel):
         type_optChoices.append(_("advanced"))
 
         self.type_opt = wx.RadioBox(
-            self, wx.ID_ANY, _("backup type:"),
+            self, gist.get_new_idval(), _("backup type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
         self.type_opt.SetItemToolTip(0,
@@ -2556,7 +2553,7 @@ class ASourcePanePanel(wx.Panel):
 
         self.box_whole = wx.StaticBoxSizer(
             wx.StaticBox(
-                self, wx.ID_ANY, _("backup source:")
+                self, gist.get_new_idval(), _("backup source:")
                 ),
             wx.VERTICAL
             )
@@ -2575,7 +2572,7 @@ class ASourcePanePanel(wx.Panel):
             )
 
         staticText3 = self.static_nodelabel = wx.StaticText(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("select device node or mount point:"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         self.static_nodelabel.SetToolTip(wx.ToolTip(ttip))
@@ -2586,19 +2583,18 @@ class ASourcePanePanel(wx.Panel):
         self.fgSizer_node_whole.AddGrowableCol(0)
 
         self.input_node_whole = wx.TextCtrl(
-            self, wx.ID_ANY, "",
+            self, gist.get_new_idval(), "",
             wx.DefaultPosition, wx.DefaultSize,
             wx.TE_PROCESS_ENTER)
         self.input_node_whole.SetToolTip(wx.ToolTip(ttip))
         self.fgSizer_node_whole.Add(
-            self.input_node_whole, 1,
-            wx.ALIGN_CENTER|wx.ALL|wx.EXPAND, 2)
+            self.input_node_whole, 1, wx.ALL|wx.EXPAND, 2)
         self.add_child_wnd(self.input_node_whole)
 
         nodbuttsz = wx.BoxSizer(wx.HORIZONTAL)
 
         self.button_node_whole = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Select Node"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         self.button_node_whole.SetToolTip(wx.ToolTip(ttip))
@@ -2609,7 +2605,7 @@ class ASourcePanePanel(wx.Panel):
         self.set_whole.append(self.button_node_whole)
 
         self.button_dir_whole = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Select Mount"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         self.button_dir_whole.SetToolTip(wx.ToolTip(ttip))
@@ -2618,15 +2614,13 @@ class ASourcePanePanel(wx.Panel):
         self.add_child_wnd(self.button_dir_whole)
 
         self.fgSizer_node_whole.Add(
-            nodbuttsz, 5,
-            wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 1)
+            nodbuttsz, 5, wx.EXPAND, 1)
 
         self.box_whole.Add(
-            self.fgSizer_node_whole, 1,
-            wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 1)
+            self.fgSizer_node_whole, 1, wx.EXPAND, 1)
 
         self.box_hier = wx.StaticBoxSizer(
-            wx.StaticBox(self, wx.ID_ANY,
+            wx.StaticBox(self, gist.get_new_idval(),
                 _("optional extras:")),
             wx.VERTICAL
             )
@@ -2640,7 +2634,8 @@ class ASourcePanePanel(wx.Panel):
 
         ln_sz = self.static_nodelabel.GetClientSize()
         flsz = wx.Size(wx.DefaultSize.width, ln_sz.height * 3) #12 * 5)
-        self.addl_list_ctrl = AFileListCtrl(self, gist, size = flsz)
+        self.addl_list_ctrl = AFileListCtrl(
+            self, gist, id = gist.get_new_idval(), size = flsz)
         self.addl_list_ctrl.SetToolTip(
             wx.ToolTip(_(
                 "If the \"advanced\" backup type is selected, "
@@ -2666,14 +2661,13 @@ class ASourcePanePanel(wx.Panel):
         self.add_child_wnd(self.addl_list_ctrl)
 
         self.fgSizer_extra_hier.Add(
-            self.addl_list_ctrl, 50,
-            wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 5)
+            self.addl_list_ctrl, 50, wx.EXPAND, 5)
         self.set_hier.append(self.addl_list_ctrl)
 
         lstbuttsz = wx.BoxSizer(wx.HORIZONTAL)
 
         self.button_addl_files = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Add Files"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz.Add(
@@ -2683,7 +2677,7 @@ class ASourcePanePanel(wx.Panel):
         self.add_child_wnd(self.button_addl_files)
 
         self.button_addl_dirs = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Add Directories"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz.Add(
@@ -2697,7 +2691,7 @@ class ASourcePanePanel(wx.Panel):
         lstbuttsz2 = wx.BoxSizer(wx.HORIZONTAL)
 
         self.button_addl_rmsel = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Remove Selected"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz2.Add(self.button_addl_rmsel, 1,  wx.EXPAND, 2)
@@ -2705,7 +2699,7 @@ class ASourcePanePanel(wx.Panel):
         self.add_child_wnd(self.button_addl_rmsel)
 
         self.button_addl_clear = wx.Button(
-            self, wx.ID_ANY,
+            self, gist.get_new_idval(),
             _("Clear List"),
             wx.DefaultPosition, wx.DefaultSize, 0)
         lstbuttsz2.Add(self.button_addl_clear, 1, wx.EXPAND, 2)
@@ -2714,22 +2708,16 @@ class ASourcePanePanel(wx.Panel):
 
         self.fgSizer_extra_hier.Add(lstbuttsz2, 1, wx.EXPAND, 5)
 
-        self.box_hier.Add(
-            self.fgSizer_extra_hier, 17,
-            wx.ALIGN_CENTER|wx.EXPAND, 5)
+        self.box_hier.Add(self.fgSizer_extra_hier, 17, wx.EXPAND, 5)
 
         # type opt in top level sizer
         self.bSizer1.Add(self.type_opt, 0, wx.ALL, 5)
 
         # whole image dev select in top level sizer
-        self.bSizer1.Add(
-            self.box_whole, 20,
-            wx.EXPAND|wx.ALL|wx.TOP, 5)
+        self.bSizer1.Add(self.box_whole, 20, wx.EXPAND|wx.ALL, 5)
 
         # hierarchy copy dev select in top level sizer
-        self.bSizer1.Add(
-            self.box_hier, 23,
-            wx.EXPAND|wx.ALL|wx.TOP, 5)
+        self.bSizer1.Add(self.box_hier, 23, wx.EXPAND|wx.ALL, 5)
 
         self.SetSizer(self.bSizer1)
         self.Layout()
@@ -2986,7 +2974,8 @@ class AChildSashWnd(wx.SashWindow):
         self.swnd = []
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (240, 30),
+                self, gist.get_new_idval(),
+                wx.DefaultPosition, (240, 30),
                 wx.NO_BORDER|wx.SW_3D
             ))
         self.swnd[0].SetDefaultSize((pane_width, 1000))
@@ -2998,7 +2987,8 @@ class AChildSashWnd(wx.SashWindow):
 
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition, (240, 30),
+                self, gist.get_new_idval(),
+                wx.DefaultPosition, (240, 30),
                 wx.NO_BORDER|wx.SW_3D
             ))
         self.swnd[1].SetDefaultSize((pane_width, 1000))
@@ -3018,11 +3008,13 @@ class AChildSashWnd(wx.SashWindow):
 
         self.child1 = ASourcePane(
             self.swnd[0], gist,
-            self.child1_maxw - w_adj, self.child1_maxh - h_adj
+            self.child1_maxw - w_adj, self.child1_maxh - h_adj,
+            id = gist.get_new_idval()
             )
         self.child2 = ATargetPane(
             self.swnd[1], gist,
-            self.child2_maxw - w_adj, self.child2_maxh - h_adj
+            self.child2_maxw - w_adj, self.child2_maxh - h_adj,
+            id = gist.get_new_idval()
             )
 
         self.remainingSpace = self.swnd[1]
@@ -3130,7 +3122,8 @@ class ASashWnd(wx.SashWindow):
         self.swnd = []
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition,
+                self, gist.get_new_idval(),
+                wx.DefaultPosition,
                 (300, top_ht),
                 wx.NO_BORDER|wx.SW_3D
             ))
@@ -3143,7 +3136,8 @@ class ASashWnd(wx.SashWindow):
 
         self.swnd.append(
             wx.SashLayoutWindow(
-                self, -1, wx.DefaultPosition,
+                self, gist.get_new_idval(),
+                wx.DefaultPosition,
                 (300, self.msg_minh),
                 wx.NO_BORDER|wx.SW_3D
             ))
@@ -3169,7 +3163,8 @@ class ASashWnd(wx.SashWindow):
             self.swnd[0], sz1, parent, gist.get_new_idval(),
             _T("Source and Destination"), gist
             )
-        self.child2 = AMsgWnd(self.swnd[1], 100, self.msg_minh)
+        self.child2 = AMsgWnd(
+            self.swnd[1], 100, self.msg_minh, id = gist.get_new_idval())
         self.core_ld.set_msg_wnd(self.child2)
         self.child2.set_scroll_to_end(True)
 
@@ -6742,7 +6737,7 @@ class TheAppClass(wx.App):
             h = 600
 
         self.frame = AFrame(
-            None, -1, PROG, self.core_ld,
+            None, self.core_ld.get_new_idval(), PROG, self.core_ld,
             pos, wx.Size(800, 600))
         self.SetTopWindow(self.frame)
 
