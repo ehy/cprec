@@ -219,9 +219,9 @@ def x_lstat(path, quiet = False, use_l = True):
             return os.lstat(path)
         else:
             return os.stat(path)
-    except OSError, (errno, strerror):
+    except OSError as e:
         m = _("Error: cannot stat '{0}': '{1}' (errno {2})").format(
-            path, strerror, errno)
+            path, e.strerror, e.errno)
         _dbg(m)
         if not quiet:
             msg_line_ERROR(m)
@@ -266,9 +266,9 @@ if "-XGETTEXT" in sys.argv:
         _xgtargs = (_xgt, "-o", "-", "-L", "Python",
                 "--keyword=_", "--add-comments", sys.argv[0])
         os.execvp(_xgt, _xgtargs)
-    except OSError, (err, serr):
+    except OSError as e:
         sys.stderr.write("Exec {0} {p}: {1} ({2})\n".format(
-            _xgt, serr, err, p = sys.argv[0]))
+            _xgt, e.strerror, e.errno, p = sys.argv[0]))
         exit(1)
 
 
@@ -373,8 +373,8 @@ for cmd, aargs, envmap in pipecmds:
         cmdargs.append(arg)
     try:
         parm_obj = ChildProcParams(cmd, cmdargs, envmap, parm_obj)
-    except ChildProcParams.BadParam, strmsg:
-        PutMsgLineERROR("Exception '%s'" % strmsg)
+    except ChildProcParams.BadParam as e:
+        PutMsgLineERROR("Exception '%s'" % e)
         exit(1)
 
 if parm_obj:
@@ -395,7 +395,7 @@ class ChildProcParams:
             self.xcmdargs = [cmd]
         else:
             self.__except_init()
-            raise ChildProcParams.BadParam, _("cmdargs is wrong type")
+            raise ChildProcParams.BadParam(_("cmdargs is wrong type"))
 
         if (isinstance(cmdenv, list) or
             isinstance(cmdenv, dict) or
@@ -405,7 +405,7 @@ class ChildProcParams:
             self.xcmdenv = []
         else:
             self.__except_init()
-            raise ChildProcParams.BadParam, _("cmdenv is wrong type")
+            raise ChildProcParams.BadParam(_("cmdenv is wrong type"))
 
         if isinstance(stdin_fd, str) or isinstance(stdin_fd, unicode):
             self.infd = os.open(stdin_fd, os.O_RDONLY)
@@ -425,11 +425,20 @@ class ChildProcParams:
             self.proc_input  = False
         else:
             self.__except_init()
-            raise ChildProcParams.BadParam, _("stdin_fd is wrong type")
+            raise ChildProcParams.BadParam(_("stdin_fd is wrong type"))
 
     def __del__(self):
         if self.infd_opened and self.infd > -1:
-            os.close(self.infd)
+            try:
+                os.close(self.infd)
+            except OSError as e:
+                # TODO: indicate error
+                pass
+            except AttributeError:
+                # py3 throwing this at end of script; bug in py3
+                # that modules might be GC'd at shutdown before
+                # objects use them. sys.version: 3.4.3
+                pass
 
     def __except_init(self):
         self.xcmd = None
@@ -715,8 +724,8 @@ class ChildTwoStreamReader:
             try:
                 os.kill(pid, sig)
                 return 0
-            except OSError, (errno, strerror):
-                self.error_tuple = (pid, sig, errno, strerror)
+            except OSError as e:
+                self.error_tuple = (pid, sig, e.errno, e.strerror)
 
         return -1
 
@@ -769,14 +778,14 @@ class ChildTwoStreamReader:
                     pid, cooked, bsig, self.procstat[idx][3])
                 return cooked
 
-            except OSError, (errno, strerror):
-                if errno  == eintr:
+            except OSError as e:
+                if e.errno  == eintr:
                     continue
-                if errno  == echild:
+                if e.errno  == echild:
                     _dbg(_T("wait failing ECHILD {p}").format(p = wpid))
                 else:
                     _dbg(_T("wait error \"{s}\" (errno {n})").format(
-                        s = strerror, n = errno))
+                        s = e.strerror, n = e.errno))
                 return -1
 
         _dbg(_T("wait pid {p} FAILURE").format(p = wpid))
@@ -939,16 +948,16 @@ class ChildTwoStreamReader:
 
         try:
             rfd, wfd = os.pipe()
-        except OSError, (errno, strerror):
-            self.error_tuple = (errno, strerror)
+        except OSError as e:
+            self.error_tuple = (e.errno, e.strerror)
             return self.error_tuple
 
         try:
             fpid = os.fork()
-        except OSError, (errno, strerror):
+        except OSError as e:
             os.close(rfd)
             os.close(wfd)
-            self.error_tuple = (errno, strerror)
+            self.error_tuple = (e.errno, e.strerror)
             return self.error_tuple
 
         # Novelty: nested procs
@@ -1019,7 +1028,7 @@ class ChildTwoStreamReader:
                 if pgrp != mpid:
                     os.setpgrp()
                 pgrp = os.getpgrp()
-            except OSError, (errno, strerror):
+            except OSError as e:
                 os._exit(self.pgrp_err_status)
 
             # success?
@@ -1110,8 +1119,8 @@ class ChildTwoStreamReader:
             while True:
                 try:
                     rl = pl.poll(None)
-                except select.error, (errno, strerror):
-                    if errno == eintr:
+                except select.error as e:
+                    if e.errno == eintr:
                         continue
                     break
 
@@ -1210,18 +1219,18 @@ class ChildTwoStreamReader:
 
         try:
             rfd, wfd = os.pipe()
-        except OSError, (errno, strerror):
-            return (-1, -errno, strerror, paramobj)
+        except OSError as e:
+            return (-1, -e.errno, e.strerror, paramobj)
 
         try:
             fpid = os.fork()
             if fpid > 0:
                 _dbg(_T("_mk_pipe_proc {this} new pid {new}").format(
                     this = os.getpid(), new = fpid))
-        except OSError, (errno, strerror):
+        except OSError as e:
             os.close(rfd)
             os.close(wfd)
-            return (-1, -errno, strerror, paramobj)
+            return (-1, -e.errno, e.strerror, paramobj)
 
         if fpid == 0:
             os.close(rfd)
@@ -1244,7 +1253,7 @@ class ChildTwoStreamReader:
                 else:
                     os.execvp(xcmd, xcmdargs)
                 os._exit(self.exec_wtf_status)
-            except OSError, (errno, strerror):
+            except OSError as e:
                 os._exit(self.exec_err_status)
 
         # parent
@@ -1483,7 +1492,7 @@ class RepairedMDDialog(MDD.MultiDirDialog):
                         else:
                             m = _(
                               "'HOME' env. var. needed; but not found")
-                            raise RepairedMDDialog.Unfixable, m
+                            raise RepairedMDDialog.Unfixable(m)
                         break
 
             pts[i] = p
@@ -2863,19 +2872,19 @@ class ASourcePanePanel(wx.Panel):
 
             try:
                 pts = dlg.GetRepairedPaths()
-            except RepairedMDDialog.Unfixable, msg:
+            except RepairedMDDialog.Unfixable as msg:
                 msg_line_WARN(msg)
                 dlg.Destroy()
-                raise Exception, msg
+                raise Exception(msg)
 
             self.addl_list_ctrl.add_multi_files(pts)
             dlg.Destroy()
 
-        except RepairedMDDialog.Unfixable, m:
+        except RepairedMDDialog.Unfixable as m:
             dlg.Destroy()
-            raise Exception, m
+            raise Exception(m)
 
-        except Exception, m:
+        except Exception as m:
             msg_line_ERROR(_("MDDialog exception: '{0}'").format(m))
 
             dlg = wx.DirDialog(
@@ -5141,9 +5150,9 @@ class ACoreLogiDat:
             ofd, outf = tempfile.mkstemp(_T('.iso'), _T('dd-dvd-'))
             self.cur_tempfile = outf
             return (ofd, outf)
-        except OSError, (errno, strerror):
+        except OSError as e:
             m = _("Error making temporary file: '{0}' (errno {1})"
-                ).format(strerror, errno)
+                ).format(e.strerror, e.errno)
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
             self.dialog(m, _T("msg"), wx.OK|wx.ICON_EXCLAMATION)
@@ -5155,9 +5164,9 @@ class ACoreLogiDat:
             outf = tempfile.mkdtemp(_T('-iso'), _T('cprec-'))
             self.cur_tempfile = outf
             return outf
-        except OSError, (errno, strerror):
+        except OSError as e:
             m = _("Error making temporary directory: '{0}' (errno {1})"
-                ).format(strerror, errno)
+                ).format(e.strerror, e.errno)
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
             self.dialog(m, _T("msg"), wx.OK|wx.ICON_EXCLAMATION)
@@ -5167,14 +5176,18 @@ class ACoreLogiDat:
         try:
             ofd = os.open(outf, fl, 0666)
             return (ofd, outf)
-        except OSError, (errno, strerror):
+        except OSError as e:
             m = _("Error opening file '{2}': '{0}' (errno {1})"
-                ).format(strerror, errno, outf)
+                ).format(e.strerror, e.errno, outf)
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
             self.dialog(m, _T("msg"), wx.OK|wx.ICON_EXCLAMATION)
         except AttributeError:
             msg_line_ERROR(_("Internal error opening {0}").format(outf))
+        except Exception as e:
+            msg_line_ERROR(
+                _("BASE EXCEPTION '{s}' opening {f}").format(
+                    f = outf, s = e))
         except:
             msg_line_ERROR(
                 _("UNKNOWN EXCEPTION opening {0}").format(outf))
@@ -5358,11 +5371,11 @@ class ACoreLogiDat:
 
             try:
                 os.mkdir(outf, 0777)
-            except OSError, (errno, strerror):
+            except OSError as e:
                 m = _(
                     "Failed, error creating directory \"{0}\":"
                     "'{1}' (errno {2})"
-                    ).format(outf, strerror, errno)
+                    ).format(outf, e.strerror, e.errno)
                 msg_line_ERROR(m)
                 self.get_stat_wnd().put_status(m)
                 self.dialog(m, _T("msg"), wx.OK|wx.ICON_EXCLAMATION)
