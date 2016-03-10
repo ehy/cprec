@@ -990,7 +990,7 @@ class ChildTwoStreamReader:
 
         def wrprocstat(fp, cmd, args, env, status, signalled, sstr):
             __p = self.prefixX
-            wrlinepfx(fw, __p,
+            wrlinepfx(fp, __p,
                 _T("status: "
                 "cmd='{cmd}' "
                 "code='{code}' "
@@ -999,6 +999,16 @@ class ChildTwoStreamReader:
                 "{argenv}\n").format(
                     cmd = cmd, code = status,
                     sig = signalled, sstr = sstr,
+                    argenv = s_procdata(args, env))
+                )
+
+        def wrprocdata(fp, cmd, args, env):
+            __p = self.prefixX
+            wrlinepfx(fp, __p,
+                _T("    status: "
+                "cmd='{cmd}' "
+                "{argenv}\n").format(
+                    cmd = cmd,
                     argenv = s_procdata(args, env))
                 )
 
