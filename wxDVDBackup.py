@@ -291,12 +291,12 @@ _dbg(_T("debug file opened"))
 """
 
 # version globals: r/o
-version_string = _T("0.0.1.2")
-version_name   = _("Vestigial Limbs Wiggling!")
+version_string = _T("0.0.2.0")
+version_name   = _("We Don't Need No Stinkin' Fangs!")
 version_mjr    = 0
 version_mjrrev = 0
-version_mnr    = 1
-version_mnrrev = 2
+version_mnr    = 2
+version_mnrrev = 0
 version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
 maintainer_name = _T("Ed Hynan")
