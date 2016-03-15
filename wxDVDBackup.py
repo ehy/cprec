@@ -1127,7 +1127,8 @@ class ChildTwoStreamReader:
                 try:
                     rl = pl.poll(None)
                 except select.error as e:
-                    if e.errno == eintr:
+                    (err, msg) = e
+                    if err == eintr:
                         continue
                     break
 
@@ -3381,151 +3382,194 @@ class ASettingsDialog(sc.SizedDialog):
         dlen = len(dat)
         for idx in xrange(dlen):
             a = dat[idx]
-            typ = a[0]
+            typ = a.typ
             i0 = self.core_ld.get_new_idval()
             i1 = self.core_ld.get_new_idval()
 
             if s_eq(typ, "text"):
-                s = wx.StaticText(pane, i0, a[1])
+                s = wx.StaticText(pane, i0, a.lbl)
                 s.SetSizerProps(
                     valign = _T("center"), border = ([_T("left")], bdr))
-                t = wx.TextCtrl(pane, i1, a[4], name = a[2])
+                t = wx.TextCtrl(pane, i1, a.dft, name = a.nam)
                 t.SetSizerProps(
                     expand = True,
                     valign = _T("center"),
                     border = ([_T("right"), _T("bottom")], bdr),
-                    proportion = 10)
+                    proportion = a.prp)
+                if a.tip:
+                    t.SetToolTip(wx.ToolTip(a.tip))
             elif s_eq(typ, "blank"):
-                #s = wx.Panel(pane, id = i0)
-                #t = wx.Panel(pane, id = i1)
-                s = wx.Window(pane, id = i0, style = wx.BORDER_NONE)
-                t = wx.Window(pane, id = i1, style = wx.BORDER_NONE)
-                t.SetSizerProps(expand = True, proportion = a[1])
+                sty = wx.BORDER_NONE | pane.GetBackgroundStyle()
+                clr = pane.GetBackgroundColour()
+                s = wx.Window(pane, id = i0, style = sty)
+                s.SetBackgroundColour(clr)
+                t = wx.Window(pane, id = i1, style = sty)
+                t.SetBackgroundColour(clr)
+                t.SetSizerProps(expand = True, proportion = a.prp)
             elif s_eq(typ, "hline"):
                 s = wx.StaticLine(pane, i0, style = wx.LI_HORIZONTAL)
-                s.SetSizerProps(expand = True, proportion = a[1])
+                s.SetSizerProps(expand = True, proportion = a.prp)
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
-                t.SetSizerProps(expand = True, proportion = a[1])
+                t.SetSizerProps(expand = True, proportion = a.prp)
             elif s_eq(typ, "txthline"):
-                s = wx.StaticText(pane, i0, a[2],
+                s = wx.StaticText(pane, i0, a.lbl,
                     style = wx.ALIGN_CENTRE)
-                s.SetSizerProps(expand = False, proportion = a[1],
+                s.SetSizerProps(expand = False, proportion = a.prp,
                     halign = _T("center"), valign = _T("center"))
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
-                t.SetSizerProps(expand = True, proportion = a[1])
+                t.SetSizerProps(expand = True, proportion = a.prp)
             elif s_eq(typ, "spin_int"):
-                df, mn, mx = a[4]
-                s = wx.StaticText(pane, i0, a[1])
+                df = a.dft
+                mn, mx = a.xtr
+                s = wx.StaticText(pane, i0, a.lbl)
                 s.SetSizerProps(
                     valign = _T("center"), border = ([_T("left")], bdr))
-                t = wx.SpinCtrl(pane, i1, str(df), name = a[2],
+                t = wx.SpinCtrl(pane, i1, str(df), name = a.nam,
                     initial = df, min = mn, max = mx)
                 t.SetSizerProps(expand = False, valign = _T("center"))
+                if a.tip:
+                    t.SetToolTip(wx.ToolTip(a.tip))
             elif s_eq(typ, "cprec_option"):
-                s = wx.StaticText(pane, i0, a[1])
+                s = wx.StaticText(pane, i0, a.lbl)
                 s.SetSizerProps(
                     valign = _T("center"), border = ([_T("left")], bdr))
-                t = wx.CheckBox(pane, i1, name = a[2],
-                    label = _("option: {0}").format(_T("--") + a[2]))
-                t.SetValue(a[3])
+                t = wx.CheckBox(pane, i1, name = a.nam,
+                    label = _("option: {0}").format(_T("--") + a.nam))
+                t.SetValue(a.dft)
                 t.SetSizerProps(expand = False, valign = _T("center"))
+                if a.tip:
+                    t.SetToolTip(wx.ToolTip(a.tip))
+            elif s_eq(typ, "app_option"):
+                s = wx.StaticText(pane, i0, a.lbl)
+                s.SetSizerProps(
+                    valign = _T("center"), border = ([_T("left")], bdr))
+                if "opt_lbl" in a.xtr:
+                    t = wx.CheckBox(pane, i1, name = a.nam,
+                        label = a.xtr["opt_lbl"])
+                else:
+                    t = wx.CheckBox(pane, i1, name = a.nam)
+                t.SetValue(a.dft)
+                t.SetSizerProps(expand = False, valign = _T("center"))
+                if a.tip:
+                    t.SetToolTip(wx.ToolTip(a.tip))
 
+
+    @staticmethod
+    def _mk_data_struct(
+                        typ = _T("hline"), # type of control
+                        lbl = _T(""),      # control label
+                        nam = _T(""),      # control/config name
+                        prp = 0,           # control sizer proportion
+                        val = _T(""),      # value, set by user
+                        dft = _T(""),      # value, default
+                        tip = _T(""),      # control 'tooltip'
+                        xtr = None         # any extra data
+                        ):
+        """Using anonymous class, as simple C struct
+        """
+        class __settings_dialog_private_data_struct:
+            pass
+
+        r = __settings_dialog_private_data_struct()
+
+        r.typ = typ
+        r.lbl = lbl
+        r.nam = nam
+        r.prp = prp
+        r.val = val
+        r.dft = dft
+        r.tip = tip
+        r.xtr = xtr
+
+        return r
 
     def _setup_data_structs(self):
-        # list of array, where:
-        # 0 == type of control
-        # (if not special type like "blank":)
-        # 1 == control label
-        # 2 == control/config name
-        # 3 == set value
-        # 4 == control type extra -- only exists as needed, per type
+        # proc returns structured data from call parameters
+        f = self.__class__._mk_data_struct
 
         # advanced tab
         self._data_advanced = [
-            [_T("txthline"), 5, _("cprec options:")],
-            [_T("cprec_option"), # booleans
-                _("Do not fail if file exists:"),
-                _T("ignore-existing"),
-                False],
-            [_T("cprec_option"), # booleans
-                _("Do not copy symbolic links, make new file:"),
-                _T("ignore-symlinks"),
-                False],
-            [_T("cprec_option"), # booleans
-                _("Do not make hard links, make new file:"),
-                _T("ignore-hardlinks"),
-                False],
-            [_T("cprec_option"), # booleans
-                _("Do not make device nodes, pipes, etc.:"),
-                _T("ignore-specials"),
-                True],
-            [_T("txthline"), 5, _("cprec and dd-dvd options:")],
-            [_T("spin_int"), # extra: default, min, max
-                _("{0} 2048 byte blocks:").format(
+            f(_T("txthline"), _("cprec options:"), prp = 5),
+            f(_T("cprec_option"), _("Do not fail if file exists:"),
+              _T("ignore-existing"), 0, dft = False),
+            f(_T("cprec_option"),
+              _("Do not copy symbolic links, make new file:"),
+              _T("ignore-symlinks"), 0, dft = False),
+            f(_T("cprec_option"),
+              _("Do not make hard links, make new file:"),
+              _T("ignore-hardlinks"), 0, dft = False),
+            f(_T("cprec_option"),
+              _("Do not make device nodes, pipes, etc.:"),
+              _T("ignore-specials"), 0, dft = True),
+            f(_T("txthline"), _("cprec and dd-dvd options:"), prp = 5),
+            f(_T("spin_int"),
+              _("{0} 2048 byte blocks:").format(
                     _T("--block-read-count")),
-                _T("block-read-count"),
-                _T(""), (4096, 1, 4096 * 8)],
-            [_T("spin_int"),
-                _("{0} for read errors:").format(
+              _T("block-read-count"), 0,
+              dft = 4096, xtr = (1, 4096 * 8)),
+            f(_T("spin_int"),
+              _("{0} for read errors:").format(
                     _T("--retry-block-count")),
-                _T("retry-block-count"),
-                _T(""), (48, 1, 4096 * 8)],
-            [_T("hline"), 5],
-            [_T("text"), # extra: default
-                _("libdvdread library name or path:"),
-                _T("libdvdr"),
-                _T(""), _T("")],
-            [_T("blank"), 5]
+              _T("retry-block-count"), 0,
+              dft = 48, xtr = (1, 4096 * 8)),
+            f(_T("hline"), prp = 5),
+            f(_T("text"),
+              _("libdvdread library name or path:"),
+              _T("libdvdr"),
+              prp = 0),
+            f(_T("blank"), prp = 5)
             ]
 
         # tool paths tab
         self._data_paths = [
-            [_T("blank"), 5],
-            [_T("text"), # extra: default
-                _("growisofs program:"),
-                _T("growisofs"),
-                _T(""), _T("growisofs")],
-            [_T("text"),
-                _("dvd+rw-mediainfo program:"),
-                _T("dvd+rw-mediainfo"),
-                _T(""), _T("dvd+rw-mediainfo")],
-            [_T("text"),
-                _("dvd+rw-format program:"),
-                _T("dvd+rw-format"),
-                _T(""), _T("dvd+rw-format")],
-            [_T("text"),
-                _("mkisofs/genisoimage program:"),
-                _T("mkisofs"),
-                _T(""), _T("mkisofs")],
-            [_T("txthline"), 5, _("Included Programs:")],
-            [_T("text"),
-                _("cprec program:"),
-                _T("cprec"),
-                _T(""), _T("cprec")],
-            [_T("text"),
-                _("dd-dvd program:"),
-                _T("dd-dvd"),
-                _T(""), _T("dd-dvd")],
-            [_T("blank"), 5]
+            f(_T("blank"), prp = 5),
+            f(_T("text"),
+              _("growisofs program:"),
+              _T("growisofs"),
+              prp = 0, dft = _T("growisofs")),
+            f(_T("text"),
+              _("dvd+rw-mediainfo program:"),
+              _T("dvd+rw-mediainfo"),
+              prp = 0, dft = _T("dvd+rw-mediainfo")),
+            f(_T("text"),
+              _("dvd+rw-format program:"),
+              _T("dvd+rw-format"),
+              prp = 0, dft = _T("dvd+rw-format")),
+            f(_T("text"),
+              _("mkisofs/genisoimage program:"),
+              _T("mkisofs"),
+              prp = 0, dft = _T("mkisofs")),
+            f(_T("txthline"), _("Included Programs:"), prp = 5),
+            f(_T("text"),
+              _("cprec program:"),
+              _T("cprec"),
+              prp = 0, dft = _T("cprec")),
+            f(_T("text"),
+              _("dd-dvd program:"),
+              _T("dd-dvd"),
+              prp = 0, dft = _T("dd-dvd")),
+            f(_T("blank"), prp = 5)
             ]
 
         # general runtime data
         self._data_rundata = [
-            [_T("blank"), 5],
-            [_T("text"), # extra: default
-                _("temp directories (9Gb):"),
-                _T("temp_dirs"),
-                _T(""), _T("")],
-            [_T("text"),
-                _("regular additional:"),
-                _T("regular_addl"),
-                _T(""), _T("")],
-            [_T("blank"), 5]
+            f(_T("blank"), prp = 5),
+            f(_T("text"),
+              _("temp directories (9GB):"),
+              _T("temp_dirs"),
+              prp = 0),
+            f(_T("text"),
+              _("regular additional:"),
+              _T("regular_addl"),
+              prp = 0),
+            f(_T("blank"), prp = 5)
             ]
 
     def config_rd(self, config):
         dp = self._get_data_paths()
         cf_path = config.GetPath()
+        cf_exp  = config.IsExpandingEnvVars()
+        config.SetExpandEnvVars(False)
 
         for pth, dat in dp:
             config.SetPath(_T("/main/settings/") + pth)
@@ -3533,39 +3577,41 @@ class ASettingsDialog(sc.SizedDialog):
             dlen = len(dat)
             for idx in xrange(dlen):
                 a = dat[idx]
-                typ = a[0]
+                typ = a.typ
 
                 if not (s_eq(typ, "text") or
                         s_eq(typ, "spin_int") or
                         s_eq(typ, "cprec_option")):
                     continue
 
-                ctl = self.FindWindowByName(a[2])
+                ctl = self.FindWindowByName(a.nam)
                 if not ctl: # error; shouldn't happen
                     continue
 
-                cfkey = a[2]
+                cfkey = a.nam
+                df = a.dft
 
                 if s_eq(typ, "text"):
                     if config.HasEntry(cfkey):
                         v = config.Read(cfkey)
                         ctl.SetValue(v)
                     else:
-                        ctl.SetValue(a[4])
+                        ctl.SetValue(df)
                 elif s_eq(typ, "spin_int"):
                     if config.HasEntry(cfkey):
                         v = config.ReadInt(cfkey)
                         ctl.SetValue(v)
                     else:
-                        ctl.SetValue(a[4][0])
+                        ctl.SetValue(df)
                 elif s_eq(typ, "cprec_option"):
                     if config.HasEntry(cfkey):
                         v = config.ReadInt(cfkey)
                         ctl.SetValue(bool(v))
                     else:
-                        ctl.SetValue(a[3])
+                        ctl.SetValue(df)
 
 
+        config.SetExpandEnvVars(cf_exp)
         config.SetPath(cf_path)
 
     def config_wr(self, config):
@@ -3578,36 +3624,34 @@ class ASettingsDialog(sc.SizedDialog):
             dlen = len(dat)
             for idx in xrange(dlen):
                 a = dat[idx]
-                typ = a[0]
+                typ = a.typ
 
                 if not (s_eq(typ, "text") or
                         s_eq(typ, "spin_int") or
                         s_eq(typ, "cprec_option")):
                     continue
 
-                ctl = self.FindWindowByName(a[2])
+                ctl = self.FindWindowByName(a.nam)
                 if not ctl: # error; shouldn't happen
                     continue
 
-                cfkey = a[2]
+                cfkey = a.nam
+                df = a.dft
 
                 if s_eq(typ, "text"):
                     v = ctl.GetValue().strip()
-                    df = a[4]
                     if len(v) and s_ne(v, df):
                         config.Write(cfkey, v)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
                 elif s_eq(typ, "spin_int"):
-                    v = ctl.GetValue()
-                    df = a[4][0]
+                    df = a.dft
                     if v != df:
                         config.WriteInt(cfkey, v)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
                 elif s_eq(typ, "cprec_option"):
                     v = ctl.GetValue()
-                    df = a[3]
                     if bool(v) != df:
                         config.WriteInt(cfkey, int(v))
                     elif df:
@@ -4367,7 +4411,8 @@ class FsDirSpaceCheck:
                 self.chk_dir(d)
                 self.chk_access(d)
                 self.chks.append(d)
-            except (OSError, self.__class__._internal_except) as e:
+            except (OSError, IOError,
+                    self.__class__._internal_except) as e:
                 self.errs.append([d, e.strerror])
 
         self.error = (0, _("No error"))
@@ -4510,24 +4555,40 @@ class TempDirsCheck:
     # decimal number,
     #   8400000 == (4200000 * 2048 + 1023) / 1024
     # which is a tight fit for a really full double layer DVD,
-    # so using code might prefer a larger minimum.
+    # if there are other processes writing on the temporary fs,
+    # so using code should consider passing a larger minimum.
     def __init__(self,
                  min_space = 8400000,
                  use_env = True,
                  use_def = True,
                  use_mod_tempfile = True,
                  addl_dirs = [],
-                 do_expand = False):
+                 do_expand = False,
+                 sort_type = "none"):
         """min_space is in 1024 byte blocks, default based on DVD+DL
            env are standard or common under Unix; def defined in this
            class, mod_tempfile from the Python module (which *must*
            be imported for reasons other than this), and using code
            may specify more in addl_dirs which, if do_expand is True,
            will be checked for leading '$' and have it substituted from
-           env, and ignored if that fails
+           env, and ignored if that fails; finally sort_type spec's
+           how results should be sorted and may have values "big",
+           "small", or anything else, with big meaning most available
+           space first, little meaning least available first, or
+           anything else preventing sorting
         """
         self.min_space = min_space
+        self.sort_type = sort_type
         chks = []
+
+        for d in addl_dirs:
+            if do_expand:
+                v = self._expand(d)
+            else:
+                v = d
+            if not v or v in chks:
+                continue
+            chks.append(v)
 
         if use_env:
             for e in self.__class__.default_env:
@@ -4552,16 +4613,6 @@ class TempDirsCheck:
                     chks.append(v)
             except OSError:
                 pass
-
-        for d in addl_dirs:
-            if do_expand:
-                v = self._expand(d)
-            else:
-                v = d
-            if not v:
-                continue
-            if not v in chks:
-                chks.append(v)
 
         self.chks = chks
 
@@ -4594,22 +4645,25 @@ class TempDirsCheck:
             for (d, m) in r_ng:
                 self._init_error(_(
                     "df error on {d} '{m}'").format(d = d, m = m))
-                continue
 
             res = []
             for (d, r) in r_ok:
                 if r.blocks_avail() >= self.min_space:
                     res.append((d, r))
 
-            l = lambda a,b: b[1].blocks_avail() - a[1].blocks_avail()
-            res.sort(cmp = l)
+            lB = lambda a,b: b[1].blocks_avail() - a[1].blocks_avail()
+            lS = lambda a,b: a[1].blocks_avail() - b[1].blocks_avail()
+            if self.sort_type == "big":
+                res.sort(cmp = lB)
+            elif self.sort_type == "small":
+                res.sort(cmp = lS)
 
             self.res = res
 
         except Exception as s:
             self._init_error(s)
         except:
-            self._init_error("an unknown error occurred")
+            self._init_error(_T("an unknown error occurred"))
 
         return self.res
 
@@ -4637,16 +4691,20 @@ class TempDirsCheck:
         if sl < 0:
             k = d[1:]
             if k in os.environ:
-                return os.environ[k]
-            else:
-                return False
+                k = os.environ[k].strip()
+                if k:
+                    return k
+            return False
 
         if sl < 2:
             return False
 
         k = d[1:sl]
         if k in os.environ:
-            return _T(os.environ[k].rstrip("/")) + _T(d[sl:])
+            k = os.environ[k].strip()
+            if k:
+                k = k.rstrip(_T("/")) + d[sl:]
+                return k
 
         return False
 
@@ -5668,19 +5726,45 @@ class ACoreLogiDat:
     # Utilities to help with files and directories
     #
 
-    def get_usable_temp_directory(self):
+    def get_usable_temp_directory(self, verbose = False):
         addl = []
 
         cf = self.get_config()
         opth = cf.GetPath()
+        # Want the TempDirsCheck object to handle optional env. expand
+        oexp = cf.IsExpandingEnvVars()
+        cf.SetExpandEnvVars(False)
+
         cf.SetPath(_T("/main/settings/rundata"))
-        if cf.HasEntry(_T("tempdirs")):
-            t = cf.Read(_T("tempdirs")).strip()
+        cfkey = _T("temp_dirs")
+        if cf.HasEntry(cfkey):
+            try:
+                tt = cf.Read(cfkey).strip()
+                t = _T(tt)
+            except:
+                try:
+                    t = cf.Read(cfkey).strip()
+                except:
+                    t = _T("")
             if t:
                 addl = t.split(_T(':'))
+                for i in range(len(addl)):
+                    addl[i] = addl[i].strip()
+
+        cfkey = _T("expand_env")
+        bexp = True
+        if cf.HasEntry(cfkey):
+            t = cf.ReadInt(cfkey)
+            if t:
+                bexp = True
+            else:
+                bexp = False
+
+        cf.SetExpandEnvVars(oexp)
         cf.SetPath(opth)
 
-        chk = TempDirsCheck(min_space = 8700000, addl_dirs = addl)
+        chk = TempDirsCheck(
+            min_space = 8700000, addl_dirs = addl, do_expand = bexp)
 
         res = chk.do()
         err = chk.get_error()
@@ -5688,9 +5772,13 @@ class ACoreLogiDat:
         if err:
             msg_line_WARN(_("directory errors:\n") + err)
 
-        for (d, r) in res:
-            msg_line_INFO(_("dir '{d}' has {b} bytes free.").format(
-                d = d, b = r.blocks_avail() * r.size_of_block()))
+        if verbose:
+            for (d, r) in res:
+                # count in 2048 byte blocks
+                bcnt = (r.blocks_avail() * r.size_of_block()) >> 11
+                msg_line_INFO(_(
+                    "dir '{d}' has {cnt} DVD-size blocks free").format(
+                        d = d, cnt = bcnt))
 
         if not res:
             self.dialog(_(
@@ -5708,11 +5796,15 @@ class ACoreLogiDat:
         return res
 
     def get_tempfile(self):
-        da = self.get_usable_temp_directory
+        da = self.get_usable_temp_directory()
         if not da:
+            msg_line_ERROR(_T("CANNOT FIND SUFFICIENT TEMP SPACE."))
             return False
 
-        d = da[0]
+        d = da[0][0]
+        msg_line_INFO(_(
+            "using temporary directory '{tdir}'").format(tdir = d))
+
         try:
             ofd, outf = tempfile.mkstemp(_T('.iso'), _T('dd-dvd-'), d)
             self.cur_tempfile = outf
@@ -5727,11 +5819,15 @@ class ACoreLogiDat:
 
     # not *the* temp dir like /tmp. but a temporary directory
     def get_tempdir(self):
-        da = self.get_usable_temp_directory
+        da = self.get_usable_temp_directory()
         if not da:
+            msg_line_ERROR(_T("CANNOT FIND SUFFICIENT TEMP SPACE."))
             return False
 
-        d = da[0]
+        d = da[0][0]
+        msg_line_INFO(_(
+            "using temporary directory '{tdir}'").format(tdir = d))
+
         try:
             outf = tempfile.mkdtemp(_T('-iso'), _T('cprec-'), d)
             self.cur_tempfile = outf
