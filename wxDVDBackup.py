@@ -3304,7 +3304,6 @@ class ASettingsDialog(sc.SizedDialog):
         self._mk_rundata_pane()
         self._mk_paths_pane()
         self._mk_advanced_pane()
-        self._mk_environ_pane()
 
         self.Fit()
         self.SetMinSize(size)
@@ -3325,7 +3324,7 @@ class ASettingsDialog(sc.SizedDialog):
         pane.Fit()
         pane.SetMinSize(self.nb.GetSize())
 
-        self.nb.AddPage(pane, _("General Runtime Settings"))
+        self.nb.AddPage(pane, _("General Settings"))
 
     def _mk_paths_pane(self):
         dat = self._data_paths
@@ -3373,9 +3372,6 @@ class ASettingsDialog(sc.SizedDialog):
         pane.SetMinSize(self.nb.GetSize())
 
         self.nb.AddPage(pane, _("Advanced Options"))
-
-    def _mk_environ_pane(self):
-        pass
 
     def _mk_pane_items(self, pane, dat, border = 0):
         bdr = border
@@ -3612,10 +3608,37 @@ class ASettingsDialog(sc.SizedDialog):
                 ),
               xtr = {"opt_lbl":_T("tempfile.gettempdir()")}),
             f(_T("hline"), prp = 5),
-            f(_T("text"),
-              _("Regular additional:"),
-              _T("regular_addl"),
-              prp = 0),
+            f(_T("spin_int"),
+              _("Disc insert settle time"),
+              _T("disc_settle_time"), 0,
+              dft = 5,
+              xtr = (1, 120), tip = _(
+                "When a backup reaches the burn stage, a dialog box "
+                "is shown prompting you to make sure a blank disc is "
+                "ready in the target drive. "
+                "If you click 'OK' too soon after placing a blank "
+                "in the drive, the disc might not be detected "
+                "because DVD drives can take several seconds to "
+                "examine new media. Therefore, this program will "
+                "pause for a few seconds after the dialog is dismissed."
+                "\n\n"
+                "You may change the number seconds the drive is "
+                "given to settle. The default "
+                "is 5 seconds, and a range from 1 to 120 is accepted."
+                )),
+            f(_T("spin_int"),
+              _("Disc insert settle retries"),
+              _T("disc_settle_retries"), 0,
+              dft = 3,
+              xtr = (0, 32), tip = _(
+                "The 'Disc insert settle time' above might be "
+                "insufficient. Rather than give up immediately, the "
+                "program may try again a number of times (the pause "
+                "is repeated each time). "
+                "\n\n"
+                "The default "
+                "is 3, and a range from 0 to 32 is accepted."
+                )),
             f(_T("blank"), prp = 5)
             ]
 
@@ -5788,6 +5811,7 @@ class ACoreLogiDat:
         use_env = True
         use_def = True
         use_mod_tempfile = True
+        do_expand = True
         addl = []
 
         cf = self.get_config()
@@ -5813,13 +5837,12 @@ class ACoreLogiDat:
                     addl[i] = addl[i].strip()
 
         cfkey = _T("expand_env")
-        bexp = True
         if cf.HasEntry(cfkey):
             t = cf.ReadInt(cfkey)
             if t:
-                bexp = True
+                do_expand = True
             else:
-                bexp = False
+                do_expand = False
 
         cfkey = _T("use_env_tempdir")
         if cf.HasEntry(cfkey):
@@ -5850,8 +5873,8 @@ class ACoreLogiDat:
 
         chk = TempDirsCheck(
             use_env = use_env, use_def = use_def,
-            use_mod_tempfile = use_mod_tempfile,
-            min_space = 8700000, addl_dirs = addl, do_expand = bexp)
+            use_mod_tempfile = use_mod_tempfile, do_expand = do_expand,
+            min_space = 8700000, addl_dirs = addl)
 
         res = chk.do()
         err = chk.get_error()
