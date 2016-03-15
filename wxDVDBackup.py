@@ -3555,11 +3555,65 @@ class ASettingsDialog(sc.SizedDialog):
         self._data_rundata = [
             f(_T("blank"), prp = 5),
             f(_T("text"),
-              _("temp directories (9GB):"),
+              _("Temp directories (9GB):"),
               _T("temp_dirs"),
-              prp = 0),
+              prp = 0, tip = _(
+                "The usual directories used to hold temporary data "
+                "might not have enough available free space for "
+                "DVD size data, or you may have any reason to "
+                "wish to specify a temporary directory."
+                "\n\n"
+                "This is optional, unless the usual directories have "
+                "too little space."
+                "\n\n"
+                "You may enter more than one directory: multiple "
+                "directories must be separated by a colon (':') "
+                "character."
+                )),
+            f(_T("app_option"),
+              _("Expand variable in temps:"),
+              _T("expand_env"), 0, dft = True,
+              tip = _(
+                "This option affects whether a given "
+                "temporary directory will be checked for '$' "
+                "as the first character, and have that initial "
+                "part replaced from an environment variable of that "
+                "name."
+                "\n\n"
+                "Only the first path component is checked; "
+                "any '$' in other components are ignored."
+                ),
+              xtr = {"opt_lbl":_("e.g., $HOME/tmp")}),
+            f(_T("app_option"),
+              _("Check environment for temps:"),
+              _T("use_env_tempdir"), 0, dft = True,
+              tip = _(
+                "This option affects whether the usual "
+                "environment variables pertaining to temporary "
+                "directories are checked."
+                ),
+              xtr = {"opt_lbl":_T("TMPDIR, TMP, TEMP")}),
+            f(_T("app_option"),
+              _("Use converntionals for temps:"),
+              _T("use_def_tempdir"), 0, dft = True,
+              tip = _(
+                "This option affects whether a small set of "
+                "conventional temporary directory paths will "
+                "checked for existance and sufficient free space."
+                ),
+              xtr = {"opt_lbl":_T("/tmp, /var/tmp, /usr/tmp, $HOME")}),
+            f(_T("app_option"),
+              _("Use Python path for temps:"),
+              _T("use_mod_tempfile_tempdir"), 0, dft = True,
+              tip = _(
+                "This option affects whether the Python tempfile "
+                "module will be queried for its temporary directory "
+                "path (Python is the language this is written in)."
+                ),
+              xtr = {"opt_lbl":_T("tempfile.gettempdir()")}),
+            f(_T("hline"), prp = 5),
             f(_T("text"),
-              _("regular additional:"),
+              _("Regular additional:"),
               _T("regular_addl"),
               prp = 0),
             f(_T("blank"), prp = 5)
@@ -3581,6 +3635,7 @@ class ASettingsDialog(sc.SizedDialog):
 
                 if not (s_eq(typ, "text") or
                         s_eq(typ, "spin_int") or
+                        s_eq(typ, "app_option") or
                         s_eq(typ, "cprec_option")):
                     continue
 
@@ -3603,7 +3658,8 @@ class ASettingsDialog(sc.SizedDialog):
                         ctl.SetValue(v)
                     else:
                         ctl.SetValue(df)
-                elif s_eq(typ, "cprec_option"):
+                elif (s_eq(typ, "cprec_option") or
+                      s_eq(typ, "app_option")):
                     if config.HasEntry(cfkey):
                         v = config.ReadInt(cfkey)
                         ctl.SetValue(bool(v))
@@ -3628,6 +3684,7 @@ class ASettingsDialog(sc.SizedDialog):
 
                 if not (s_eq(typ, "text") or
                         s_eq(typ, "spin_int") or
+                        s_eq(typ, "app_option") or
                         s_eq(typ, "cprec_option")):
                     continue
 
@@ -3650,7 +3707,8 @@ class ASettingsDialog(sc.SizedDialog):
                         config.WriteInt(cfkey, v)
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
-                elif s_eq(typ, "cprec_option"):
+                elif (s_eq(typ, "cprec_option") or
+                      s_eq(typ, "app_option")):
                     v = ctl.GetValue()
                     if bool(v) != df:
                         config.WriteInt(cfkey, int(v))
@@ -5727,6 +5785,9 @@ class ACoreLogiDat:
     #
 
     def get_usable_temp_directory(self, verbose = False):
+        use_env = True
+        use_def = True
+        use_mod_tempfile = True
         addl = []
 
         cf = self.get_config()
@@ -5760,10 +5821,36 @@ class ACoreLogiDat:
             else:
                 bexp = False
 
+        cfkey = _T("use_env_tempdir")
+        if cf.HasEntry(cfkey):
+            t = cf.ReadInt(cfkey)
+            if t:
+                use_env = True
+            else:
+                use_env = False
+
+        cfkey = _T("use_def_tempdir")
+        if cf.HasEntry(cfkey):
+            t = cf.ReadInt(cfkey)
+            if t:
+                use_def = True
+            else:
+                use_def = False
+
+        cfkey = _T("use_mod_tempfile_tempdir")
+        if cf.HasEntry(cfkey):
+            t = cf.ReadInt(cfkey)
+            if t:
+                use_mod_tempfile = True
+            else:
+                use_mod_tempfile = False
+
         cf.SetExpandEnvVars(oexp)
         cf.SetPath(opth)
 
         chk = TempDirsCheck(
+            use_env = use_env, use_def = use_def,
+            use_mod_tempfile = use_mod_tempfile,
             min_space = 8700000, addl_dirs = addl, do_expand = bexp)
 
         res = chk.do()
@@ -5771,14 +5858,6 @@ class ACoreLogiDat:
 
         if err:
             msg_line_WARN(_("directory errors:\n") + err)
-
-        if verbose:
-            for (d, r) in res:
-                # count in 2048 byte blocks
-                bcnt = (r.blocks_avail() * r.size_of_block()) >> 11
-                msg_line_INFO(_(
-                    "dir '{d}' has {cnt} DVD-size blocks free").format(
-                        d = d, cnt = bcnt))
 
         if not res:
             self.dialog(_(
@@ -5792,6 +5871,14 @@ class ACoreLogiDat:
                 "free space."
                 ), sty = wx.ICON_ERROR)
             return False
+
+        if verbose:
+            for (d, r) in res:
+                # count in 2048 byte blocks
+                bcnt = (r.blocks_avail() * r.size_of_block()) >> 11
+                msg_line_INFO(_(
+                    "dir '{d}' has {cnt} DVD-size blocks free").format(
+                        d = d, cnt = bcnt))
 
         return res
 
