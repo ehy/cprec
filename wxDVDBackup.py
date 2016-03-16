@@ -3629,7 +3629,7 @@ class ASettingsDialog(sc.SizedDialog):
             f(_T("spin_int"),
               _("Disc insert settle retries"),
               _T("disc_settle_retries"), 0,
-              dft = 3,
+              dft = 5,
               xtr = (0, 32), tip = _(
                 "The 'Disc insert settle time' above might be "
                 "insufficient. Rather than give up immediately, the "
@@ -3637,7 +3637,7 @@ class ASettingsDialog(sc.SizedDialog):
                 "is repeated each time). "
                 "\n\n"
                 "The default "
-                "is 3, and a range from 0 to 32 is accepted."
+                "is 5, and a range from 0 to 32 is accepted."
                 )),
             f(_T("blank"), prp = 5)
             ]
@@ -5424,9 +5424,12 @@ class ACoreLogiDat:
                     "\nMedium appears re-writable. Attempt blanking?")
                 r = self.dialog(m, _T("yesno"), wx.YES_NO)
                 if r == wx.YES:
-                    self.do_blank(d.name, blank_async)
+                    r = self.do_blank(d.name, blank_async)
                     if blank_async:
-                        return True
+                        return r
+
+                    if not r:
+                        return False
 
                     self.do_target_check(reset = True)
                     if self.checked_output_arg:
@@ -5457,10 +5460,62 @@ class ACoreLogiDat:
         return True
 
 
-    def do_target_check(self,
+    # call do_target_check() below, but assume new media has
+    # just been inserted and drive might need time to settle
+    def do_target_check_insert(self,
                         target_dev = None,
                         async_blank = False,
                         reset = False):
+        settle_time = 5
+        settle_tries= 5
+
+        cf = self.get_config()
+        opth = cf.GetPath()
+
+        cf.SetPath(_T("/main/settings/rundata"))
+
+        cfkey = _T("disc_settle_time")
+        if cf.HasEntry(cfkey):
+            settle_time = cf.ReadInt(cfkey)
+
+        cfkey = _T("disc_settle_retries")
+        if cf.HasEntry(cfkey):
+            settle_tries = cf.ReadInt(cfkey)
+
+        cf.SetPath(opth)
+
+        while True:
+            wx.GetApp().Yield(True)
+            wx.Sleep(settle_time)
+
+            self.do_target_check(
+                target_dev, async_blank, reset, settle_tries)
+
+            if self.checked_output_devnode:
+                return True
+
+            if settle_tries < 1 or self.get_is_dev_direct_target():
+                break
+
+            msg_line_WARN(_(
+                "target medium checked failed; will sleep "
+                "{secs} seconds, then try again "
+                "({tries} more retries)"
+                ).format(secs = settle_time, tries = settle_tries))
+
+            settle_tries -= 1
+
+        return False
+
+
+    # general check of target, including medium as necessary
+    # param retry_num affects warn/error messages: should be
+    # verbose only on the last try (retry_num == 0)
+    def do_target_check(self,
+                        target_dev = None,
+                        async_blank = False,
+                        reset = False,
+                        retry_num = 0):
         if self.get_is_fs_target():
             return
 
@@ -5481,6 +5536,7 @@ class ACoreLogiDat:
                               "drives {s} and {t} are the same."
                               ).format(s = src, t = target_dev)
                         msg_line_ERROR(m)
+                        self.reset_target_data()
                         return
                     else:
                         m = _("Direct: source {s} and target {t}"
@@ -5490,16 +5546,20 @@ class ACoreLogiDat:
                     m = _("Cannot stat source {s} or target {t}"
                         ).format(s = src, t = target_dev)
                     msg_line_ERROR(m)
+                    self.reset_target_data()
                     return
 
 
             st = self.checked_output_devstat
             if not st:
-                if self.do_target_medium_check(target_dev):
-                    if self.do_in_out_size_check(async_blank):
-                        if async_blank:
-                            return
+                if self.do_target_medium_check(target_dev, retry_num):
+                    r = self.do_in_out_size_check(async_blank)
+                    if async_blank:
+                        return r
+                    if r:
                         st = self.checked_output_devstat
+                    else:
+                        st = False
                 else:
                     st = False
 
@@ -5575,16 +5635,16 @@ class ACoreLogiDat:
             if d[_T("in_burn")] == True:
                 # this means burn was just done
                 self.reset_target_data()
-                m = _("Burn succeeded!. Would you like to burn "\
-                    "another? If yes, put a new burnable blank in "\
+                m = _("Burn succeeded!. Would you like to burn "
+                    "another? If yes, put a new burnable blank in "
                     "the burner addressed by node '{0}'.").format(outf)
                 r = self.dialog(
                     m, _T("sty"),
                     wx.YES_NO|wx.ICON_QUESTION)
                 if r == wx.YES:
                     d[_T("in_burn")] = False
-                    self.do_target_check(outf, reset = True)
-                    if self.checked_output_devnode:
+                    r = self.do_target_check_insert(outf, reset = True)
+                    if r:
                         d[_T("target_dev")] = self.checked_output_arg
                         if self.do_burn(chil, d):
                             msg_line_INFO(_("Additional burn started."))
@@ -5593,15 +5653,15 @@ class ACoreLogiDat:
                         merr = _("Media Error")
 
             else:
-                m = _("Prepared to burn backup. "\
-                    "Make sure a writable blank disc is ready in "\
+                m = _("Prepared to burn backup. "
+                    "Make sure a writable blank disc is ready in "
                     "the burner controlled by node '{0}'.").format(outf)
                 r = self.dialog(
                     m, _T("sty"),
                     wx.OK|wx.CANCEL|wx.ICON_INFORMATION)
                 if r == wx.OK:
-                    self.do_target_check(outf, reset = True)
-                    if self.checked_output_devnode:
+                    r = self.do_target_check_insert(outf, reset = True)
+                    if r:
                         d[_T("target_dev")] = self.checked_output_arg
                         if self.do_burn(chil, d):
                             msg_line_INFO(_("Burn started."))
@@ -5871,10 +5931,33 @@ class ACoreLogiDat:
         cf.SetExpandEnvVars(oexp)
         cf.SetPath(opth)
 
+        if self.checked_input_blocks:
+            src_blks = self.checked_input_blocks
+            # Add ~500MB as margin
+            margin = 524288000
+            # 1024 byte blocks
+            min_space = ((src_blks << 11) + margin) >> 10
+            msg_line_WARN(_(
+                "Requiring temporary space with {freespace} "
+                "1024-byte blocks free: source DVD requires "
+                "{srcsize1024} 1024-byte blocks ("
+                "{srcsize2048} 2048-byte blocks), with "
+                "{margin} 1024-byte blocks as margin"
+                ).format(freespace = min_space,
+                         srcsize1024 = src_blks << 1,
+                         srcsize2048 = src_blks,
+                         margin = margin >> 10))
+        else:
+            min_space = 8700000
+            msg_line_WARN(_(
+                "Requiring default temporary space with "
+                "{freespace} 1024-byte blocks free"
+                ).format(freespace = min_space))
+
         chk = TempDirsCheck(
             use_env = use_env, use_def = use_def,
             use_mod_tempfile = use_mod_tempfile, do_expand = do_expand,
-            min_space = 8700000, addl_dirs = addl)
+            min_space = min_space, addl_dirs = addl)
 
         res = chk.do()
         err = chk.get_error()
@@ -7054,13 +7137,34 @@ class ACoreLogiDat:
         return True
 
 
-    def do_target_medium_check(self, target_dev):
+    def do_target_medium_check(self, target_dev, retry_num = 0):
         stmsg = self.get_stat_wnd()
         self.target_data = None
 
         if self.working():
             stmsg.put_status(_("Already busy!"))
             return False
+
+        if retry_num:
+            pr_stat = lambda s: True
+            pr_GOOD = msg_line_GOOD
+            pr_INFO = lambda s: True
+            pr_WARN = lambda s: True
+            pr_ERR  = lambda s: True
+            ms_GOOD = msg_GOOD
+            ms_INFO = lambda s: True
+            ms_WARN = lambda s: True
+            ms_ERR  = lambda s: True
+        else:
+            pr_stat = stmsg.put_status
+            pr_GOOD = msg_line_GOOD
+            pr_INFO = msg_line_INFO
+            pr_WARN = msg_line_WARN
+            pr_ERR  = msg_line_ERROR
+            ms_GOOD = msg_GOOD
+            ms_INFO = msg_INFO
+            ms_WARN = msg_WARN
+            ms_ERR  = msg_ERROR
 
         xcmd = self.get_cmd_path(_T('dvd+rw-mediainfo'))
         xcmdargs = []
@@ -7069,8 +7173,8 @@ class ACoreLogiDat:
         xcmdenv = []
 
         m = _("Checking {0} with {1}").format(target_dev, xcmd)
-        msg_line_WARN(m)
-        stmsg.put_status(m)
+        pr_WARN(m)
+        pr_stat(m)
 
         parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
         ch_proc = ChildTwoStreamReader(parm_obj, self)
@@ -7081,11 +7185,11 @@ class ACoreLogiDat:
             m = _(
                 "Failed media check of {0} with {1}"
                 ).format(target_dev, xcmd)
-            msg_line_ERROR(m)
-            stmsg.put_status(m)
+            pr_ERR(m)
+            pr_stat(m)
             return False
         else:
-            stmsg.put_status(_("Waiting for {0}").format(xcmd))
+            pr_stat(_("Waiting for {0}").format(xcmd))
 
         ch_proc.wait()
         is_ok, is_sig = ch_proc.get_status()
@@ -7099,19 +7203,19 @@ class ACoreLogiDat:
                 is_ok = max(is_ok, dat[1])
 
         if is_ok:
-            msg_ERROR(m)
+            ms_ERR(m)
             m = _(
                 "{0} failed status {1} for {2}"
                 ).format(xcmd, is_ok, target_dev)
-            msg_line_ERROR(m)
+            pr_ERR(m)
             is_ok = False
         else:
-            msg_INFO(m)
+            ms_INFO(m)
             m = _("{0} succeeded for {1}").format(xcmd, target_dev)
-            msg_line_INFO(m)
+            pr_INFO(m)
             is_ok = True
 
-        stmsg.put_status(m)
+        pr_stat(m)
 
         l1, l2, lx = ch_proc.get_read_lists()
         self.target_data = MediaDrive(target_dev)
@@ -7119,15 +7223,15 @@ class ACoreLogiDat:
         for lin in l2:
             lin = lin.rstrip()
             self.target_data.rx_add(lin)
-            msg_line_WARN(lin)
+            pr_WARN(lin)
 
         e = self.target_data.get_data_item(_T("presence"))
         if e:
             m = _(
                 "Failed: {0} says \"{1}\" for {2}"
                 ).format(xcmd, e, target_dev)
-            msg_line_ERROR(m)
-            stmsg.put_status(m)
+            pr_ERR(m)
+            pr_stat(m)
             self.target_data = None
             return False
 
@@ -7135,16 +7239,16 @@ class ACoreLogiDat:
             lin = lin.rstrip()
             self.target_data.rx_add(lin)
             if is_ok:
-                msg_line_GOOD(lin)
+                pr_GOOD(lin)
             else:
-                msg_line_ERROR(lin)
+                pr_ERR(lin)
 
         if not is_ok:
             self.target_data = None
         else:
             self.checked_media_blocks = self.target_data.get_data_item(
                 _T("medium freespace"))
-            msg_line_INFO(_("Medium free blocks: {0}").format(
+            pr_INFO(_("Medium free blocks: {0}").format(
                 self.checked_media_blocks))
             self.checked_output_devnode = os.path.realpath(target_dev)
             st = x_lstat(self.checked_output_devnode)
