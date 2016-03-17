@@ -1180,9 +1180,16 @@ class ChildTwoStreamReader:
                         cmd = parms.xcmd
                         aa  = parms.xcmdargs
                         ae  = parms.xcmdenv
+                        parms.close_infd()
+                        # cannot allow linebreaks in args or env here
+                        for i in range(len(aa)):
+                            tstr  = aa[i].replace(_T("\n"), _T("<NL>"))
+                            aa[i] = tstr.replace(_T("\r"), _T("<CR>"))
+                        aeo = self._mk_sane_env(ae)
+                        parms.close_infd()
 
                     sstr = self.__class__.status_string(stat, sig)
-                    wrprocstat(fw, cmd, aa, ae, stat, sig, sstr)
+                    wrprocstat(fw, cmd, aa, aeo, stat, sig, sstr)
 
                 if sig:
                     fw.close()
@@ -1281,6 +1288,28 @@ class ChildTwoStreamReader:
                     os.environ[k] = cntnr[k]
         except:
             pass
+
+    def _mk_sane_env(self, cntnr):
+        o = []
+        try:
+            if (isinstance(cntnr, tuple) or
+                isinstance(cntnr, list)):
+                for ctuple in cntnr:
+                    k = ctuple[0]
+                    v = ctuple[1]
+                    tstr  = v.replace(_T("\n"), _T("<NL>"))
+                    v = tstr.replace(_T("\r"), _T("<CR>"))
+                    o.append((k, v))
+            elif isinstance(cntnr, dict):
+                for k in cntnr:
+                    v = cntnr[k]
+                    tstr  = v.replace(_T("\n"), _T("<NL>"))
+                    v = tstr.replace(_T("\r"), _T("<CR>"))
+                    o.append((k, v))
+        except:
+            pass
+
+        return o
 
     def null_cb_go_and_read(self, n, s):
         """Default callback for go_and_read()
@@ -3725,7 +3754,7 @@ class ASettingsDialog(sc.SizedDialog):
                     elif config.HasEntry(cfkey):
                         config.DeleteEntry(cfkey)
                 elif s_eq(typ, "spin_int"):
-                    df = a.dft
+                    v = int(ctl.GetValue())
                     if v != df:
                         config.WriteInt(cfkey, v)
                     elif config.HasEntry(cfkey):
@@ -5758,12 +5787,13 @@ class ACoreLogiDat:
                 if ok:
                     if dat[1]:
                         msg_line_ERROR(m)
-                    else:
+                    # TODO: verbosity flag
+                    elif False:
                         msg_line_INFO(m)
                 else:
                     self.mono_message(
-                        prefunc = lambda : msg_line_WARN(_T('WARNING:')),
-                        monofunc = lambda : msg_(_T(" %s") % m))
+                        prefunc =lambda : msg_line_WARN(_T('WARNING:')),
+                        monofunc=lambda : msg_(_T(" %s") % m))
 
         elif mth and s_eq(typ, 'enter run'):
             self.target.set_cancel_label()
@@ -5784,8 +5814,16 @@ class ACoreLogiDat:
             st = self.ch_thread.get_status()
             stat, bsig, sstr = ch.get_status_string(False)
 
+            self.ch_thread = None
+            self.work_msg_last_idx = 0
+
             if mth:
-                m = _("Child process status is \"{0}\"").format(sstr)
+                cmd = ch.xcmd
+                if not cmd:
+                    cmd = _("Child process")
+                m = _("{command} status is \"{status}\"").format(
+                    command = cmd, status = sstr)
+
                 if stat:
                     msg_line_ERROR(m)
                 else:
@@ -5795,16 +5833,15 @@ class ACoreLogiDat:
                     m = _("Thread join() fail")
                     msg_line_ERROR(m)
 
-            self.ch_thread = None
-            self.work_msg_last_idx = 0
+                if stat == 0:
+                    m = _("Success!")
+                elif ((bsig and stat == signal.SIGINT) or
+                      (stat == eintr and ch.is_growisofs())):
+                    m = _("Cancelled!")
+                else:
+                    m = _("Failed!")
 
-            if stat == 0:
-                slno.put_status(_("Success!"))
-            elif ((bsig and stat == signal.SIGINT) or
-                  (stat == eintr and ch.is_growisofs())):
-                slno.put_status(_("Cancelled!"))
-            else:
-                slno.put_status(_("Failed!"))
+                slno.put_status(m)
 
             self.do_child_status(stat, ch)
 
