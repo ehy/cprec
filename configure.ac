@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 dnl Every other copy of the package version number gets its value from here
-AC_INIT([cprec], [0.2.4])
+AC_INIT([cprec], [0.3.0])
 
 dnl EH: some [ ... deleted ... ] decided that autoconf should preach
 dnl and fail rather than just work, so this shell parameter is

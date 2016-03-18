@@ -291,17 +291,18 @@ _dbg(_T("debug file opened"))
 """
 
 # version globals: r/o
-version_string = _T("0.0.2.0")
-version_name   = _("We Don't Need No Stinkin' Fangs!")
+# jump 0.0.2.0->0.3.0 to sync with package
+version_string = _T("0.3.0")
+version_name   = _("Do the Horizontal Mamb{o,a}!")
 version_mjr    = 0
-version_mjrrev = 0
-version_mnr    = 2
+version_mjrrev = 3
+version_mnr    = 0
 version_mnrrev = 0
 version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
 maintainer_name = _T("Ed Hynan")
 maintainer_addr = _T("<ehynan@gmail.com>")
-copyright_year  = _T("2016")
+copyright_years = _T("2016")
 program_site    = _T("https://github.com/ehy/cprec")
 program_desc    = _T("Flexible backup for video DVD discs.")
 program_devs    = [maintainer_name]
@@ -3956,7 +3957,7 @@ class AFrame(wx.Frame):
             t.SetLicence(zlib.decompress(base64.b64decode(lic)))
             t.SetDescription(self._get_about_desc())
             cpyrt = _T("{year} {name} {addr}").format(
-                year = copyright_year,
+                year = copyright_years,
                 name = maintainer_name,
                 addr = maintainer_addr)
             if _ucode_type == 'utf-8':
@@ -4423,11 +4424,11 @@ class RegexDf_kP:
         else:
             self.name = _T("")
 
-        self.data = {}
-
-        self.data[_T("blocksize")] = None
-        self.data[_T("output")] = []
-        self.data[_T("error")] = []
+        self.data = {
+            _T("blocksize") : None,
+            _T("output")    : [],
+            _T("error")     : []
+            }
 
     # call with each stderr line -- by default throws
     # at error -- pass do_execpt = False and will
@@ -4438,12 +4439,16 @@ class RegexDf_kP:
         ret_err = False
         m = self.regx_err[_T("error")].match(lin)
         if m:
+            nam = m.group(1)
             mopt = self.regx_err[_T("error_opt")].match(lin)
             if mopt:
+                nam = mopt.group(1)
                 s = _("Error: '{n}' - '{e}'").format(
-                    n = mopt.group(1), e = mopt.group(2))
+                    n = nam, e = mopt.group(2))
             else:
-                s = _("Error: '{s}'").format(s = m.group(1))
+                s = _("Error: '{s}'").format(s = nam)
+
+            self.data[_T("error")].append((nam, s))
 
             if do_execpt:
                 self._raise(s)
@@ -4492,8 +4497,13 @@ class RegexDf_kP:
     def _raise(self, s = _("df -kP error")):
         raise self.__class__.RegexDf_kP_except(s)
 
+    # list of StructDfData
     def get_data(self):
         return self.data[_T("output")]
+
+    # list of tuple (arg_name, error_string_of_our_making)
+    def get_errors(self):
+        return self.data[_T("error")]
 
     class RegexDf_kP_except(Exception):
         def __init__(self, msg):
@@ -4550,27 +4560,27 @@ class FsDirSpaceCheck:
             self.errno = eno
             self.strerror = est
 
-    def _do_ok(self, ch_proc):
+    def _do_ok(self, ch_proc, raise_on_unknown_error = True):
         rlin1, rlin2, rlinx = ch_proc.get_read_lists()
+        rx = RegexDf_kP()
+
         for l in rlin2:
-            rx = RegexDf_kP()
             try:
                 rx.rx_add_error(l)
-            except RegexDf_kP.RegexDf_kP_except as s:
-                s = _T("{0}").format(s)
-                found = False
-                for i in range(len(self.chks)):
-                    d = self.chks[i]
-                    if s.find(d) >= 0:
-                        found = True
-                        self.errs.append([d, s])
-                        del self.chks[i]
-                        break
+            except RegexDf_kP.RegexDf_kP_except:
+                t = rx.get_errors()[-1]
+                try:
+                    i = self.chks.index(t[0])
+                    del self.chks[i]
+                    self.errs.append(t)
+                    continue
+                except ValueError:
+                    pass
 
-                if not found:
-                    raise Exception(_("Errors reported, no arg match"))
+            if raise_on_unknown_error:
+                raise Exception(
+                    _("df error '{err}', no arg match").format(err = l))
 
-        rx = RegexDf_kP()
         try:
             for l in rlin1:
                 rx.rx_add(l)
