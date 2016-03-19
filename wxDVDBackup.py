@@ -3451,7 +3451,8 @@ class ASettingsDialog(sc.SizedDialog):
                     valign = _T("center"), border = ([_T("left")], bdr))
                 t = wx.SpinCtrl(pane, i1, str(df), name = a.nam,
                     initial = df, min = mn, max = mx)
-                t.SetSizerProps(expand = False, valign = _T("center"))
+                t.SetSizerProps(expand = False, valign = _T("center"),
+                    proportion = a.prp)
                 if a.tip:
                     t.SetToolTip(wx.ToolTip(a.tip))
             elif s_eq(typ, "cprec_option"):
@@ -3461,7 +3462,8 @@ class ASettingsDialog(sc.SizedDialog):
                 t = wx.CheckBox(pane, i1, name = a.nam,
                     label = _("option: {0}").format(_T("--") + a.nam))
                 t.SetValue(a.dft)
-                t.SetSizerProps(expand = False, valign = _T("center"))
+                t.SetSizerProps(expand = False, valign = _T("center"),
+                    proportion = a.prp)
                 if a.tip:
                     t.SetToolTip(wx.ToolTip(a.tip))
             elif s_eq(typ, "app_option"):
@@ -3474,7 +3476,8 @@ class ASettingsDialog(sc.SizedDialog):
                 else:
                     t = wx.CheckBox(pane, i1, name = a.nam)
                 t.SetValue(a.dft)
-                t.SetSizerProps(expand = False, valign = _T("center"))
+                t.SetSizerProps(expand = False, valign = _T("center"),
+                    proportion = a.prp)
                 if a.tip:
                     t.SetToolTip(wx.ToolTip(a.tip))
 
