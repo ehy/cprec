@@ -126,11 +126,12 @@ msg_green_color = wx.Colour(0, 227, 0)
 msg_blue_color = wx.BLUE
 #msg_yellow_color = wx.Colour(227, 227, 0)
 msg_yellow_color = wx.Colour(202, 145, 42)
+msg_default_color = wx.BLACK
 
-def msg_(msg, clr = wx.BLACK):
+def msg_(msg, clr = None):
     if _msg_obj_init_is_done == True:
         if clr == None:
-            _msg_obj.AppendText(msg)
+            _msg_obj.AppendTextColored(msg, msg_default_color)
         else:
             _msg_obj.AppendTextColored(msg, clr)
     else:
@@ -172,7 +173,7 @@ def msg_INFO(msg):
     msg_blue(msg)
 
 
-def msg_line_(msg, clr = wx.BLACK):
+def msg_line_(msg, clr = None):
     if _msg_obj_init_is_done == True:
         msg_(_T("\n") + msg, clr)
     else:
@@ -1590,6 +1591,9 @@ class AMsgWnd(wx.TextCtrl):
         _msg_obj = self
         global _msg_obj_init_is_done
         _msg_obj_init_is_done = True
+        global msg_default_color
+
+        msg_default_color = self.GetForegroundColour()
 
         msg_INFO(_("Message window line colour legend:"))
         msg_line_GOOD(_("This is the 'good outcome' color"))
@@ -1606,9 +1610,20 @@ class AMsgWnd(wx.TextCtrl):
         # or some workaround presents itself.
         self.Bind(wx.EVT_SCROLLWIN_TOP, self.on_scroll_top)
         self.Bind(wx.EVT_SCROLLWIN_BOTTOM, self.on_scroll_bottom)
+        self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
 
 
     #private
+    def on_sys_color(self, event):
+        global msg_default_color
+
+        bclr = self.GetBackgroundColour()
+        fclr = msg_default_color = self.GetForegroundColour()
+
+        self.default_text_style.SetBackgroundColour(bclr)
+        self.default_text_style.SetTextColour(fclr)
+        self.SetDefaultStyle(self.default_text_style)
+
     def on_scroll_top(self, event):
         if event.GetOrientation() == wx.HORIZONTAL:
             return
