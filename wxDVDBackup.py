@@ -243,6 +243,16 @@ def is_wxpy_v3():
 
     return _wxpy_is_v3
 
+# utility for wx window objects with children: invoke a procedure
+# on window's children, and their children, recursivley -- procedure
+# must take window object parameter
+def invoke_proc_for_window_children(window, proc):
+    proc(window)
+
+    for wnd in window.GetChildren():
+        invoke_proc_for_window_children(wnd, proc)
+
+
 """
     Development hacks^Wsupport
 """
@@ -1953,6 +1963,10 @@ class ABasePane(wx.ScrolledWindow):
         self.child_wnds = []
         self.child_wnds_prev_state = {}
 
+    def init_for_children(self):
+        f = lambda wnd: wnd.SetThemeEnabled(True)
+        invoke_proc_for_window_children(self, f)
+
     def add_child_wnd(self, wnd):
         if not wnd in self.child_wnds:
             self.child_wnds.append(wnd)
@@ -1960,8 +1974,6 @@ class ABasePane(wx.ScrolledWindow):
     # call wx Window->Enable(benabled) on all of self.child_wnds
     # that are not excluded by presence in tuple not_these
     def enable_all(self, benabled = True, not_these = ()):
-        _dbg(_T("IN enable_all arg %d") % int(benabled))
-
         for c in self.child_wnds:
             is_en = c.IsEnabled()
             self.child_wnds_prev_state[c] = is_en
@@ -3095,8 +3107,16 @@ class AChildSashWnd(wx.SashWindow):
 
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
+    # Call once only, after ctor completes, so that parent may
+    # treat children, knowing they are created.
+    def post_contruct(self):
+        self.SetThemeEnabled(True)
+        self.child1.init_for_children()
+        self.child1.init_for_children()
 
     def on_sash_drag(self, event):
+        event.Skip()
+
         if event.GetDragStatus() == wx.SASH_STATUS_OUT_OF_RANGE:
             msg_line_WARN(_('sash drag is out of range'))
             return
@@ -3115,6 +3135,8 @@ class AChildSashWnd(wx.SashWindow):
         self.remainingSpace.Refresh()
 
     def OnSize(self, event):
+        event.Skip()
+
         sz  = self.swnd[0].GetSize()
         sz1 = self.swnd[1].GetSize()
 
@@ -3242,6 +3264,13 @@ class ASashWnd(wx.SashWindow):
             )
 
         self.Bind(wx.EVT_SIZE, self.OnSize)
+
+
+    # Call once only, after ctor completes, so that parent may
+    # treat children, knowing they are created.
+    def post_contruct(self):
+        self.SetThemeEnabled(True)
+        self.child1.post_contruct()
 
     def on_sash_drag(self, event):
         if event.GetDragStatus() == wx.SASH_STATUS_OUT_OF_RANGE:
@@ -3882,6 +3911,10 @@ class AFrame(wx.Frame):
 
         self.dlg_settings = ASettingsDialog(
             self, gist.get_new_idval(), gist)
+
+        self.SetThemeEnabled(True)
+        self.dlg_settings.SetThemeEnabled(True)
+        self.sash_wnd.post_contruct()
 
     def _do_app_art(self):
         getters = (
