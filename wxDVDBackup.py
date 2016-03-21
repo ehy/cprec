@@ -1434,6 +1434,27 @@ class RepairedMDDialog(MDD.MultiDirDialog):
 
         self.__repair_tree()
 
+        self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
+
+
+    #private
+    def on_sys_color(self, event):
+        event.Skip()
+
+        f = lambda wnd: self._color_proc_per_child(wnd)
+        invoke_proc_for_window_children(self, f)
+
+    def _color_proc_per_child(self, wnd):
+        fclr = _msg_obj.GetForegroundColour()
+        bclr = _msg_obj.GetBackgroundColour()
+
+        wnd.SetForegroundColour(fclr)
+        wnd.SetBackgroundColour(bclr)
+
+        wnd.SetThemeEnabled(True)
+        wnd.Refresh(True)
+        wnd.Update()
+
     # Protected: override MDD.MultiDirDialog method
     def CreateButtons(self):
         import wx.lib.buttons as buttons
@@ -1605,6 +1626,34 @@ class AMsgWnd(wx.TextCtrl):
 
         msg_default_color = self.GetForegroundColour()
 
+        # Scroll top/bottom are not working -- apparently
+        # only for scrolled windows and scroll bars --
+        # but leave code in place in case this changes,
+        # or some workaround presents itself.
+        self.Bind(wx.EVT_SCROLLWIN_TOP, self.on_scroll_top)
+        self.Bind(wx.EVT_SCROLLWIN_BOTTOM, self.on_scroll_bottom)
+        self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
+
+        self.print_color_legend()
+
+
+    #private
+    def on_sys_color(self, event):
+        event.Skip()
+
+        global msg_default_color
+
+        bclr = self.GetBackgroundColour()
+        fclr = msg_default_color = self.GetForegroundColour()
+
+        self.default_text_style.SetBackgroundColour(bclr)
+        self.default_text_style.SetTextColour(fclr)
+        self.SetDefaultStyle(self.default_text_style)
+
+        msg_line_INFO(_("Graphical interface color change detected. "))
+        self.print_color_legend()
+
+    def print_color_legend(self):
         msg_INFO(_("Message window line colour legend:"))
         msg_line_GOOD(_("This is the 'good outcome' color"))
         msg_line_WARN(_("This is the 'warning' colour"))
@@ -1614,25 +1663,6 @@ class AMsgWnd(wx.TextCtrl):
             "This is the color of lines from child program output\n"
             ))
 
-        # Scroll top/bottom are not working -- apparently
-        # only for scrolled windows and scroll bars --
-        # but leave code in place in case this changes,
-        # or some workaround presents itself.
-        self.Bind(wx.EVT_SCROLLWIN_TOP, self.on_scroll_top)
-        self.Bind(wx.EVT_SCROLLWIN_BOTTOM, self.on_scroll_bottom)
-        self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
-
-
-    #private
-    def on_sys_color(self, event):
-        global msg_default_color
-
-        bclr = self.GetBackgroundColour()
-        fclr = msg_default_color = self.GetForegroundColour()
-
-        self.default_text_style.SetBackgroundColour(bclr)
-        self.default_text_style.SetTextColour(fclr)
-        self.SetDefaultStyle(self.default_text_style)
 
     def on_scroll_top(self, event):
         if event.GetOrientation() == wx.HORIZONTAL:
@@ -1749,7 +1779,26 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
 
         self.Bind(wx.EVT_CONTEXT_MENU, self.on_context_menu)
         self.Bind(wx.EVT_MENU, self.on_event_menu)
+        self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
 
+
+    #private
+    def on_sys_color(self, event):
+        event.Skip()
+
+        f = lambda wnd: self._color_proc_per_child(wnd)
+        invoke_proc_for_window_children(self, f)
+
+    def _color_proc_per_child(self, wnd):
+        fclr = _msg_obj.GetForegroundColour()
+        bclr = _msg_obj.GetBackgroundColour()
+
+        wnd.SetForegroundColour(fclr)
+        wnd.SetBackgroundColour(bclr)
+
+        wnd.SetThemeEnabled(True)
+        wnd.Refresh(True)
+        wnd.Update()
 
     def sel_all(self):
         n = self.GetItemCount()
@@ -1861,7 +1910,7 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
 
         return idx
 
-    def add_item_color(self, path, idx, color = wx.BLACK):
+    def add_item_color(self, path, idx, color = None):
         nm = os.path.basename(path)
 
         im = self.itemDataMap_ix + 1
@@ -1869,7 +1918,8 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
         self.itemDataMap[im] = (nm, path)
 
         ii = self.InsertStringItem(idx, nm)
-        self.SetItemTextColour(ii, color)
+        if color != None:
+            self.SetItemTextColour(ii, color)
         self.SetStringItem(ii, 1, path)
         self.SetItemData(ii, im)
 
@@ -2831,6 +2881,18 @@ class ASourcePanePanel(wx.Panel):
             _T(""), wx.DD_DIR_MUST_EXIST
             )
 
+        if _T("HOME") in os.environ:
+            init_dir = os.environ[_T("HOME")]
+        else:
+            init_dir = _T("/")
+
+        self.mddialog = RepairedMDDialog(
+            self.parent,
+            tit = _("Select Additional Directories"),
+            defpath = init_dir
+        )
+
+
 
     def config_rd(self, config):
         if config.HasEntry(_T("source_type_opt")):
@@ -2916,36 +2978,23 @@ class ASourcePanePanel(wx.Panel):
 
 
     def on_button_addl_dirs(self, event):
-        if _T("HOME") in os.environ:
-            init_dir = os.environ[_T("HOME")]
-        else:
-            init_dir = _T("/")
-
         try:
-            dlg = RepairedMDDialog(
-                self.parent,
-                tit = _("Select Additional Directories"),
-                defpath = init_dir
-            )
+            dlg = self.mddialog
 
             resp = dlg.ShowModal()
 
             if resp != wx.ID_OK:
-                dlg.Destroy()
                 return
 
             try:
                 pts = dlg.GetRepairedPaths()
             except RepairedMDDialog.Unfixable as msg:
                 msg_line_WARN(msg)
-                dlg.Destroy()
                 raise Exception(msg)
 
             self.addl_list_ctrl.add_multi_files(pts)
-            dlg.Destroy()
 
         except RepairedMDDialog.Unfixable as m:
-            dlg.Destroy()
             raise Exception(m)
 
         except Exception as m:
