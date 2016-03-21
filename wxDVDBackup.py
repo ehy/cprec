@@ -3427,8 +3427,29 @@ class ASettingsDialog(sc.SizedDialog):
         self._mk_paths_pane()
         self._mk_advanced_pane()
 
-        self.Fit()
         self.SetMinSize(size)
+        self.Layout()
+
+        self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
+
+
+    #private
+    def on_sys_color(self, event):
+        event.Skip()
+
+        f = lambda wnd: self._color_proc_per_child(wnd)
+        invoke_proc_for_window_children(self, f)
+
+    def _color_proc_per_child(self, wnd):
+        fclr = _msg_obj.GetForegroundColour()
+        bclr = _msg_obj.GetBackgroundColour()
+
+        wnd.SetForegroundColour(fclr)
+        wnd.SetBackgroundColour(bclr)
+
+        wnd.SetThemeEnabled(True)
+        wnd.Refresh(True)
+        wnd.Update()
 
     def _mk_rundata_pane(self):
         dat = self._data_rundata
