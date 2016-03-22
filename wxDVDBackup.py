@@ -3396,30 +3396,46 @@ class WXObjIdSource:
 
 # A dialog box for settings
 # using a tabbed interface for sections
-class ASettingsDialog(sc.SizedDialog):
+class ASettingsDialog(wx.Dialog):
     def __init__(self,
             parent, ID, gist,
             title = _("{appname} Settings").format(appname = PROG),
             pos = wx.DefaultPosition, size = (600, 450)):
-        sc.SizedDialog.__init__(self, parent, ID, title, pos, size)
+        wx.Dialog.__init__(self, parent, ID, title, pos, size)
 
         self.core_ld = gist
 
-        panel = self.GetContentsPane()
-        panel.SetSizerType(_T("vertical"))
+        szr = wx.BoxSizer(wx.VERTICAL)
+        bdr = 16
 
-        self.nb = wx.aui.AuiNotebook(
-            panel,
-            id = gist.get_new_idval(),
-            style = wx.aui.AUI_NB_TOP|
-                    wx.aui.AUI_NB_TAB_SPLIT|
-                    wx.aui.AUI_NB_TAB_MOVE|
-                    wx.aui.AUI_NB_SCROLL_BUTTONS)
+        # presently, use std wxNotebook since it is more agreeable
+        # with gtk themes; but, leave AuiNotebook code in place for
+        # use if, e.g., many more tabs are necessary
+        if False:
+            self.nb = wx.aui.AuiNotebook(
+                self,
+                id = gist.get_new_idval(),
+                style = wx.aui.AUI_NB_TOP|
+                        wx.aui.AUI_NB_TAB_SPLIT|
+                        wx.aui.AUI_NB_TAB_MOVE|
+                        wx.aui.AUI_NB_SCROLL_BUTTONS)
+        else:
+            self.nb = wx.Notebook(
+                self,
+                id = gist.get_new_idval(),
+                style = wx.NB_TOP)
 
-        self.nb.SetSizerProps(expand = True, proportion = 12)
+        szr.Add(self.nb,
+                proportion = 1,
+                flag = wx.EXPAND | wx.LEFT|wx.RIGHT|wx.TOP,
+                border = bdr)
 
-        self.SetButtonSizer(
-            self.CreateStdDialogButtonSizer(wx.OK | wx.CANCEL))
+        bsz = self.CreateStdDialogButtonSizer(wx.OK | wx.CANCEL)
+
+        szr.Add(bsz,
+                proportion = 0,
+                flag = wx.EXPAND | wx.ALL,
+                border = bdr)
 
         self._setup_data_structs()
 
@@ -3427,6 +3443,7 @@ class ASettingsDialog(sc.SizedDialog):
         self._mk_paths_pane()
         self._mk_advanced_pane()
 
+        self.SetSizer(szr)
         self.SetMinSize(size)
         self.Layout()
 
@@ -3453,10 +3470,13 @@ class ASettingsDialog(sc.SizedDialog):
 
     def _mk_rundata_pane(self):
         dat = self._data_rundata
-        pane = sc.SizedPanel(self.nb, self.core_ld.get_new_idval())
-        pane.SetSizerType(_T("form"))
+        pane = wx.Panel(self.nb, self.core_ld.get_new_idval(),
+                        style = wx.TAB_TRAVERSAL
+                        | wx.CLIP_CHILDREN
+                        | wx.FULL_REPAINT_ON_RESIZE
+                        )
 
-        self._mk_pane_items(pane, dat, 10)
+        self._mk_pane_items(pane, dat)
 
         pane.SetToolTip(wx.ToolTip(_(
                 "The items under this tab are for "
@@ -3471,10 +3491,13 @@ class ASettingsDialog(sc.SizedDialog):
 
     def _mk_paths_pane(self):
         dat = self._data_paths
-        pane = sc.SizedPanel(self.nb, self.core_ld.get_new_idval())
-        pane.SetSizerType(_T("form"))
+        pane = wx.Panel(self.nb, self.core_ld.get_new_idval(),
+                        style = wx.TAB_TRAVERSAL
+                        | wx.CLIP_CHILDREN
+                        | wx.FULL_REPAINT_ON_RESIZE
+                        )
 
-        self._mk_pane_items(pane, dat, 10)
+        self._mk_pane_items(pane, dat)
 
         pane.SetToolTip(wx.ToolTip(_(
                 "The items under this tab are for "
@@ -3493,10 +3516,13 @@ class ASettingsDialog(sc.SizedDialog):
 
     def _mk_advanced_pane(self):
         dat = self._data_advanced
-        pane = sc.SizedPanel(self.nb)
-        pane.SetSizerType(_T("form"))
+        pane = wx.Panel(self.nb, self.core_ld.get_new_idval(),
+                        style = wx.TAB_TRAVERSAL
+                        | wx.CLIP_CHILDREN
+                        | wx.FULL_REPAINT_ON_RESIZE
+                        )
 
-        self._mk_pane_items(pane, dat, 10)
+        self._mk_pane_items(pane, dat)
 
         pane.SetToolTip(wx.ToolTip(_(
                 "The items under this tab are advanced "
@@ -3516,84 +3542,120 @@ class ASettingsDialog(sc.SizedDialog):
 
         self.nb.AddPage(pane, _("Advanced Options"))
 
-    def _mk_pane_items(self, pane, dat, border = 0):
+    def _mk_pane_items(self, pane, dat, border = 10):
         bdr = border
         dlen = len(dat)
+
+        add_bdr_space = True
+
+        szr = wx.FlexGridSizer(0, 4, bdr, bdr)
+        szr.AddGrowableCol(2, 10)
+
+        if add_bdr_space:
+            for c in range(0, 4):
+                szr.AddSpacer(bdr)
+
         for idx in xrange(dlen):
             a = dat[idx]
             typ = a.typ
             i0 = self.core_ld.get_new_idval()
             i1 = self.core_ld.get_new_idval()
 
+            # convenience, save space w/ flags
+            #blr = wx.LEFT | wx.RIGHT
+            blr = wx.RIGHT
+
+            if add_bdr_space:
+                szr.AddSpacer(bdr)
+
             if s_eq(typ, "text"):
                 s = wx.StaticText(pane, i0, a.lbl)
-                s.SetSizerProps(
-                    valign = _T("center"), border = ([_T("left")], bdr))
+                szr.Add(s, proportion = a.prp,
+                    flag = wx.ALIGN_LEFT|wx.ALIGN_CENTRE_VERTICAL,
+                    border = bdr)
                 t = wx.TextCtrl(pane, i1, a.dft, name = a.nam)
-                t.SetSizerProps(
-                    expand = True,
-                    valign = _T("center"),
-                    border = ([_T("right"), _T("bottom")], bdr),
-                    proportion = a.prp)
+                szr.Add(t, proportion = a.prp,
+                    flag = wx.EXPAND | blr,
+                    border = bdr)
                 if a.tip:
                     t.SetToolTip(wx.ToolTip(a.tip))
             elif s_eq(typ, "blank"):
-                sty = wx.BORDER_NONE | pane.GetBackgroundStyle()
-                clr = pane.GetBackgroundColour()
-                s = wx.Window(pane, id = i0, style = sty)
-                s.SetBackgroundColour(clr)
-                t = wx.Window(pane, id = i1, style = sty)
-                t.SetBackgroundColour(clr)
-                t.SetSizerProps(expand = True, proportion = a.prp)
+                szr.AddSpacer(bdr)
+                szr.AddStretchSpacer(a.prp)
             elif s_eq(typ, "hline"):
                 s = wx.StaticLine(pane, i0, style = wx.LI_HORIZONTAL)
-                s.SetSizerProps(expand = True, proportion = a.prp)
+                szr.Add(s, proportion = a.prp,
+                    flag = wx.EXPAND,
+                    border = bdr)
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
-                t.SetSizerProps(expand = True, proportion = a.prp)
+                szr.Add(t, proportion = a.prp,
+                    flag = wx.EXPAND,
+                    border = bdr)
             elif s_eq(typ, "txthline"):
                 s = wx.StaticText(pane, i0, a.lbl,
                     style = wx.ALIGN_CENTRE)
-                s.SetSizerProps(expand = False, proportion = a.prp,
-                    halign = _T("center"), valign = _T("center"))
+                szr.Add(s, proportion = a.prp,
+                    flag = wx.ALIGN_CENTRE,
+                    border = bdr)
                 t = wx.StaticLine(pane, i1, style = wx.LI_HORIZONTAL)
-                t.SetSizerProps(expand = True, proportion = a.prp)
+                szr.Add(t, proportion = a.prp,
+                    flag = wx.EXPAND,
+                    border = bdr)
             elif s_eq(typ, "spin_int"):
                 df = a.dft
                 mn, mx = a.xtr
                 s = wx.StaticText(pane, i0, a.lbl)
-                s.SetSizerProps(
-                    valign = _T("center"), border = ([_T("left")], bdr))
+                szr.Add(s, proportion = a.prp,
+                    flag = wx.ALIGN_LEFT|wx.ALIGN_CENTRE_VERTICAL,
+                    border = bdr)
                 t = wx.SpinCtrl(pane, i1, str(df), name = a.nam,
                     initial = df, min = mn, max = mx)
-                t.SetSizerProps(expand = False, valign = _T("center"),
-                    proportion = a.prp)
+                szr.Add(t, proportion = a.prp,
+                    flag = wx.ALIGN_CENTER,
+                    border = bdr)
                 if a.tip:
                     t.SetToolTip(wx.ToolTip(a.tip))
             elif s_eq(typ, "cprec_option"):
                 s = wx.StaticText(pane, i0, a.lbl)
-                s.SetSizerProps(
-                    valign = _T("center"), border = ([_T("left")], bdr))
+                szr.Add(s, proportion = a.prp,
+                    flag = wx.ALIGN_LEFT|wx.ALIGN_CENTRE_VERTICAL,
+                    border = bdr)
                 t = wx.CheckBox(pane, i1, name = a.nam,
                     label = _("option: {0}").format(_T("--") + a.nam))
                 t.SetValue(a.dft)
-                t.SetSizerProps(expand = False, valign = _T("center"),
-                    proportion = a.prp)
+                szr.Add(t, proportion = a.prp,
+                    flag = wx.ALIGN_LEFT|wx.ALIGN_CENTRE_VERTICAL,
+                    border = bdr)
                 if a.tip:
                     t.SetToolTip(wx.ToolTip(a.tip))
             elif s_eq(typ, "app_option"):
                 s = wx.StaticText(pane, i0, a.lbl)
-                s.SetSizerProps(
-                    valign = _T("center"), border = ([_T("left")], bdr))
+                szr.Add(s, proportion = a.prp,
+                    flag = wx.ALIGN_LEFT|wx.ALIGN_CENTRE_VERTICAL,
+                    border = bdr)
                 if "opt_lbl" in a.xtr:
                     t = wx.CheckBox(pane, i1, name = a.nam,
                         label = a.xtr["opt_lbl"])
                 else:
                     t = wx.CheckBox(pane, i1, name = a.nam)
                 t.SetValue(a.dft)
-                t.SetSizerProps(expand = False, valign = _T("center"),
-                    proportion = a.prp)
+                szr.Add(t, proportion = a.prp,
+                    flag = wx.ALIGN_LEFT|wx.ALIGN_CENTRE_VERTICAL,
+                    border = bdr)
                 if a.tip:
                     t.SetToolTip(wx.ToolTip(a.tip))
+
+            if add_bdr_space:
+                szr.AddSpacer(bdr)
+
+        # add item loop done; add last border space if wanted
+        if add_bdr_space:
+            for c in range(0, 4):
+                szr.AddSpacer(bdr)
+
+        # set the sizer on the pane
+        pane.SetSizer(szr)
+        pane.Layout()
 
 
     @staticmethod
