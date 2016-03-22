@@ -1997,7 +1997,12 @@ scroll to bottom! N.G.)
 class ABasePane(wx.ScrolledWindow):
 #class ABasePane(scrollpanel.ScrolledPanel):
     def __init__(self, parent, gist, wi, hi, id = -1):
-        wx.ScrolledWindow.__init__(self, parent, id)
+        wx.ScrolledWindow.__init__(self,
+                        parent, id,
+                        style = wx.CLIP_CHILDREN |
+                                wx.TAB_TRAVERSAL |
+                                wx.FULL_REPAINT_ON_RESIZE
+                        )
         #scrollpanel.ScrolledPanel.__init__(self, parent, id)
         self.parent = parent
         self.core_ld = gist
@@ -2013,6 +2018,98 @@ class ABasePane(wx.ScrolledWindow):
         self.child_wnds = []
         self.child_wnds_prev_state = {}
 
+        self.focus_partner_fore = None
+        self.focus_partner_back = None
+
+        self.keep_focus = True
+        self.forward_focus = True
+
+        # for focus transfer to neighbor
+        self.focus_terminals = {"first" : None, "last" : None}
+
+    # for derived classes hacking control focus behavior
+    def take_focus(self, forward = True):
+        if forward:
+            if self.focus_terminals["first"]:
+                self.focus_terminals["first"].SetFocus()
+                return True
+        else:
+            # wxWindow::GetPrevSibling is new in 2.8.8
+            # Sigh. Test wxPy 2.8.12, and wnd.GetPrevSibling()
+            # raises exception.
+            try:
+                wnd1st = self.focus_terminals["first"]
+                wnd = wnd1st
+                while wnd:
+                    print "BEFORE GetPrevSibling()"
+                    wnd = wnd.GetPrevSibling()
+                    print "AFTER GetPrevSibling()"
+                    if wnd == wnd1st:
+                        print "WND1ST"
+                        break
+                    if wnd and wnd.IsEnabled():
+                        print "GOT PREV"
+                        break
+
+                if wnd:
+                    wnd.SetFocus()
+                    return True
+            except:
+                print "EXCEPTION"
+                if self.focus_terminals["first"]:
+                    self.focus_terminals["first"].SetFocus()
+                    return True
+
+        return False
+
+    # for derived classes hacking control focus behavior
+    def give_focus(self, forward = True):
+        if forward and self.focus_partner_fore:
+            return self.focus_partner_fore.take_focus(forward)
+        elif self.focus_partner_back:
+            return self.focus_partner_back.take_focus(forward)
+
+        return False
+
+    def set_focus_partner_fore(self, wnd):
+        self.focus_partner_fore = wnd
+
+    def set_focus_partner_back(self, wnd):
+        self.focus_partner_back = wnd
+
+    # tab focus hacks; derived classes can Bind() handlers:
+    def set_focus_first(self, event):
+        forward = self.forward_focus
+        self.forward_focus = False
+        if self.keep_focus:
+            self.keep_focus = False
+            event.Skip()
+        else:
+            self.keep_focus = True
+            self.give_focus(forward)
+
+    def kill_focus_first(self, event):
+        event.Skip()
+
+    def set_focus_last(self, event):
+        event.Skip()
+
+    def kill_focus_last(self, event):
+        event.Skip()
+        if not self.focus_terminals["first"]:
+            return
+
+        fwnd = wx.Window_FindFocus()
+        if fwnd:
+            i1 = self.focus_terminals["first"].GetId()
+            i2 = fwnd.GetId()
+            if i1 != i2:
+                self.forward_focus = True
+                return
+
+        self.forward_focus = False
+
+    # help theme compat
     def init_for_children(self):
         f = lambda wnd: wnd.SetThemeEnabled(True)
         invoke_proc_for_window_children(self, f)
@@ -2264,6 +2361,16 @@ class ATargetPane(ABasePane):
         ABasePane.__init__(self, parent, gist, wi, hi, id)
         self.panel = ATargetPanePanel(self, gist, self.sz)
 
+        # tab focus hacks:
+        self.focus_terminals["first"].Bind(
+            wx.EVT_SET_FOCUS, self.set_focus_first)
+        self.focus_terminals["first"].Bind(
+            wx.EVT_KILL_FOCUS, self.kill_focus_first)
+        self.focus_terminals["last"].Bind(
+            wx.EVT_SET_FOCUS, self.set_focus_last)
+        self.focus_terminals["last"].Bind(
+            wx.EVT_KILL_FOCUS, self.kill_focus_last)
+
 
 """
 ATargetPanePanel -- Pane window for operation target setup
@@ -2292,6 +2399,8 @@ class ATargetPanePanel(wx.Panel):
             self, gist.get_new_idval(), _("output type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
+
+        self.parent.focus_terminals["first"] = self.type_opt
 
         self.type_opt.SetItemToolTip(0,
             _(
@@ -2386,6 +2495,8 @@ class ATargetPanePanel(wx.Panel):
         self.set_select.append(self.input_select_node)
 
         nodbuttsz = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.parent.focus_terminals["last"] = self.input_select_node
 
         self.button_select_node = wx.Button(
             self, gist.get_new_idval(),
@@ -2489,6 +2600,7 @@ class ATargetPanePanel(wx.Panel):
             wx.EVT_BUTTON, self.on_run_button)
         self.button_select_node.Bind(
             wx.EVT_BUTTON, self.on_button_select_node)
+
 
 
     def config_rd(self, config):
@@ -2613,6 +2725,16 @@ class ASourcePane(ABasePane):
         self.panel = ASourcePanePanel(
             self, gist, self.sz, gist.get_new_idval())
 
+        # tab focus hacks:
+        self.focus_terminals["first"].Bind(
+            wx.EVT_SET_FOCUS, self.set_focus_first)
+        self.focus_terminals["first"].Bind(
+            wx.EVT_KILL_FOCUS, self.kill_focus_first)
+        self.focus_terminals["last"].Bind(
+            wx.EVT_SET_FOCUS, self.set_focus_last)
+        self.focus_terminals["last"].Bind(
+            wx.EVT_KILL_FOCUS, self.kill_focus_last)
+
 """
 ASourcePanePanel -- Pane window for operation source setup
 """
@@ -2647,6 +2769,9 @@ class ASourcePanePanel(wx.Panel):
             self, gist.get_new_idval(), _("backup type:"),
             wx.DefaultPosition, wx.DefaultSize, type_optChoices, 1,
             wx.RA_SPECIFY_ROWS)
+
+        self.parent.focus_terminals["first"] = self.type_opt
+
         self.type_opt.SetItemToolTip(0,
             _(
             "Simply make an exact backup copy of the DVD, "
@@ -2715,6 +2840,8 @@ class ASourcePanePanel(wx.Panel):
         self.add_child_wnd(self.input_node_whole)
 
         nodbuttsz = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.parent.focus_terminals["last"] = self.input_node_whole
 
         self.button_node_whole = wx.Button(
             self, gist.get_new_idval(),
@@ -2894,6 +3021,7 @@ class ASourcePanePanel(wx.Panel):
 
 
 
+    # configuration
     def config_rd(self, config):
         if config.HasEntry(_T("source_type_opt")):
             opt = max(0, min(1, config.ReadInt(_T("source_type_opt"))))
@@ -3138,6 +3266,14 @@ class AChildSashWnd(wx.SashWindow):
             self.child2_maxw - w_adj, self.child2_maxh - h_adj,
             id = gist.get_new_idval()
             )
+
+        self.child1.set_focus_partner_fore(self.child2)
+        self.child1.set_focus_partner_back(self.child2)
+
+        self.child2.set_focus_partner_fore(self.child1)
+        self.child2.set_focus_partner_back(self.child1)
+
+        self.child1.take_focus()
 
         self.remainingSpace = self.swnd[1]
 
@@ -3962,7 +4098,6 @@ class ASettingsDialog(wx.Dialog):
 
 # top/main frame window class
 class AFrame(wx.Frame):
-#class AFrame(sc.SizedFrame):
     about_info = None
 
     def __init__(self,
@@ -3971,7 +4106,6 @@ class AFrame(wx.Frame):
             # gauge toolbar range:
             rang = 1000):
         wx.Frame.__init__(self, parent, ID, title, pos, size)
-        #sc.SizedFrame.__init__(self, parent, ID, title, pos, size)
 
         self.core_ld = gist
 
@@ -3986,52 +4120,27 @@ class AFrame(wx.Frame):
         # Trim some sash window height, for the progress bar
         trim_ht = 24
 
-        if True:
-            # using base wx.Frame
-            panel_sizer = wx.BoxSizer(wx.VERTICAL)
-            panel = wx.Panel(self, gist.get_new_idval())
+        panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        panel = wx.Panel(self, gist.get_new_idval())
 
-            item_sizer = wx.BoxSizer(wx.VERTICAL)
+        item_sizer = wx.BoxSizer(wx.VERTICAL)
 
-            self.sash_wnd = ASashWnd(
-                panel, gist.get_new_idval(),
-                _T("main_sash_window"),
-                gist, True, size = (size.width, size.height - trim_ht))
+        self.sash_wnd = ASashWnd(
+            panel, gist.get_new_idval(),
+            _T("main_sash_window"),
+            gist, True, size = (size.width, size.height - trim_ht))
 
-            self.gauge = AProgBarPanel(
-                panel, gist, gist.get_new_idval(), rang)
+        self.gauge = AProgBarPanel(
+            panel, gist, gist.get_new_idval(), rang)
 
-            item_sizer.Add(self.sash_wnd, 600, wx.EXPAND, 0)
-            item_sizer.SetItemMinSize(self.sash_wnd, 0, 48)
-            item_sizer.Add(self.gauge, 24, wx.EXPAND, 0)
-            item_sizer.SetItemMinSize(self.gauge, 0, 24)
-            panel_sizer.Add(panel, 1, wx.EXPAND, 0)
+        item_sizer.Add(self.sash_wnd, 600, wx.EXPAND, 0)
+        item_sizer.SetItemMinSize(self.sash_wnd, 0, 48)
+        item_sizer.Add(self.gauge, 24, wx.EXPAND, 0)
+        item_sizer.SetItemMinSize(self.gauge, 0, 24)
+        panel_sizer.Add(panel, 1, wx.EXPAND, 0)
 
-            panel.SetSizer(item_sizer)
-            self.SetSizer(panel_sizer)
-        else:
-            # using base sc.SizedFrame
-            panel = self.GetContentsPane()
-            panel.SetSizerType(_T("vertical"))
-
-            self.sash_wnd = ASashWnd(
-                panel, gist.get_new_idval(),
-                _T("main_sash_window"),
-                gist, True, size = (size.width, size.height - trim_ht))
-
-            self.sash_wnd.SetSizerProps(
-                expand = True,
-                proportion = 600)
-
-            self.gauge = AProgBarPanel(
-                panel, gist, gist.get_new_idval(), rang)
-
-            self.gauge.SetSizerProps(
-                expand = False,
-                proportion = 24,
-                valign = _T("bottom"),
-                minsize = _T("fixed"))
-            self.gauge.SetMinSize((0, 24))
+        panel.SetSizer(item_sizer)
+        self.SetSizer(panel_sizer)
 
         self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_CLOSE, self.on_quit)
