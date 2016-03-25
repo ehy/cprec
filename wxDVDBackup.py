@@ -1993,17 +1993,32 @@ a newly focused control that had been hidden when tabbing
 through controls; wx.ScrolledWindow does not do so. BUT,
 a major disadvantage: click any text text field and it might
 scroll to bottom! N.G.)
+.
+This class also provides code for transfering child focus to a peer
+window based on this -- see code starting at comment
+    # for derived classes hacking control focus behavior
+The focus transfer code is useful for wxPy (wxWidgets) 2.8.x only!
+In wxPy (wxWidgets) 3.0.x tab traversal is broken for children of
+Sash{Layout}Window (used in this prog) and maybe others.  Using C++,
+tabbing is not technically broken because templates provide tabbing
+code and programs can use, e.g.:
+    typedef wxNavigationEnabled<wxSashWindow> ASashWnd_base;
+    typedef wxNavigationEnabled<wxSashLayoutWindow> ASashWnd_laywin;
+***but*** wxPy 3.0.x has not done this!  Therefore, using panels, and
+expecting panel-parented controls to have tab traversal, will only
+fail if panels are children of wxSashLayoutWindow.  Even using
+<control>.SetFocus() fails, so tab traversal cannot be (re)implemented!
+Still hoping I missed something, or can find a workaround.
 """
 class ABasePane(wx.ScrolledWindow):
 #class ABasePane(scrollpanel.ScrolledPanel):
     def __init__(self, parent, gist, wi, hi, id = -1):
         wx.ScrolledWindow.__init__(self,
+        #scrollpanel.ScrolledPanel.__init__(self,
                         parent, id,
                         style = wx.CLIP_CHILDREN |
-                                wx.TAB_TRAVERSAL |
                                 wx.FULL_REPAINT_ON_RESIZE
                         )
-        #scrollpanel.ScrolledPanel.__init__(self, parent, id)
         self.parent = parent
         self.core_ld = gist
         self.sz = wx.Size(wi, hi)
@@ -2041,21 +2056,16 @@ class ABasePane(wx.ScrolledWindow):
                 wnd1st = self.focus_terminals["first"]
                 wnd = wnd1st
                 while wnd:
-                    print "BEFORE GetPrevSibling()"
                     wnd = wnd.GetPrevSibling()
-                    print "AFTER GetPrevSibling()"
                     if wnd == wnd1st:
-                        print "WND1ST"
                         break
                     if wnd and wnd.IsEnabled():
-                        print "GOT PREV"
                         break
 
                 if wnd:
                     wnd.SetFocus()
                     return True
             except:
-                print "EXCEPTION"
                 if self.focus_terminals["first"]:
                     self.focus_terminals["first"].SetFocus()
                     return True
@@ -2089,9 +2099,11 @@ class ABasePane(wx.ScrolledWindow):
             self.give_focus(forward)
 
     def kill_focus_first(self, event):
+        #print "KILL FOCUS 1"
         event.Skip()
 
     def set_focus_last(self, event):
+        #print "SET FOCUS 2"
         event.Skip()
 
     def kill_focus_last(self, event):
@@ -2171,7 +2183,10 @@ AVolInfPanePanel -- Panel window for operation volume info fields setup
 """
 class AVolInfPanePanel(wx.Panel):
     def __init__(self, parent, gist, size, id = -1):
-        wx.Panel.__init__(self, parent, id, wx.DefaultPosition, size)
+        wx.Panel.__init__(self, parent, id, wx.DefaultPosition, size,
+                          style = wx.CLIP_CHILDREN |
+                                  wx.TAB_TRAVERSAL |
+                                  wx.FULL_REPAINT_ON_RESIZE)
         self.parent = parent
         self.parent.attach_methods(self)
 
@@ -3292,6 +3307,7 @@ class AChildSashWnd(wx.SashWindow):
 
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
+
     # Call once only, after ctor completes, so that parent may
     # treat children, knowing they are created.
     def post_contruct(self):
@@ -3376,7 +3392,6 @@ class ASashWnd(wx.SashWindow):
         self.init_build_done = True
 
         parent = self.GetParent()
-        pparent = parent.GetParent()
         gist = self.core_ld
 
         self.msg_minh = 72
@@ -3445,7 +3460,7 @@ class ASashWnd(wx.SashWindow):
 
         self.Bind(
             wx.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
-            id=ids[0], id2=ids[len(ids) - 1]
+            id=ids[0], id2=ids[-1]
             )
 
         self.Bind(wx.EVT_SIZE, self.OnSize)
@@ -3525,8 +3540,12 @@ class WXObjIdSource:
         return self.__class__.cur
 
     def get_new_id(self):
-        v = self.__class__.cur + self.offs
-        self.__class__.cur += self.__class__.incr
+        if True:
+            v = self.__class__.cur + self.offs
+            self.__class__.cur += self.__class__.incr
+        else:
+            v = wx.NewId()
+        wx.RegisterId(v)
         return v
 
 
@@ -3581,7 +3600,7 @@ class ASettingsDialog(wx.Dialog):
 
         self.SetSizer(szr)
         self.SetMinSize(size)
-        self.Layout()
+        self.Fit()
 
         self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
 
@@ -4133,9 +4152,9 @@ class AFrame(wx.Frame):
         self.gauge = AProgBarPanel(
             panel, gist, gist.get_new_idval(), rang)
 
-        item_sizer.Add(self.sash_wnd, 600, wx.EXPAND, 0)
+        item_sizer.Add(self.sash_wnd, 1, wx.EXPAND, 0)
         item_sizer.SetItemMinSize(self.sash_wnd, 0, 48)
-        item_sizer.Add(self.gauge, 24, wx.EXPAND, 0)
+        item_sizer.Add(self.gauge, 0, wx.EXPAND, 0)
         item_sizer.SetItemMinSize(self.gauge, 0, 24)
         panel_sizer.Add(panel, 1, wx.EXPAND, 0)
 
