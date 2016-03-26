@@ -39,7 +39,15 @@ import tempfile
 import threading
 import time
 import wx
-import wx.aui
+if "phoenix" in wx.version():
+    phoenix = True
+    import wx.adv
+    wxadv = wx.adv
+else:
+    phoenix = False
+    import wx.aui
+    wxadv = wx
+
 # from wxPython samples
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.sized_controls as sc
@@ -1750,16 +1758,21 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
         self.parent = parent
         self.logger = gist.get_msg_wnd
 
+        if phoenix:
+            insert_column_it = self.InsertColumn
+        else:
+            insert_column_it = self.InsertColumnItem
+
         li = wx.ListItem()
         li.SetImage(-1)
         # TRANSLATORS: 'name' is a file name
         li.SetText(_("Name"))
-        self.InsertColumnItem(0, li)
+        insert_column_it(0, li)
         self.SetColumnWidth(0, 192)
         # TRANSLATORS: This is a full path with file name (if reg. file)
         li.SetText(_("Full Path"))
         li.SetAlign(wx.LIST_FORMAT_LEFT)
-        self.InsertColumnItem(1, li)
+        insert_column_it(1, li)
         self.SetColumnWidth(1, 1024)
 
         # images for column click sort - see wxPython demos/ListCtrl.py
@@ -3015,7 +3028,7 @@ class ASourcePanePanel(wx.Panel):
         self.file_dlg = wx.FileDialog(
             self.parent, _("Select File"),
             _T(""), _T(""), _T("*"),
-            wx.FD_OPEN|wx.FILE_MUST_EXIST
+            wx.FD_OPEN|wx.FD_FILE_MUST_EXIST
             )
 
         self.dir_dlg = wx.DirDialog(
@@ -3226,9 +3239,9 @@ AChildSashWnd -- adjustable child of adjustable child of top frame
 
                  see ASashWnd class below
 """
-class AChildSashWnd(wx.SashWindow):
+class AChildSashWnd(wxadv.SashWindow):
     def __init__(self, parent, sz, logobj, ID, title, gist):
-        wx.SashWindow.__init__(self, parent, ID)
+        wxadv.SashWindow.__init__(self, parent, ID)
 
         self.core_ld = gist
 
@@ -3238,29 +3251,29 @@ class AChildSashWnd(wx.SashWindow):
 
         self.swnd = []
         self.swnd.append(
-            wx.SashLayoutWindow(
+            wxadv.SashLayoutWindow(
                 self, gist.get_new_idval(),
                 wx.DefaultPosition, (240, 30),
-                wx.NO_BORDER|wx.SW_3D
+                wx.NO_BORDER|wxadv.SW_3D
             ))
         self.swnd[0].SetDefaultSize((pane_width, 1000))
-        self.swnd[0].SetOrientation(wx.LAYOUT_VERTICAL)
-        self.swnd[0].SetAlignment(wx.LAYOUT_LEFT)
+        self.swnd[0].SetOrientation(wxadv.LAYOUT_VERTICAL)
+        self.swnd[0].SetAlignment(wxadv.LAYOUT_LEFT)
         self.swnd[0].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[0].SetSashVisible(wx.SASH_RIGHT, True)
+        self.swnd[0].SetSashVisible(wxadv.SASH_RIGHT, True)
         self.swnd[0].SetExtraBorderSize(1)
 
         self.swnd.append(
-            wx.SashLayoutWindow(
+            wxadv.SashLayoutWindow(
                 self, gist.get_new_idval(),
                 wx.DefaultPosition, (240, 30),
-                wx.NO_BORDER|wx.SW_3D
+                wx.NO_BORDER|wxadv.SW_3D
             ))
         self.swnd[1].SetDefaultSize((pane_width, 1000))
-        self.swnd[1].SetOrientation(wx.LAYOUT_VERTICAL)
-        self.swnd[1].SetAlignment(wx.LAYOUT_LEFT)
+        self.swnd[1].SetOrientation(wxadv.LAYOUT_VERTICAL)
+        self.swnd[1].SetAlignment(wxadv.LAYOUT_LEFT)
         self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[1].SetSashVisible(wx.SASH_RIGHT, True)
+        self.swnd[1].SetSashVisible(wxadv.SASH_RIGHT, True)
         self.swnd[1].SetExtraBorderSize(1)
 
         w_adj = 20
@@ -3301,7 +3314,7 @@ class AChildSashWnd(wx.SashWindow):
         ids.sort()
 
         self.Bind(
-            wx.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
+            wxadv.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
             id = ids[0], id2 = ids[1]
             )
 
@@ -3318,7 +3331,7 @@ class AChildSashWnd(wx.SashWindow):
     def on_sash_drag(self, event):
         event.Skip()
 
-        if event.GetDragStatus() == wx.SASH_STATUS_OUT_OF_RANGE:
+        if event.GetDragStatus() == wxadv.SASH_STATUS_OUT_OF_RANGE:
             msg_line_WARN(_('sash drag is out of range'))
             return
 
@@ -3332,7 +3345,7 @@ class AChildSashWnd(wx.SashWindow):
             wi = min(event.GetDragRect().width, self.child2_maxw)
             self.swnd[1].SetDefaultSize((wi, self.child2_maxh))
 
-        wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
+        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
         self.remainingSpace.Refresh()
 
     def OnSize(self, event):
@@ -3341,7 +3354,7 @@ class AChildSashWnd(wx.SashWindow):
         sz  = self.swnd[0].GetSize()
         sz1 = self.swnd[1].GetSize()
 
-        wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
+        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
 
         if sz1.width < self.pane_minw:
             w0 = sz.width - (self.pane_minw - sz1.width)
@@ -3349,18 +3362,20 @@ class AChildSashWnd(wx.SashWindow):
                 self.swnd[0].SetDefaultSize((w0, sz.height))
             else:
                 self.swnd[0].SetDefaultSize((self.pane_minw, sz.height))
-            wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
+            wxadv.LayoutAlgorithm().LayoutWindow(
+                self, self.remainingSpace)
 
         elif sz.width < self.pane_minw:
             self.swnd[0].SetDefaultSize((self.pane_minw, sz.height))
-            wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
+            wxadv.LayoutAlgorithm().LayoutWindow(
+                self, self.remainingSpace)
 
         elif sz1.width > self.child2_maxw:
             w0 = min(sz.width + (sz1.width - self.child2_maxw),
                 self.child1_maxw)
             if sz.width < w0:
                 self.swnd[0].SetDefaultSize((w0, sz.height))
-                wx.LayoutAlgorithm().LayoutWindow(
+                wxadv.LayoutAlgorithm().LayoutWindow(
                     self, self.remainingSpace)
 
 
@@ -3371,10 +3386,10 @@ class AChildSashWnd(wx.SashWindow):
 """
 ASashWnd -- adjustable child of top frame
 """
-class ASashWnd(wx.SashWindow):
+class ASashWnd(wxadv.SashWindow):
     def __init__(self, parent, ID, title, gist,
                        init_build = True, size = (800, 600)):
-        wx.SashWindow.__init__(self,
+        wxadv.SashWindow.__init__(self,
                                parent, ID, name = title, size = size)
 
         self.core_ld = gist
@@ -3404,31 +3419,31 @@ class ASashWnd(wx.SashWindow):
 
         self.swnd = []
         self.swnd.append(
-            wx.SashLayoutWindow(
+            wxadv.SashLayoutWindow(
                 self, gist.get_new_idval(),
                 wx.DefaultPosition,
                 (300, top_ht),
-                wx.NO_BORDER|wx.SW_3D
+                wx.NO_BORDER|wxadv.SW_3D
             ))
         self.swnd[0].SetDefaultSize((sz.width, top_ht))
-        self.swnd[0].SetOrientation(wx.LAYOUT_HORIZONTAL)
-        self.swnd[0].SetAlignment(wx.LAYOUT_TOP)
+        self.swnd[0].SetOrientation(wxadv.LAYOUT_HORIZONTAL)
+        self.swnd[0].SetAlignment(wxadv.LAYOUT_TOP)
         self.swnd[0].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[0].SetSashVisible(wx.SASH_BOTTOM, True)
+        self.swnd[0].SetSashVisible(wxadv.SASH_BOTTOM, True)
         self.swnd[0].SetExtraBorderSize(1)
 
         self.swnd.append(
-            wx.SashLayoutWindow(
+            wxadv.SashLayoutWindow(
                 self, gist.get_new_idval(),
                 wx.DefaultPosition,
                 (300, self.msg_minh),
-                wx.NO_BORDER|wx.SW_3D
+                wx.NO_BORDER|wxadv.SW_3D
             ))
         self.swnd[1].SetDefaultSize((sz.width, self.msg_minh))
-        self.swnd[1].SetOrientation(wx.LAYOUT_HORIZONTAL)
-        self.swnd[1].SetAlignment(wx.LAYOUT_BOTTOM)
+        self.swnd[1].SetOrientation(wxadv.LAYOUT_HORIZONTAL)
+        self.swnd[1].SetAlignment(wxadv.LAYOUT_BOTTOM)
         self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[1].SetSashVisible(wx.SASH_BOTTOM, True)
+        self.swnd[1].SetSashVisible(wxadv.SASH_BOTTOM, True)
         self.swnd[1].SetExtraBorderSize(1)
 
         self.child1_maxw = 16000
@@ -3459,7 +3474,7 @@ class ASashWnd(wx.SashWindow):
         ids.sort()
 
         self.Bind(
-            wx.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
+            wxadv.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
             id=ids[0], id2=ids[-1]
             )
 
@@ -3473,7 +3488,7 @@ class ASashWnd(wx.SashWindow):
         self.child1.post_contruct()
 
     def on_sash_drag(self, event):
-        if event.GetDragStatus() == wx.SASH_STATUS_OUT_OF_RANGE:
+        if event.GetDragStatus() == wxadv.SASH_STATUS_OUT_OF_RANGE:
             msg_line_WARN(_('sash drag is out of range'))
             return
 
@@ -3487,7 +3502,7 @@ class ASashWnd(wx.SashWindow):
             hi = min(self.child2_maxh, event.GetDragRect().height)
             self.swnd[1].SetDefaultSize((self.child2_maxw, hi))
 
-        wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
+        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
         self.remainingSpace.Refresh()
         self.child2.conditional_scroll_adjust()
 
@@ -3511,7 +3526,7 @@ class ASashWnd(wx.SashWindow):
         self.swnd[0].SetDefaultSize((sz0.width, h0))
         self.swnd[1].SetDefaultSize((sz0.width, h1))
 
-        wx.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
+        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
 
         self.child2.conditional_scroll_adjust()
 
@@ -8021,10 +8036,16 @@ class TheAppClass(wx.App):
             except:
                 tr = len(PROG)
 
+            # Phoenix: wx.CONFIG_USE_LOCAL_FILE is missing, although
+            # mentioned in core classes Config docs.
+            if phoenix:
+                cfsty = 0
+            else:
+                cfsty = wx.CONFIG_USE_LOCAL_FILE
             self.config = wx.Config(
                 PROG[:tr],
                 _T("GPLFreeSoftwareApplications"),
-                style = wx.CONFIG_USE_LOCAL_FILE)
+                style = cfsty)
         return self.config
 
     def get_msg_obj(self):
