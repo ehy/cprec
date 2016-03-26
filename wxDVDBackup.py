@@ -3025,15 +3025,25 @@ class ASourcePanePanel(wx.Panel):
         # the app will block and need to be KILLed if a fifo/pipe
         # appearing in the selector is merely clicked; click
         # /dev/stdout etc. and get a signal
+        # TODO: add system knowledge for file dialog
+        # default directory and file
         self.file_dlg = wx.FileDialog(
             self.parent, _("Select File"),
-            _T(""), _T(""), _T("*"),
+            _T("/dev"), _T("dvd"), _T("*"),
             wx.FD_OPEN|wx.FD_FILE_MUST_EXIST
             )
 
+        # TODO: improve default dir search with system specific trands
+        defdir = _T("/")
+        chkdirs = (_T("/media"), )
+        for chkdir in chkdirs:
+            if os.path.isdir(chkdir):
+                defdir = chkdir
+                break
+
         self.dir_dlg = wx.DirDialog(
             self.parent, _("Select Mount Point"),
-            _T(""), wx.DD_DIR_MUST_EXIST
+            defdir, wx.DD_DIR_MUST_EXIST
             )
 
         if _T("HOME") in os.environ:
