@@ -3033,7 +3033,7 @@ class ASourcePanePanel(wx.Panel):
             wx.FD_OPEN|wx.FD_FILE_MUST_EXIST
             )
 
-        # TODO: improve default dir search with system specific trands
+        # TODO: improve default dir search with system specific trends
         defdir = _T("/")
         chkdirs = (_T("/media"), )
         for chkdir in chkdirs:
