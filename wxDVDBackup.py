@@ -3152,10 +3152,13 @@ class ASourcePanePanel(wx.Panel):
 
 
     def on_button_addl_dirs(self, event):
-        try:
-            dlg = self.mddialog
-            destroy = False
+        dlg = self.mddialog
+        destroy = False
 
+        try:
+            # In 'classic' wxPy, self.mddialog will be assigned in
+            # __init__(), but in 'phoenix' this raises an error
+            # suggesting it is designed to created be on each use, so:
             if dlg == None:
                 dlg = RepairedMDDialog(
                     self.parent,
@@ -3167,9 +3170,6 @@ class ASourcePanePanel(wx.Panel):
             resp = dlg.ShowModal()
 
             if resp != wx.ID_OK:
-                if destroy:
-                    dlg.Destroy()
-
                 return
 
             try:
@@ -3180,8 +3180,6 @@ class ASourcePanePanel(wx.Panel):
 
             self.addl_list_ctrl.add_multi_files(pts)
 
-            if destroy:
-                dlg.Destroy()
 
         except RepairedMDDialog.Unfixable as m:
             raise Exception(m)
@@ -3189,21 +3187,22 @@ class ASourcePanePanel(wx.Panel):
         except Exception as m:
             msg_line_ERROR(_("MDDialog exception: '{0}'").format(m))
 
+            destroy = True
             dlg = wx.DirDialog(
                 self.parent,
                 _("Select Additional Directories"),
-                init_dir,
+                self.init_mdd_dir,
                 wx.DD_DIR_MUST_EXIST
             )
 
             resp = dlg.ShowModal()
 
-            if resp != wx.ID_OK:
-                dlg.Destroy()
-                return
-
             self.addl_list_ctrl.add_multi_files([dlg.GetPath()])
-            dlg.Destroy()
+        finally:
+            if destroy:
+                self.mddialog = None
+                if dlg:
+                    dlg.Destroy()
 
 
     def on_button_addl_rmsel(self, event):
