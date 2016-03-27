@@ -1642,6 +1642,9 @@ class AMsgWnd(wx.TextCtrl):
         self.Bind(wx.EVT_SCROLLWIN_BOTTOM, self.on_scroll_bottom)
         self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
 
+        msg_GOOD(_("Welcome to {prog}.").format(prog = PROG))
+        msg_line_INFO(_("Using wxPython {pyvers}.\n\n").format(
+            pyvers = wx.version()))
         self.print_color_legend()
 
 
@@ -3051,11 +3054,16 @@ class ASourcePanePanel(wx.Panel):
         else:
             init_dir = _T("/")
 
-        self.mddialog = RepairedMDDialog(
-            self.parent,
-            tit = _("Select Additional Directories"),
-            defpath = init_dir
-        )
+        # Trouble with multi-dir-dialog on phoenix
+        if phoenix:
+            self.mddialog = None
+            self.init_mdd_dir = init_dir
+        else:
+            self.mddialog = RepairedMDDialog(
+                self.parent,
+                tit = _("Select Additional Directories"),
+                defpath = init_dir
+            )
 
 
 
@@ -3146,10 +3154,22 @@ class ASourcePanePanel(wx.Panel):
     def on_button_addl_dirs(self, event):
         try:
             dlg = self.mddialog
+            destroy = False
+
+            if dlg == None:
+                dlg = RepairedMDDialog(
+                    self.parent,
+                    tit = _("Select Additional Directories"),
+                    defpath = self.init_mdd_dir
+                )
+                destroy = True
 
             resp = dlg.ShowModal()
 
             if resp != wx.ID_OK:
+                if destroy:
+                    dlg.Destroy()
+
                 return
 
             try:
@@ -3159,6 +3179,9 @@ class ASourcePanePanel(wx.Panel):
                 raise Exception(msg)
 
             self.addl_list_ctrl.add_multi_files(pts)
+
+            if destroy:
+                dlg.Destroy()
 
         except RepairedMDDialog.Unfixable as m:
             raise Exception(m)
@@ -4283,7 +4306,7 @@ class AFrame(wx.Frame):
             import base64
 
             lic = _licence_data
-            t = wx.AboutDialogInfo()
+            t = wxadv.AboutDialogInfo()
 
             t.SetName(PROG)
             t.SetVersion(_T("{vs} {vn}").format(
@@ -4320,7 +4343,7 @@ class AFrame(wx.Frame):
 
             self.__class__.about_info = t
 
-        wx.AboutBox(self.__class__.about_info)
+        wxadv.AboutBox(self.__class__.about_info)
 
     def _get_about_desc(self):
         desc = program_desc
@@ -8047,15 +8070,21 @@ class TheAppClass(wx.App):
                 tr = len(PROG)
 
             # Phoenix: wx.CONFIG_USE_LOCAL_FILE is missing, although
-            # mentioned in core classes Config docs.
+            # mentioned in core classes Config docs.  Since this
+            # program is Unix/POSIX only it is equivalent to use
+            # wx.FileConfig, but if we could run under MSW, this would
+            # be wrong
             if phoenix:
-                cfsty = 0
+                self.config = wx.FileConfig(
+                    PROG[:tr],
+                    _T("GPLFreeSoftwareApplications"))
             else:
                 cfsty = wx.CONFIG_USE_LOCAL_FILE
-            self.config = wx.Config(
-                PROG[:tr],
-                _T("GPLFreeSoftwareApplications"),
-                style = cfsty)
+                cfsty |= wx.CONFIG_USE_GLOBAL_FILE
+                self.config = wx.Config(
+                    PROG[:tr],
+                    _T("GPLFreeSoftwareApplications"),
+                    style = cfsty)
         return self.config
 
     def get_msg_obj(self):
