@@ -6439,7 +6439,9 @@ class ACoreLogiDat:
 
     def get_openfile(self, outf, fl = os.O_WRONLY|os.O_CREAT|os.O_EXCL):
         try:
-            ofd = os.open(outf, fl, 0666)
+            # octal prefix 0o (zero,letter-o) requires Python 2.6;
+            # Python 3 requires that prefix
+            ofd = os.open(outf, fl, 0o666)
             return (ofd, outf)
         except OSError as e:
             m = _("Error opening file '{2}': '{0}' (errno {1})"
@@ -6635,7 +6637,9 @@ class ACoreLogiDat:
                     return False
 
             try:
-                os.mkdir(outf, 0777)
+                # octal prefix 0o (zero,letter-o) requires Python 2.6;
+                # Python 3 requires that prefix
+                os.mkdir(outf, 0o777)
             except OSError as e:
                 m = _(
                     "Failed, error creating directory \"{0}\":"
@@ -6663,7 +6667,9 @@ class ACoreLogiDat:
 
         try:
             os.chown(tmp, os.getuid(), os.getgid())
-            os.chmod(tmp, 0700)
+            # octal prefix 0o (zero,letter-o) requires Python 2.6;
+            # Python 3 requires that prefix
+            os.chmod(tmp, 0o700)
         except:
             pass
 
