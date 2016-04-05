@@ -312,7 +312,7 @@ _dbg(_T("debug file opened"))
 # version globals: r/o
 # jump 0.0.2.0->0.3.0 to sync with package
 version_string = _T("0.3.1")
-version_name   = _("Slither Quietly; Carry Big Stick!")
+version_name   = _("Hiss Softly; Carry Big Stick!")
 version_mjr    = 0
 version_mjrrev = 3
 version_mnr    = 1
