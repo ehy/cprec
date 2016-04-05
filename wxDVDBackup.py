@@ -2058,7 +2058,10 @@ class ABasePane(wx.ScrolledWindow):
         # for focus transfer to neighbor
         self.focus_terminals = {"first" : None, "last" : None}
 
-    # for derived classes hacking control focus behavior
+    # for derived classes hacking control focus behavior --
+    # this only works for wxPy 2.8; wxPy 3.0 is broken re. focus
+    # and traversal, failing to use the wx 3.x Navigation templates
+    # for wxSash{,Layout)Window
     def take_focus(self, forward = True):
         if forward:
             if self.focus_terminals["first"]:
@@ -2127,7 +2130,13 @@ class ABasePane(wx.ScrolledWindow):
         if not self.focus_terminals["first"]:
             return
 
-        fwnd = wx.Window_FindFocus()
+        try:
+            fwnd = wx.Window_FindFocus()
+        except AttributeError:
+            fwnd = wx.Window.FindFocus()
+        except:
+            fwnd = False
+
         if fwnd:
             i1 = self.focus_terminals["first"].GetId()
             i2 = fwnd.GetId()
