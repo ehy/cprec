@@ -1933,10 +1933,21 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
         self.itemDataMap_ix = im
         self.itemDataMap[im] = (nm, path)
 
-        ii = self.InsertStringItem(idx, nm)
+        if phoenix:
+            # wxPhoenix: InsertStringItem is deprecated
+            ii = self.InsertItem(idx, nm)
+        else:
+            ii = self.InsertStringItem(idx, nm)
+
         if color != None:
             self.SetItemTextColour(ii, color)
-        self.SetStringItem(ii, 1, path)
+
+        if phoenix:
+            # wxPhoenix: SetStringItem is deprecated
+            self.SetItem(ii, 1, path)
+        else:
+            self.SetStringItem(ii, 1, path)
+
         self.SetItemData(ii, im)
 
         return ii
