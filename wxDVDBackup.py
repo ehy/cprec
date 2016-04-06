@@ -3149,10 +3149,8 @@ class ASourcePanePanel(wx.Panel):
             self.parent,
             _("Select Additional Files"),
             _T(""), _T(""), _T("*"),
-            wx.FD_OPEN|wx.FD_MULTIPLE|wx.FILE_MUST_EXIST
+            wx.FD_OPEN|wx.FD_MULTIPLE|wx.FD_FILE_MUST_EXIST
         )
-        #    wx.FD_OPEN|wx.FILE_MUST_EXIST|
-        #    wx.FD_MULTIPLE|wx.FD_PREVIEW
 
         if dlg.ShowModal() != wx.ID_OK:
             return
