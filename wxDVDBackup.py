@@ -39,13 +39,13 @@ import tempfile
 import threading
 import time
 import wx
-if "phoenix" in wx.version():
-    phoenix = True
+try:
     import wx.adv
+    phoenix = True
     wxadv = wx.adv
-else:
-    phoenix = False
+except ImportError:
     import wx.aui
+    phoenix = False
     wxadv = wx
 
 # from wxPython samples
