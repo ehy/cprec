@@ -5903,7 +5903,7 @@ class ACoreLogiDat:
 
             t = time.time()
             wx.Sleep(settle_time)
-            t = t - time.time()
+            t = time.time() - t
             msg_line_INFO(
                 _("Slept {secs} to let drive settle.").format(secs = t))
 
@@ -5918,7 +5918,7 @@ class ACoreLogiDat:
 
             msg_line_WARN(_(
                 "target medium checked failed; will sleep "
-                "{secs} seconds, then try again "
+                "{secs} more seconds, then try again "
                 "({tries} more retries)"
                 ).format(secs = settle_time, tries = settle_tries))
 
@@ -6299,7 +6299,7 @@ class ACoreLogiDat:
                     try:
                         n = float(t)
                         if n > mx or n < mn:
-                            raise Exception(_("Bad number"))
+                            raise Exception(_T("Bad number"))
                     except:
                         e = _("Enter a number: {mn} to {mx}").format(
                             mn = mn, mx = mx)
