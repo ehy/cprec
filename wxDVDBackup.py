@@ -6261,7 +6261,7 @@ class ACoreLogiDat:
             return (False, line, None)
 
 
-    def dialog(self, msg, typ = _T("msg"), sty = None, xtra = None):
+    def dialog(self, msg, typ = _T("msg"), sty = None):
         if s_eq(typ, "msg"):
             if sty == None:
                 sty = wx.OK | wx.ICON_INFORMATION
