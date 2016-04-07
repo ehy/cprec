@@ -5900,7 +5900,12 @@ class ACoreLogiDat:
 
         while True:
             wx.GetApp().Yield(True)
+
+            t = time.time()
             wx.Sleep(settle_time)
+            t = t - time.time()
+            msg_line_INFO(
+                _("Slept {secs} to let drive settle.").format(secs = t))
 
             self.do_target_check(
                 target_dev, async_blank, reset, settle_tries)
