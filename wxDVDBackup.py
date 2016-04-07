@@ -6261,7 +6261,7 @@ class ACoreLogiDat:
             return (False, line, None)
 
 
-    def dialog(self, msg, typ = _T("msg"), sty = None):
+    def dialog(self, msg, typ = _T("msg"), sty = None, xtra = None):
         if s_eq(typ, "msg"):
             if sty == None:
                 sty = wx.OK | wx.ICON_INFORMATION
@@ -6310,12 +6310,17 @@ class ACoreLogiDat:
                 return n
 
         if s_eq(typ, "choiceindex"):
-            # use 'sty' argument as default text
-            if phoenix:
-                return wx.GetSingleChoice(msg, PROG, sty, self.topwnd)
-            else:
+            # use 'sty' argument as list of choices
+            try:
                 return wx.GetSingleChoiceIndex(
                         msg, PROG, sty, self.topwnd)
+            except AttributeError:
+                # phoenix, ain't got no GetSingleChoiceIndex()
+                r = wx.GetSingleChoice(msg, PROG, sty, self.topwnd)
+                try:
+                    return sty.index(r)
+                except:
+                    return -1
 
     #
     # Utilities to help with files and directories
