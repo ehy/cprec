@@ -6283,12 +6283,39 @@ class ACoreLogiDat:
         if s_eq(typ, "intinput"):
             # use 'sty' argument as tuple w/ addl. args
             prmt, mn, mx, dflt = sty
-            return wx.GetNumberFromUser(
-                msg, prmt, PROG, dflt, mn, mx, self.topwnd)
+            try:
+                return wx.GetNumberFromUser(
+                    msg, prmt, PROG, dflt, mn, mx, self.topwnd)
+            except AttributeError:
+                # Ouch Phoenix don't def GetNumberFromUser(), no alt.?
+                n = mn - 1
+                ndef = _T("{num}").format(num = dflt)
+                while n < mn:
+                    t = wx.GetTextFromUser(msg, PROG, ndef, self.topwnd)
+                    if len(t) < 1:
+                        # cancelled
+                        n = dflt
+                        break
+                    try:
+                        n = float(t)
+                        if n > mx or n < mn:
+                            raise Exception(_("Bad number"))
+                    except:
+                        e = _("Enter a number: {mn} to {mx}").format(
+                            mn = mn, mx = mx)
+                        sx = wx.OK | wx.ICON_ERROR
+                        wx.MessageBox(e, PROG, sx, self.topwnd)
+                        n = mn - 1
+
+                return n
 
         if s_eq(typ, "choiceindex"):
             # use 'sty' argument as default text
-            return wx.GetSingleChoiceIndex(msg, PROG, sty, self.topwnd)
+            if phoenix:
+                return wx.GetSingleChoice(msg, PROG, sty, self.topwnd)
+            else:
+                return wx.GetSingleChoiceIndex(
+                        msg, PROG, sty, self.topwnd)
 
     #
     # Utilities to help with files and directories
