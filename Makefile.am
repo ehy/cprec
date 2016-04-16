@@ -59,7 +59,7 @@ CLEANFILES = $(bin_SCRIPTS)
 EXTRA_DIST = wxDVDBackup.in xdg/*
 
 wxDVDBackup: wxDVDBackup.in Makefile
-	$(pyprog_sub) < wxDVDBackup.in > wxDVDBackup
+	$(pyprog_sub) < $(srcdir)/wxDVDBackup.in > wxDVDBackup
 	chmod +x wxDVDBackup
 
 
