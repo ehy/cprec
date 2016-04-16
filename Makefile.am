@@ -83,13 +83,13 @@ install-data-hook:
 	|| { echo cannot find $(XDG_INST_ICON) or $(XDG_INST_MENU); \
 		echo will not do xdg icon and menu item install; exit 0; } ; \
 	for s in $(XICOSIZE) ; do \
-		I="./xdg/$(XDGRESNAME)-$${s}.png"; test -f "$$I" || \
+		I="$(srcdir)/xdg/$(XDGRESNAME)-$${s}.png"; test -f "$$I" || \
 			{ echo icon "$$I" is missing; continue; } ; \
 		$$XII $(XICOARGS) $$s  "$$I" $(XDGRESNAME) || \
 			{ echo failed installing icon size $$s; true; } ; \
 	done; \
 	$$XII forceupdate; \
-	I="./xdg/$(XDGRESNAME).desktop"; test -f "$$I" || exit 0; \
+	I="$(srcdir)/xdg/$(XDGRESNAME).desktop"; test -f "$$I" || exit 0; \
 	$$XIM install --novendor "$$I" || \
 		{ echo failed to install "$$I"; true; }
 
