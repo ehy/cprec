@@ -60,48 +60,58 @@ except:
 # end from wxPython samples
 
 
+# will often need to know whether interpreter is Python 3
+_is_py3 = False
+if sys.version_info.major >= 3:
+    _is_py3 = True
+
+
 """
     Global procedures
 """
 
-# Python 2.7 still needs charset hacks, even if # -*- coding: utf-8 -*-
-# is used *and* LANG/LC_ALL are set suitably; e.g.,
-# "string {foo}".format(foo = bar) will throw UnicodeEncodeError if
-# bar is a utf-8 string, so user input remains prone to cause
-# an exception.
-# This quick hack will at least avoid the exception if the form
-# _T("string {foo}").format(foo = bar) is used.
-# Note that this will not be correct if e.g. LC_ALL=en.ISO8859-1
-# in which case the 8 bit chars are accepted, an exception might
-# not be raised, and converted result will be wrong -- but this
-# will have to do for now.
-_ucode_type = None
-try:
-    unicode('\xc3\xb6\xc3\xba\xc2\xa9', 'utf-8')
-    _ucode_type = 'utf-8'
-except UnicodeEncodeError:
-    _ucode_type = None
+# Charset and string hacks
+# Python 2.7 and 3.x differ significantly
+_ucode_type = 'utf-8'
+if not _is_py3:
+    try:
+        unicode('\xc3\xb6\xc3\xba\xc2\xa9', _ucode_type)
+    except UnicodeEncodeError:
+        _ucode_type = None
+    except NameError:
+        # NameError happens w/ py 3.x, should not happen w/ 2.x; if it
+        # happens, assume version check was bogus and try (probably in
+        # vain) to proceed as with py 3.x
+        _is_py3 = True
+        unicode = str
+else:
+    unicode = str
 
 # use _T (or _) for all strings for string safety
 if _ucode_type == None:
     def _T(s):
         return s
-else:
+elif not _is_py3:
     def _T(s):
         return unicode(s, _ucode_type)
+else:
+    def _T(s):
+        try:
+            return s.decode('utf-8', 'replace')
+        except:
+            return str(s)
 
 # use _T as necessary
-def _Tnec(s):
-    if isinstance(s, str):
-        return _T(s)
-    return s
-
-# E.g.: _("Sounds more poetic in Klingon.")
-# TODO: other hookup needed for i18n -- can wait
-# until translation volunteers materialize
-#_ = wx.GetTranslation
-def _(s):
-    return wx.GetTranslation(_Tnec(s))
+if not _is_py3:
+    def _Tnec(s):
+        if isinstance(s, str):
+            return _T(s)
+        return s
+else:
+    def _Tnec(s):
+        if not isinstance(s, str):
+            return _T(s)
+        return s
 
 # When 'fp' is a FILE-like object, the fp.write() method will
 # not handle unicode objects with chars beyond ASCII; it
@@ -109,14 +119,27 @@ def _(s):
 # codecs.open() that returns a FILE-like object that
 # handles encoding, but a wrapper for fdopen() is absent
 # (or undocumented) -- so use this fp_write()
-def fp_write(f_object, s):
-    if isinstance(s, unicode):
-        if _ucode_type == None:
-            _cod = 'ascii'
-        else:
-            _cod = _ucode_type
-        return f_object.write(codecs.encode(_Tnec(s), _cod))
-    return f_object.write(s)
+if _is_py3:
+    def fp_write(f_object, s):
+        try:
+            return f_object.write(s)
+        except:
+            if _ucode_type == None:
+                _cod = 'ascii'
+            else:
+                _cod = _ucode_type
+            return f_object.write(bytes(s, _cod))
+
+else:
+    def fp_write(f_object, s):
+        if isinstance(s, unicode):
+            if _ucode_type == None:
+                _cod = 'ascii'
+            else:
+                _cod = _ucode_type
+            return f_object.write(codecs.encode(_Tnec(s), _cod))
+        return f_object.write(s)
+
 
 # inefficient string equality test, unicode vs. ascii safe
 def s_eq(s1, s2):
@@ -128,6 +151,13 @@ def s_ne(s1, s2):
     if _Tnec(s1) != _Tnec(s2):
         return True
     return False
+
+# E.g.: _("Sounds more poetic in Klingon.")
+# TODO: other hookup needed for i18n -- can wait
+# until translation volunteers materialize
+#_ = wx.GetTranslation
+def _(s):
+    return wx.GetTranslation(_Tnec(s))
 
 msg_red_color = wx.RED
 msg_green_color = wx.Colour(0, 227, 0)
@@ -459,6 +489,10 @@ class ChildProcParams:
                 # that modules might be GC'd at shutdown before
                 # objects use them. sys.version: 3.4.3
                 pass
+            except:
+                # py3 throwing something else intermittently,
+                # finding os to be 'NoneType'
+                pass
 
     def __except_init(self):
         self.xcmd = None
@@ -526,6 +560,10 @@ class ChildTwoStreamReader:
 
     # do not refer to this directly: use static _get_pipestat_rx
     pipestat_rx = None
+
+    # file-like object open modes
+    open_mode_r = "rb"
+    open_mode_w = "wb"
 
     def __init__(self,
                  child_params = None,
@@ -1031,7 +1069,7 @@ class ChildTwoStreamReader:
 
         def wrexecfail(fp, cmd, args, env, nerr, serr):
             __p = self.prefixX
-            wrlinepfx(fp, __p, _T(" execfail {n} \"{s}\"").format(
+            wrlinepfx(fp, __p, _T(" execfail {n} \"{s}\":\n").format(
                 n = nerr, s = _Tnec(serr)))
             wrprocdata(fp, cmd, args, env)
 
@@ -1072,7 +1110,7 @@ class ChildTwoStreamReader:
                 os.dup2(wfd, ndup)
                 os.close(wfd)
                 wfd = ndup
-            fw = os.fdopen(wfd, "w", 0)
+            fw = os.fdopen(wfd, self.open_mode_w, 0)
 
             exrfd1, exwfd1 = os.pipe()
             exrfd2, exwfd2 = os.pipe()
@@ -1129,8 +1167,8 @@ class ChildTwoStreamReader:
             # The FILE* equivalents are opened with 0 third arg to
             # disable buffering, to work in concert with poll(),
             # and provide parent timely info
-            fr1 = os.fdopen(exrfd1, "r", 0)
-            fr2 = os.fdopen(exrfd2, "r", 0)
+            fr1 = os.fdopen(exrfd1, self.open_mode_r, 0)
+            fr2 = os.fdopen(exrfd2, self.open_mode_r, 0)
 
             flist = []
             flist.append(exrfd1)
@@ -1200,7 +1238,6 @@ class ChildTwoStreamReader:
                         cmd = parms.xcmd
                         aa  = parms.xcmdargs
                         ae  = parms.xcmdenv
-                        parms.close_infd()
                         # cannot allow linebreaks in args or env here
                         for i in range(len(aa)):
                             tstr  = aa[i].replace(_T("\n"), _T("<NL>"))
@@ -1370,7 +1407,7 @@ class ChildTwoStreamReader:
         if not self.go_return_ok(fpid, rfd):
             return False
 
-        fr = os.fdopen(rfd, "r", 0)
+        fr = os.fdopen(rfd, self.open_mode_r, 0)
 
         if cb == None:
             cb = self.null_cb_go_and_read
