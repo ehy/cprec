@@ -6224,8 +6224,10 @@ class ACoreLogiDat:
 
         elif mth and s_eq(typ, 'enter run'):
             self.target.set_cancel_label()
-            m = _(
+            m = _T(
                 "New thread {0} started for child processes").format(m)
+            _dbg(m)
+            m = _T("")
             msg_line_INFO(m)
             slno.put_status(m)
 
