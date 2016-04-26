@@ -341,12 +341,12 @@ _dbg(_T("debug file opened"))
 
 # version globals: r/o
 # jump 0.0.2.0->0.3.0 to sync with package
-version_string = _T("0.3.2.1")
-version_name   = _("Constriction Over Venom!")
+version_string = _T("0.4.0")
+version_name   = _("Mortal Coil Shed")
 version_mjr    = 0
-version_mjrrev = 3
-version_mnr    = 2
-version_mnrrev = 1
+version_mjrrev = 4
+version_mnr    = 0
+version_mnrrev = 0
 version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
 maintainer_name = _T("Ed Hynan")
