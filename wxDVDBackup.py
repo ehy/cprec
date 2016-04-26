@@ -341,16 +341,16 @@ _dbg(_T("debug file opened"))
 
 # version globals: r/o
 # jump 0.0.2.0->0.3.0 to sync with package
-version_string = _T("0.3.2")
+version_string = _T("0.3.2.1")
 version_name   = _("Constriction Over Venom!")
 version_mjr    = 0
 version_mjrrev = 3
 version_mnr    = 2
-version_mnrrev = 0
+version_mnrrev = 1
 version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
 maintainer_name = _T("Ed Hynan")
-maintainer_addr = _T("<ehynan@gmail.com>")
+maintainer_addr = _T("<edhynan@gmail.com>")
 copyright_years = _T("2016")
 program_site    = _T("https://github.com/ehy/cprec")
 program_desc    = _T("Flexible backup for video DVD discs.")
