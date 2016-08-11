@@ -115,7 +115,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
     int              i, j, maxtitle, do0;
     drd_file_t*      dvdfile = NULL;
     ssize_t          nblk = 0;
-    unsigned long    ifo_badbl = 0, bup_badbl = 0;
+    unsigned long long    ifo_badbl = 0, bup_badbl = 0;
 
     /* If no vobs were found then don't bother */
     if ( !okvid ) {
@@ -198,7 +198,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             NBP((nbuf, nbufbufdlen, fmtsu[i], vidd))
         }
 
-        pfoopt(_("X %s size %zu\n"), nbuf, sb.st_size);
+        pfoopt(_("X %s size %llu\n"), nbuf, (unsigned long long)sb.st_size);
 
         /* check for multiple 'links' to file; 1st seen 2010 */
         blk = UDFFindFile(dvdreader, pn-1, &fsz);
@@ -313,7 +313,8 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
             NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-            pfoopt(_("X %s size %zu\n"), nbuf, pt->ifos[0].st_size);
+            pfoopt(_("X %s size %llu\n"), nbuf,
+                (unsigned long long)pt->ifos[0].st_size);
 
             /* check for multiple 'links' to file; 1st seen 2010 */
             blk = UDFFindFile(dvdreader, pn-1, &fsz);
@@ -402,7 +403,8 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
             NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-            pfoopt(_("X %s size %zu\n"), nbuf, pt->bups[0].st_size);
+            pfoopt(_("X %s size %llu\n"), nbuf,
+                (unsigned long long)pt->bups[0].st_size);
 
             /* check for multiple 'links' to file; 1st seen 2010 */
             blk = UDFFindFile(dvdreader, pn-1, &fsz);
@@ -557,7 +559,8 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 ? "%s/vts_%02d_%d.vob" : "%s/VTS_%02d_%d.VOB";
             NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-            pfoopt(_("X %s size %zu\n"), nbuf, pt->vobs[0].st_size);
+            pfoopt(_("X %s size %llu\n"), nbuf,
+                (unsigned long long)pt->vobs[0].st_size);
         } /* do0 */
 
         while ( do0 && !want_dry_run ) {
@@ -736,17 +739,17 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             }
 
             sz = pt->vobs[j].st_size;
-            pfoopt(_("X %s size %zu\n")
-                , nbuf, pt->vobs[j].st_size);
+            pfoopt(_("X %s size %llu\n")
+                , nbuf, (unsigned long long)pt->vobs[j].st_size);
 
             if ( sz % blk_sz ) {
-                pfeall(_("%s: error in size %zu of %s\n"),
-                    program_name, sz, mntd);
-                pfeall(_("%s: %zu %% %u == %zu\n"),
+                pfeall(_("%s: error in size %llu of %s\n"),
+                    program_name, (unsigned long long)sz, mntd);
+                pfeall(_("%s: %llu %% %u == %llu\n"),
                     program_name,
-                    sz,
+                    (unsigned long long)sz,
                     (unsigned)blk_sz,
-                    sz % blk_sz);
+                    (unsigned long long)sz % blk_sz);
                 DVDCloseFile(dvdfile);
                 if ( force ) {
                     continue;
@@ -760,8 +763,8 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
             if ( copy_vob(dvdfile, nbuf, buf, sz, &i1) != sz ) {
                 pfeall(
-                _("%s: failed in VOB copy, %zu blocks\n"),
-                    program_name, sz);
+                _("%s: failed in VOB copy, %llu blocks\n"),
+                    program_name, (unsigned long long)sz);
                 DVDCloseFile(dvdfile);
                 if ( force ) {
                     continue;
@@ -1048,8 +1051,8 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
     }
 
     if ( badblk < numbadblk ) {
-        pfeopt(_("%s errors reading %s -- %zu zero blocks written!\n"),
-            program_name, src, numbadblk - badblk);
+        pfeopt(_("%s errors reading %s -- %llu zero blocks written!\n"),
+            program_name, src, (unsigned long long)numbadblk - badblk);
     }
 
     if ( rem ) {
@@ -1067,8 +1070,8 @@ copy_file_force(const char* src, const char* dest, size_t retry_blocks)
 
         if ( badblk < numbadblk ) {
             pfeopt(
-                _("%s errors reading %s -- %zu zero blocks written!\n"),
-                program_name, src, numbadblk - badblk);
+                _("%s errors reading %s -- %llu zero blocks written!\n"),
+                program_name, src, (unsigned long long)numbadblk - badblk);
         }
     }
 
@@ -1315,8 +1318,8 @@ disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz)
         for ( i = 0; i < nr; i++ ) {
             filesize_t csz = pa[i]->bh_size;
 
-            pfoopt(_(" %zu bytes as \"%s\""),
-              (size_t)csz, pa[i]->bh_name);
+            pfoopt(_(" %llu bytes as \"%s\""),
+              (unsigned long long)csz, pa[i]->bh_name);
 
             if ( csz > 0 && csz != lastnzsz ) {
                 if ( lastnzsz ) {
@@ -1345,9 +1348,9 @@ disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz)
     if ( pbhi && pbhi->bh_count > 1 ) {
         /* another name points to this file! */
         pfoall(_("%s: multiple names \"%s\" == \"%s\", "
-            "%zu bytes at source disc block 0x%08X\n"),
+            "%llu bytes at source disc block 0x%08X\n"),
             program_name, nbuf, pbhi->bh_name,
-            (size_t)fsz, (unsigned)blk);
+            (unsigned long long)fsz, (unsigned)blk);
 
         if ( link(pbhi->bh_name, nbuf) ) {
             pfeall(
