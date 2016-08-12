@@ -66,6 +66,7 @@ static ssize_t copy_vob_fd(drd_file_t* dvdfile
         , int infd, int outfd
         , unsigned char* buf
         , size_t blkcnt, int* poff);
+static int print_vidfile_copyinfo(const char* nbuf, size_t sz);
 
 /* string safety return checks; fatal err */
 #define SCPYCHK(d, s, c) \
@@ -107,14 +108,14 @@ static int snp_retv;
 void
 copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 {
-    titlist_p        pt;
-    int              i1;
-    struct stat      sb;
-    drd_read_t       dom;
-    char*            pn;
-    int              i, j, maxtitle, do0;
-    drd_file_t*      dvdfile = NULL;
-    ssize_t          nblk = 0;
+    titlist_p             pt;
+    int                   i1;
+    struct stat           sb;
+    drd_read_t            dom;
+    char*                 pn;
+    int                   i, j, maxtitle, do0;
+    drd_file_t*           dvdfile = NULL;
+    ssize_t               nblk = 0;
     unsigned long long    ifo_badbl = 0, bup_badbl = 0;
 
     /* If no vobs were found then don't bother */
@@ -198,7 +199,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             NBP((nbuf, nbufbufdlen, fmtsu[i], vidd))
         }
 
-        pfoopt(_("X %s size %llu\n"), nbuf, (unsigned long long)sb.st_size);
+        print_vidfile_copyinfo(nbuf, sb.st_size);
 
         /* check for multiple 'links' to file; 1st seen 2010 */
         blk = UDFFindFile(dvdreader, pn-1, &fsz);
@@ -313,8 +314,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
             NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-            pfoopt(_("X %s size %llu\n"), nbuf,
-                (unsigned long long)pt->ifos[0].st_size);
+            print_vidfile_copyinfo(nbuf, pt->ifos[0].st_size);
 
             /* check for multiple 'links' to file; 1st seen 2010 */
             blk = UDFFindFile(dvdreader, pn-1, &fsz);
@@ -403,8 +403,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
 
             NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-            pfoopt(_("X %s size %llu\n"), nbuf,
-                (unsigned long long)pt->bups[0].st_size);
+            print_vidfile_copyinfo(nbuf, pt->bups[0].st_size);
 
             /* check for multiple 'links' to file; 1st seen 2010 */
             blk = UDFFindFile(dvdreader, pn-1, &fsz);
@@ -559,8 +558,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
                 ? "%s/vts_%02d_%d.vob" : "%s/VTS_%02d_%d.VOB";
             NBP((nbuf, nbufbufdlen, t_fmt, vidd, i, 0))
 
-            pfoopt(_("X %s size %llu\n"), nbuf,
-                (unsigned long long)pt->vobs[0].st_size);
+            print_vidfile_copyinfo(nbuf, pt->vobs[0].st_size);
         } /* do0 */
 
         while ( do0 && !want_dry_run ) {
@@ -739,8 +737,7 @@ copy_all_vobs(drd_reader_t* dvdreader, unsigned char* buf)
             }
 
             sz = pt->vobs[j].st_size;
-            pfoopt(_("X %s size %llu\n")
-                , nbuf, (unsigned long long)pt->vobs[j].st_size);
+            print_vidfile_copyinfo(nbuf, pt->vobs[j].st_size);
 
             if ( sz % blk_sz ) {
                 pfeall(_("%s: error in size %llu of %s\n"),
@@ -1371,4 +1368,13 @@ disc_block_check(uint32_t blk, const char* nbuf, uint32_t fsz)
     }
 
     return 0;
+}
+
+/*
+ * For video filed -- .ifo, .bup, .vob -- print name and size
+ * for verbose output.
+ */
+static int print_vidfile_copyinfo(const char* nbuf, size_t sz)
+{
+    return pfoopt(_("X %s size %llu\n"), nbuf, CAST_ULL(sz));
 }

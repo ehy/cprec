@@ -56,6 +56,9 @@
 #include "path_set.h"
 #include "vd_cpf.h"
 
+/* PACKAGE_VERSION is an autoconf macro */
+const char version[] = PACKAGE_VERSION;
+
 /* Prototypes for functions defined herein. */
 static void resolve_dvd_dev();
 /* call get_max_path(); on failure exit fail_statux */
@@ -143,8 +146,7 @@ struct stat tsb;
 
 /* NOTE: the ridiculous (char*) casts are to quieten
  * the compiler on Sun/Oracle (OpenIndiana) because
- * exquisitely broken headers have omitted 'const'
- * in the struct option definition.
+ * broken headers have omitted 'const' in the struct option definition.
  */
 #if defined(__sun)
 #define CPCAST (char*)
@@ -401,14 +403,14 @@ get_env_vars_1st()
 
                 if ( errno || lv < 1 || lv > block_read_count ) {
                     pfeall(
-                    _("\"%s\"==\"%s\" - using default %zu\n")
-                    ,"CPREC_RETRYBLOCKS"
-                    , penv, retrybadblk);
+                        _("\"%s\"==\"%s\" - using default %llu\n"),
+                        "CPREC_RETRYBLOCKS",
+                         penv, CAST_ULL(retrybadblk));
                 } else {
                     retrybadblk = (size_t)lv;
                     pfeopt(
-                    _("using CPREC_RETRYBLOCKS %zu\n"),
-                    retrybadblk);
+                        _("using CPREC_RETRYBLOCKS %llu\n"),
+                        CAST_ULL(retrybadblk));
                 }
             }
             pfoopt(
@@ -463,8 +465,8 @@ setup_global_buffer(void)
 #   if HAVE_POSIX_MEMALIGN
     } else {
         global_buffer = buf;
-        pf_dbg(_("dbg: posix_memalign of %zu at %p\n"),
-          global_buffer_size, (void*)buf);
+        pf_dbg(_("dbg: posix_memalign of %llu at %p\n"),
+          CAST_ULL(global_buffer_size), (void*)buf);
     }
 #   endif
 
@@ -803,8 +805,8 @@ cprec(int texist, int tisdir)
     blk_free_storage();
 
     if ( numbadblk ) {
-        pfeopt(_("%s: found %zu bad blocks\n"),
-            program_name, numbadblk,
+        pfeopt(_("%s: found %llu bad blocks\n"),
+            program_name, CAST_ULL(numbadblk),
             numbadblk ? "; bad blocks are zeroed in output" : "");
     }
 
@@ -839,8 +841,10 @@ main(int argc, char* argv[])
     i = get_options(argc, argv);
 
     if (retrybadblk > block_read_count ) {
-        pfeall(_("%s: retry blocks %zu greater than read blocks %zu\n"),
-            program_name, retrybadblk, block_read_count);
+        pfeall(
+            _("%s: retry blocks %llu greater than read blocks %llu\n"),
+            program_name,
+            CAST_ULL(retrybadblk), CAST_ULL(block_read_count));
         usage(EXIT_FAILURE);
     }
 
@@ -1070,7 +1074,7 @@ get_options(int argc, char* argv[])
                 ign_dnr = 1;
                 break;
             case 'V':
-                printf("%s %s\n", program_name, VERSION);
+                printf("%s %s\n", program_name, version);
                 exit(0);
                 break;
             case 'b':        /* --block-read-count */
@@ -1139,9 +1143,9 @@ Options:\n\
   -D, --ignore-specials      ignore devices and pipes\n\
   %s-N, --ignore-nonreadable   ignore not readable source directories\n\
   -b, --block-read-count     2048 byte blocks per read operation\n\
-                             (default %zu, maximum %zu)\n\
+                             (default %llu, maximum %llu)\n\
   -r. --retry-block-count    blocks per retry on IO errors\n\
-                             (default %zu, 0 disables retrying)\n\
+                             (default %llu, 0 disables retrying)\n\
   -h, --help                 display this help and exit\n\
   -V, --version              output version information and exit\n\
 %s"),
@@ -1151,7 +1155,9 @@ _("-L, --libdvdr NAME         use NAME as dvdread library\n  "),
 #else
 "",
 #endif
-def_block_read_count, max_block_read_count, def_retrybadblk,
+CAST_ULL(def_block_read_count),
+CAST_ULL(max_block_read_count),
+CAST_ULL(def_retrybadblk),
 "");
     exit(status);
 }

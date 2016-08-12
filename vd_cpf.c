@@ -164,13 +164,13 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
             /* retry is disable when blknretry == 0 */
             if ( blknretry < 1 ) {
-                pfeopt(_("%s: retry bad block == %zu, failing\n"),
-                    progname, blknretry);
+                pfeopt(_("%s: retry bad block == %llu, failing\n"),
+                    progname, CAST_ULL(blknretry));
                 return -1;
             }
 
-            pfeopt(_("%s: retry bad block == %zu, retrying\n"),
-                progname, blknretry);
+            pfeopt(_("%s: retry bad block == %llu, retrying\n"),
+                progname, CAST_ULL(blknretry));
 
             errno = 0;
             /* call desperation procedure:

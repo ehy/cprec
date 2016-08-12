@@ -1,4 +1,4 @@
-/* 
+/*
    path_set.[hc] - path argument functions
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #include "hdr_cfg.h"
@@ -64,7 +64,7 @@ size_t  nbufbufdlen = A_SIZE(nbuf);
 
 void
 unset_paths(void)
-{    
+{
 #if DYNALLOC_BUFFERS
     if ( mntd ) { /* fix-missing-block.sh */
         free(mntd);
@@ -98,9 +98,9 @@ unset_paths(void)
         size_t n, sz = (size_t)(c); \
         if ( (n = strlcpy(d, s, sz)) >= sz ) { \
             pfeall( \
-              _("%s: string size (&zu) error: exceeds space (%zu)\n"), \
-              program_name, n, sz); \
-            exit(60); \
+            _("%s: string size (&llu) error: exceeds space (%llu)\n"), \
+            program_name, CAST_ULL(n), CAST_ULL(sz)); \
+            exit(1); \
         } \
     }
 

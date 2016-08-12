@@ -65,12 +65,12 @@ extern "C" {
 #define EXIT_FAILURE 1
 #endif
 
+/* PACKAGE_VERSION is an autoconf macro */
 const char version[] = PACKAGE_VERSION;
 
 /* NOTE: the ridiculous (char*) casts are to quieten
  * the compiler on Sun/Oracle (OpenIndiana) because
- * exquisitely broken headers have omitted 'const'
- * in the struct option definition.
+ * broken headers have omitted 'const' in the struct option definition.
  */
 #if defined(__sun)
 #define CPCAST (char*)
@@ -527,7 +527,7 @@ list_build(file_list& lst, dvd_reader_p drd)
 off_t
 dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
 {
-    pfeopt("\nDD operations on %zu blocks:\n", tot_blks);
+    pfeopt("\nDD operations on %llu blocks:\n", CAST_ULL(tot_blks));
 
     off_t fptr = 0;
 
@@ -535,8 +535,8 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
         vtf_set_index ix(slst[n]);
         const vtf_set& vs = smap.find(ix)->second;
 
-        pfeopt("file group %02u:%s, %zu files:\n",
-            vs.nset, vtfext[vs.type], vs.count());
+        pfeopt("file group %02u:%s, %llu files:\n",
+            vs.nset, vtfext[vs.type], CAST_ULL(vs.count()));
 
         for ( size_t nvf = 0; nvf < vs.count(); nvf++ ) {
             const vt_file& vf = vs[nvf];
@@ -565,11 +565,11 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
             if ( ddbsz ) {
                 pfeopt(
                     "DD at %llu to %llu:"
-                    " %zu blocks, %zu bytes\n",
+                    " %llu blocks, %llu bytes\n",
                     (unsigned long long)fptr,
                     (unsigned long long)fptr + ddbsz,
-                    ddbsz,
-                    ddbsz * blk_sz);
+                    CAST_ULL(ddbsz),
+                    CAST_ULL(ddbsz) * blk_sz);
                 fptr += off_t(ddbsz);
             }
 
@@ -606,18 +606,18 @@ dd_ops_print(const setnum_list& slst, const vt_set_map& smap, size_t tot_blks)
     if ( size_t(fptr) < tot_blks ) {
         size_t ddbsz = off_t(tot_blks) - fptr;
         pfeopt(
-            "DD remainder at %llu to %llu: %zu blocks, %zu bytes\n",
+            "DD remainder at %llu to %llu: %llu blocks, %llu bytes\n",
             (unsigned long long)fptr,
             (unsigned long long)fptr + ddbsz,
-            ddbsz,
-            ddbsz * blk_sz);
+            CAST_ULL(ddbsz),
+            CAST_ULL(ddbsz) * blk_sz);
         fptr += off_t(ddbsz);
     }
 
     if ( size_t(fptr) > tot_blks ) {
         pfeall(
-            "ERROR: write offset > total blocks: %llu > %zu\n",
-            (unsigned long long)fptr, tot_blks);
+            "ERROR: write offset > total blocks: %llu > %llu\n",
+            (unsigned long long)fptr, CAST_ULL(tot_blks));
         exit(EXIT_FAILURE);
     }
 
@@ -637,7 +637,7 @@ dd_ops_exec(
     dvd_reader_p dvd, int inp, int out
     )
 {
-    pfeopt("\nDD of %zu block filesystem:\n", tot_blks);
+    pfeopt("\nDD of %llu block filesystem:\n", CAST_ULL(tot_blks));
 
     off_t fptr = 0;
 
@@ -662,8 +662,8 @@ dd_ops_exec(
         vtf_set_index ix(slst[n]);
         const vtf_set& vs = smap.find(ix)->second;
 
-        pfeopt("file group %02u:%s, %zu files:\n",
-            vs.nset, vtfext[vs.type], vs.count());
+        pfeopt("file group %02u:%s, %llu files:\n",
+            vs.nset, vtfext[vs.type], CAST_ULL(vs.count()));
 
         int setoff = 0;
         for ( size_t nvf = 0; nvf < vs.count(); nvf++ ) {
@@ -693,11 +693,11 @@ dd_ops_exec(
             if ( ddbsz ) {
                 pfeopt(
                     "DD at %llu to %llu:"
-                    " %zu blocks, %zu bytes\n",
+                    " %llu blocks, %llu bytes\n",
                     (unsigned long long)fptr,
                     (unsigned long long)fptr + ddbsz,
-                    ddbsz,
-                    ddbsz * blk_sz);
+                    CAST_ULL(ddbsz),
+                    CAST_ULL(ddbsz) * blk_sz);
 
                 off_t pos = fptr * blk_sz;
                 off_t ret = lseek(inp, pos, SEEK_SET);
@@ -716,8 +716,9 @@ dd_ops_exec(
                 ret = vd_rw_vob_blks(&pargs);
 
                 if ( ret != ddbsz ) {
-                    pfeall(_("%s: read failed at block %llu, %zu\n"),
-                        program_name, (unsigned long long)fptr, ddbsz);
+                    pfeall(_("%s: read failed at block %llu, %llu\n"),
+                        program_name,
+                        (unsigned long long)fptr, CAST_ULL(ddbsz));
                     exit(EXIT_FAILURE);
                 }
 
@@ -803,11 +804,11 @@ dd_ops_exec(
     if ( size_t(fptr) < tot_blks ) {
         size_t ddbsz = off_t(tot_blks) - fptr;
         pfeopt(
-            "DD remainder at %llu to %llu: %zu blocks, %zu bytes\n",
+            "DD remainder at %llu to %llu: %llu blocks, %llu bytes\n",
             (unsigned long long)fptr,
             (unsigned long long)fptr + ddbsz,
-            ddbsz,
-            ddbsz * blk_sz);
+            CAST_ULL(ddbsz),
+            CAST_ULL(ddbsz) * blk_sz);
 
         off_t pos = fptr * blk_sz;
         off_t ret = lseek(inp, pos, SEEK_SET);
@@ -826,10 +827,8 @@ dd_ops_exec(
         ret = vd_rw_vob_blks(&pargs);
 
         if ( ret != ddbsz ) {
-            pfeall(
-                "DD failed at block %llu, %zu\n",
-                (unsigned long long)fptr,
-                ddbsz);
+            pfeall("DD failed at block %llu, %llu\n",
+                (unsigned long long)fptr, CAST_ULL(ddbsz));
             exit(EXIT_FAILURE);
         }
 
@@ -837,9 +836,8 @@ dd_ops_exec(
     }
 
     if ( size_t(fptr) > tot_blks ) {
-        pfeall(
-            "ERROR: write offset > total blocks: %llu > %zu\n",
-            (unsigned long long)fptr, tot_blks);
+        pfeall("ERROR: write offset > total blocks: %llu > %llu\n",
+            (unsigned long long)fptr, CAST_ULL(tot_blks));
         exit(EXIT_FAILURE);
     }
 
@@ -999,7 +997,7 @@ print_volume_info(char* buf, size_t blocks = 0)
         }
     }
 
-    pfoopt("%s|%zu\n", "filesystem_block_count", blocks);
+    pfoopt("%s|%llu\n", "filesystem_block_count", CAST_ULL(blocks));
 }
 
 size_t
@@ -1133,8 +1131,8 @@ env_checkvars()
             perror("bad \"DDD_RETRYBLOCKS\" value");
         } else {
             retrybadblk = static_cast<size_t>(lv);
-            fprintf(stderr, "found DDD_RETRYBLOCKS=%zu\n",
-                retrybadblk);
+            fprintf(stderr, "found DDD_RETRYBLOCKS=%llu\n",
+                CAST_ULL(retrybadblk));
         }
     }
 }
@@ -1173,13 +1171,15 @@ Options:\n\
   -q, --quiet, --silent      inhibit usual output\n\
   -v, --verbose              print information; repeat -v for yet more\n\
   -b, --block-read-count     2048 byte blocks per read operation\n\
-                             (default %zu, maximum %zu)\n\
+                             (default %llu, maximum %llu)\n\
   -r. --retry-block-count    blocks per retry on IO errors\n\
-                             (default %zu, 0 disables retrying)\n\
+                             (default %llu, 0 disables retrying)\n\
   %s-h, --help                 display this help and exit\n\
   -V, --version              output version information and exit\n\
 %s"),
-def_block_read_count, max_block_read_count, def_retrybadblk,
+CAST_ULL(def_block_read_count),
+CAST_ULL(max_block_read_count),
+CAST_ULL(def_retrybadblk),
 #if ! HAVE_LIBDVDREAD
 _("-L, --libdvdr NAME         use NAME as dvdread library\n  "),
 #else
@@ -1318,24 +1318,24 @@ main(int argc, char* argv[])
     if ( block_read_count > max_block_read_count ) {
         // set to def rather than max assuming arg was monstrous error
         block_read_count = def_block_read_count;
-        pfeall(_("%s: block read count too great, using %zu\n"),
-            program_name, block_read_count);
+        pfeall(_("%s: block read count too great, using %llu\n"),
+            program_name, CAST_ULL(block_read_count));
     }
     if ( block_read_count == 0 ) {
         block_read_count = def_block_read_count;
-        pfeall(_("%s: block read count was 0, using %zu\n"),
-            program_name, block_read_count);
+        pfeall(_("%s: block read count was 0, using %llu\n"),
+            program_name, CAST_ULL(block_read_count));
     }
     if ( retrybadblk >= block_read_count ) {
         retrybadblk = (block_read_count + 1) >> 1;
-        pfeall(_("%s: retry block count too great, using %zu\n"),
-            program_name, retrybadblk);
+        pfeall(_("%s: retry block count too great, using %llu\n"),
+            program_name, CAST_ULL(retrybadblk));
     }
     if ( verbose >= 3 ) {
-        pfeall(_("%s: using block read count %zu\n"),
-            program_name, block_read_count);
-        pfeall(_("%s: using retry block count %zu\n"),
-            program_name, retrybadblk);
+        pfeall(_("%s: using block read count %llu\n"),
+            program_name, CAST_ULL(block_read_count));
+        pfeall(_("%s: using retry block count %llu\n"),
+            program_name, CAST_ULL(retrybadblk));
     }
 
 #if ! HAVE_LIBDVDREAD
@@ -1483,10 +1483,8 @@ main(int argc, char* argv[])
     if ( dryrun || verbose >= 3 ) {
         wrbl = dd_ops_print(setlist, setmap, volblks);
         if ( wrbl != volblks ) {
-            pfeall(
-                "FAIL: %llu written; expected %zu\n",
-                (unsigned long long)(wrbl * blk_sz),
-                volblks * blk_sz);
+            pfeall("FAIL: %llu written; expected %llu\n",
+                CAST_ULL(wrbl) * blk_sz, CAST_ULL(volblks) * blk_sz);
             return EXIT_FAILURE;
         }
     }
@@ -1495,18 +1493,16 @@ main(int argc, char* argv[])
         wrbl =
           dd_ops_exec(setlist, setmap, volblks, drd, inp, out);
         if ( wrbl != volblks ) {
-            pfeall(
-                "FAIL: %llu written; expected %zu\n",
-                (unsigned long long)(wrbl * blk_sz),
-                volblks * blk_sz);
+            pfeall("FAIL: %llu written; expected %llu\n",
+                CAST_ULL(wrbl) * blk_sz, CAST_ULL(volblks) * blk_sz);
             return EXIT_FAILURE;
         }
     }
 
     if ( numbadblk || verbose > 1 ) {
         pfeall(
-            "found %zu total bad blocks in %s%s\n",
-            numbadblk, inname.c_str(),
+            "found %llu total bad blocks in %s%s\n",
+            CAST_ULL(numbadblk), inname.c_str(),
             numbadblk ? "; bad blocks are zeroed in output" : "");
     }
 

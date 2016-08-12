@@ -204,8 +204,9 @@ set_dire_t(const char* path, const struct stat* sb)
         pnew->path = (char*)pnew->sb + sizeof(*pnew->sb);
         sz = sz + 1 - sizeof(*pnew->sb);
         if ( strlcpy(pnew->path, path, sz) >= sz ) {
-            pfeall(_("%s: path part too long (%zu: %s) (%s:%u)\n"),
-                program_name, sz, path, __FILE__, (unsigned)__LINE__);
+            pfeall(_("%s: path part too long (%llu: %s) (%s:%u)\n"),
+                program_name, CAST_ULL(sz), path,
+                __FILE__, (unsigned)__LINE__);
             exit(EXIT_FAILURE);
         }
         pnew->ppare = last;
