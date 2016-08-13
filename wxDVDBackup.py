@@ -93,7 +93,9 @@ if _ucode_type == None:
         return s
 elif not _is_py3:
     def _T(s):
-        return unicode(s, _ucode_type)
+        if isinstance(s, str):
+            return unicode(s, _ucode_type)
+        return s
 else:
     def _T(s):
         try:
@@ -7301,7 +7303,13 @@ class ACoreLogiDat:
         to_dev = self.get_is_dev_tmp_target()
         try:
             if to_dev:
-                outf = self.check_target_dev(target_dev)
+                st = x_lstat(target_dev, True, False)
+                rdev = raw_node_path(self.checked_input_devnode)
+                ist = x_lstat(rdev, True, False)
+                if st and ist and os.path.samestat(st, ist):
+                    outf = target_dev
+                else:
+                    outf = self.check_target_dev(target_dev)
                 if outf:
                     target_dev = outf
                     outf = self.get_tempdir()
