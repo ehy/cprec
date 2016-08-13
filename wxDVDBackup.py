@@ -5873,8 +5873,8 @@ class ACoreLogiDat:
                 msg_line_ERROR(m)
                 stmsg.put_status(m)
                 return False
-            else
-            return True
+            else:
+                return True
 
         if not self.do_in_out_size_check():
             return False
