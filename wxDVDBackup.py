@@ -290,6 +290,34 @@ def invoke_proc_for_window_children(window, proc):
     for wnd in window.GetChildren():
         invoke_proc_for_window_children(wnd, proc)
 
+# for Unix systems that have different nodes for raw vs. block
+# devices: get desired path from arg
+# TODO: check OpenSolaris!
+os_uname = os.uname()[0]
+raw_node_rx = re.compile('^rcd[0-9]+[a-z]$')
+block_node_rx = re.compile('^cd[0-9]+[a-z]$')
+def raw_node_path(pth):
+    # pertinent BSD systems that use r* for raw nodes
+    bsd = (_T("NetBSD"), _T("OpenBSD"))
+
+    if os_uname in bsd:
+        spl = os.path.split(pth)
+        if s_eq(spl[0], '/dev') and block_node_rx.match(_T(spl[1])):
+            pth = os.path.join(_T(spl[0]), _T('r{0}').format(spl[1]))
+
+    return pth
+
+def block_node_path(pth):
+    # pertinent BSD systems that use r* for raw nodes
+    bsd = (_T("NetBSD"), _T("OpenBSD"))
+
+    if os_uname in bsd:
+        spl = os.path.split(pth)
+        if s_eq(spl[0], '/dev') and raw_node_rx.match(_T(spl[1])):
+            pth = os.path.join(_T(spl[0]), _T(spl[1][1:]))
+
+    return pth
+
 
 """
     Development hacks^Wsupport
@@ -2780,6 +2808,10 @@ class ATargetPanePanel(wx.Panel):
 
     def on_run_button(self, event):
         self.dev = self.input_select_node.GetValue()
+        rdev = raw_node_path(self.dev)
+        if s_ne(self.dev, rdev):
+            self.dev = rdev
+            self.input_select_node.SetValue(rdev)
         self.core_ld.do_run(self.dev)
 
     def set_run_label(self):
@@ -7408,9 +7440,9 @@ class ACoreLogiDat:
         try:
             if to_dev:
                 st = x_lstat(target_dev, True, False)
-                #ist = self.checked_input_devstat
-                ist = os.stat(self.checked_input_devnode)
-                if st and os.path.samestat(st, ist):
+                rdev = raw_node_path(self.checked_input_devnode)
+                ist = x_lstat(rdev, True, False)
+                if st and ist and os.path.samestat(st, ist):
                     _dbg(_T("NO check_target_dev"))
                     outf = target_dev
                 else:
