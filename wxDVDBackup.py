@@ -5868,14 +5868,32 @@ class ACoreLogiDat:
 
         eq = self.do_devstat_check(outdev, self.checked_output_devstat)
         if not eq:
-            if not self.do_target_medium_check(outdev):
+            if not self.check_target_prompt(outdev, 0):
                 m = _("Target medium check failed")
                 msg_line_ERROR(m)
                 stmsg.put_status(m)
                 return False
+            else
+            return True
 
         if not self.do_in_out_size_check():
             return False
+
+        return True
+
+    # compare input size to capacity *after* data members are set
+    def check_target_prompt(
+        self, outdev, wait_retry, blank_async = False, verbose= False):
+        while True:
+            if not (self.do_target_medium_check(outdev, wait_retry)
+                and self.do_in_out_size_check(blank_async, verbose)):
+                m += _(
+                    "\nMedium check failed. Try another disc?")
+                r = self.dialog(m, _T("yesno"), wx.YES_NO)
+                if r != wx.YES:
+                    return False
+            else:
+                break
 
         return True
 
@@ -6039,17 +6057,12 @@ class ACoreLogiDat:
                     self.reset_target_data()
                     return
 
-
             st = self.checked_output_devstat
             if not st:
-                if self.do_target_medium_check(target_dev, retry_num):
-                    r = self.do_in_out_size_check(async_blank)
+                if self.check_target_prompt(target_dev, retry_num):
                     if async_blank:
-                        return r
-                    if r:
-                        st = self.checked_output_devstat
-                    else:
-                        st = False
+                        return True
+                    st = self.checked_output_devstat
                 else:
                     st = False
 
