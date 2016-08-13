@@ -5887,10 +5887,8 @@ class ACoreLogiDat:
         while True:
             if not (self.do_target_medium_check(outdev, wait_retry)
                 and self.do_in_out_size_check(blank_async, verbose)):
-                m = _(
-                    "Medium check failed. Try another disc?")
-                m += _(
-                    "If yes, change disc before clicking 'yes'.")
+                m = _("Medium check failed. Try another disc?"
+                    "\nIf yes, change disc before clicking 'yes'.")
                 r = self.dialog(m, _T("yesno"), wx.YES_NO)
                 if r != wx.YES:
                     return False
