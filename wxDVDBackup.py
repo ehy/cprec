@@ -5883,19 +5883,51 @@ class ACoreLogiDat:
 
     # compare input size to capacity *after* data members are set
     def check_target_prompt(
-        self, outdev, wait_retry, blank_async = False, verbose= False):
+        self, outdev, wait_retry, settle_time = 5,
+        blank_async = False, verbose= False):
+
+        settle_tries = wait_retry
+
         while True:
-            if not (self.do_target_medium_check(outdev, wait_retry)
-                and self.do_in_out_size_check(blank_async, verbose)):
-                m = _("Medium check failed. Try another disc?"
-                    "\nIf yes, change disc before clicking 'yes'.")
-                r = self.dialog(m, _T("yesno"), wx.YES_NO)
-                if r != wx.YES:
-                    return False
-            else:
+            r = self.do_target_medium_check(outdev, settle_tries)
+            if r:
+                r = self.do_in_out_size_check(blank_async, verbose)
+
+            if r:
+                return True
+
+            if settle_tries < 1 and self.get_is_dev_direct_target():
                 break
 
-        return True
+            if settle_tries < 1:
+                m = _("Target medium check failed. Try another disc?"
+                    "\nIf yes, change disc before clicking 'yes'.")
+
+                r = self.dialog(m, _T("yesno"), wx.YES_NO)
+                if r != wx.YES:
+                    break
+
+                settle_tries = wait_retry
+                continue
+
+            msg_line_WARN(_(
+                "target medium checked failed; will sleep "
+                "{secs} more seconds, then try again "
+                "({tries} more retries)"
+                ).format(secs = settle_time, tries = settle_tries))
+
+            settle_tries -= 1
+
+            wx.GetApp().Yield(True)
+
+            t = time.time()
+            wx.Sleep(settle_time)
+            t = time.time() - t
+            msg_line_INFO(
+                _("Slept {secs} to let drive settle.").format(secs = t))
+
+
+        return False
 
     # compare input size to capacity *after* data members are set
     def do_in_out_size_check(self, blank_async = False, verbose= False):
@@ -5987,31 +6019,11 @@ class ACoreLogiDat:
 
         cf.SetPath(opth)
 
-        while True:
-            wx.GetApp().Yield(True)
+        self.do_target_check(
+            target_dev, async_blank, reset, settle_tries, settle_time)
 
-            t = time.time()
-            wx.Sleep(settle_time)
-            t = time.time() - t
-            msg_line_INFO(
-                _("Slept {secs} to let drive settle.").format(secs = t))
-
-            self.do_target_check(
-                target_dev, async_blank, reset, settle_tries)
-
-            if self.checked_output_devnode:
-                return True
-
-            if settle_tries < 1 or self.get_is_dev_direct_target():
-                break
-
-            msg_line_WARN(_(
-                "target medium checked failed; will sleep "
-                "{secs} more seconds, then try again "
-                "({tries} more retries)"
-                ).format(secs = settle_time, tries = settle_tries))
-
-            settle_tries -= 1
+        if self.checked_output_devnode:
+            return True
 
         return False
 
@@ -6023,7 +6035,7 @@ class ACoreLogiDat:
                         target_dev = None,
                         async_blank = False,
                         reset = False,
-                        retry_num = 0):
+                        retry_num = 0, settle_time = 5):
         if self.get_is_fs_target():
             return
 
@@ -6059,7 +6071,8 @@ class ACoreLogiDat:
 
             st = self.checked_output_devstat
             if not st:
-                if self.check_target_prompt(target_dev, retry_num):
+                if self.check_target_prompt(
+                    target_dev, retry_num, settle_time):
                     if async_blank:
                         return True
                     st = self.checked_output_devstat
@@ -7702,7 +7715,7 @@ class ACoreLogiDat:
             stmsg.put_status(_("Already busy!"))
             return False
 
-        if retry_num:
+        if retry_num > 0:
             pr_stat = lambda s: True
             pr_GOOD = msg_line_GOOD
             pr_INFO = lambda s: True
