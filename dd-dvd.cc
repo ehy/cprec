@@ -1163,7 +1163,7 @@ usage(int status)
 {
       fprintf(stderr, _("%s - \
 A simple utility to make a backup copy of a DVD filesystem.\n"), program_name);
-      fprintf(stderr, _("Usage: %s [OPTIONS] <SOURCE device node> <TARGET file>\n"), program_name);
+      fprintf(stderr, _("Usage: %s [OPTIONS] SOURCE(device node) [TARGET]\n"), program_name);
 
       fprintf(stderr, _("\
 Options:\n\
