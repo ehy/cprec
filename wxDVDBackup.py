@@ -1656,9 +1656,9 @@ class RepairedMDDialog(MDD.MultiDirDialog):
 AMsgWnd -- a text output window to appear within the ASashWnd
 """
 class AMsgWnd(wx.TextCtrl):
-    def __init__(self, parent, wi, hi, id = -1):
+    def __init__(self, parent, id = -1, size = wx.DefaultSize):
         wx.TextCtrl.__init__(self,
-            parent, id, "", wx.DefaultPosition, (wi, hi),
+            parent, id, _T(""), wx.DefaultPosition, size,
             wx.TE_MULTILINE|wx.SUNKEN_BORDER|wx.TE_RICH|wx.HSCROLL)
 
         self.parent = parent
@@ -2093,7 +2093,7 @@ window based on this -- see code starting at comment
     # for derived classes hacking control focus behavior
 The focus transfer code is useful for wxPy (wxWidgets) 2.8.x only!
 In wxPy (wxWidgets) 3.0.x tab traversal is broken for children of
-Sash{Layout}Window (used in this prog) and maybe others.  Using C++,
+Sash{Layout}Window (used in this prog) and misc. others.  Using C++,
 tabbing is not technically broken because templates provide tabbing
 code and programs can use, e.g.:
     typedef wxNavigationEnabled<wxSashWindow> ASashWnd_base;
@@ -2104,14 +2104,18 @@ fail if panels are children of wxSashLayoutWindow.  Even using
 <control>.SetFocus() fails, so tab traversal cannot be (re)implemented!
 Still hoping I missed something, or can find a workaround.
 """
-class ABasePane(wx.ScrolledWindow):
-#class ABasePane(scrollpanel.ScrolledPanel):
+if True or is_wxpy_v3():
+    ABasePaneBase = scrollpanel.ScrolledPanel
+else:
+    ABasePaneBase = wx.ScrolledWindow
+
+class ABasePane(ABasePaneBase):
     def __init__(self, parent, gist, wi, hi, id = -1):
-        wx.ScrolledWindow.__init__(self,
-        #scrollpanel.ScrolledPanel.__init__(self,
+        ABasePaneBase.__init__(self,
                         parent, id,
                         style = wx.CLIP_CHILDREN |
-                                wx.FULL_REPAINT_ON_RESIZE
+                                wx.FULL_REPAINT_ON_RESIZE |
+                                wx.TAB_TRAVERSAL
                         )
         self.parent = parent
         self.core_ld = gist
@@ -2135,6 +2139,7 @@ class ABasePane(wx.ScrolledWindow):
 
         # for focus transfer to neighbor
         self.focus_terminals = {"first" : None, "last" : None}
+
 
     # for derived classes hacking control focus behavior --
     # this only works for wxPy 2.8; wxPy 3.0 is broken re. focus
@@ -3360,42 +3365,15 @@ AChildSashWnd -- adjustable child of adjustable child of top frame
 
                  see ASashWnd class below
 """
-class AChildSashWnd(wxadv.SashWindow):
+class AChildSashWnd(wx.SplitterWindow):
     def __init__(self, parent, sz, logobj, ID, title, gist):
-        wxadv.SashWindow.__init__(self, parent, ID)
+        wx.SplitterWindow.__init__(self, parent, ID,
+            style = wx.SP_3D)
 
         self.core_ld = gist
 
         self.pane_minw = 40
-        szw1 = parent.GetSize()
         pane_width = sz.width / 2
-
-        self.swnd = []
-        self.swnd.append(
-            wxadv.SashLayoutWindow(
-                self, gist.get_new_idval(),
-                wx.DefaultPosition, (240, 30),
-                wx.NO_BORDER|wxadv.SW_3D
-            ))
-        self.swnd[0].SetDefaultSize((pane_width, 1000))
-        self.swnd[0].SetOrientation(wxadv.LAYOUT_VERTICAL)
-        self.swnd[0].SetAlignment(wxadv.LAYOUT_LEFT)
-        self.swnd[0].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[0].SetSashVisible(wxadv.SASH_RIGHT, True)
-        self.swnd[0].SetExtraBorderSize(1)
-
-        self.swnd.append(
-            wxadv.SashLayoutWindow(
-                self, gist.get_new_idval(),
-                wx.DefaultPosition, (240, 30),
-                wx.NO_BORDER|wxadv.SW_3D
-            ))
-        self.swnd[1].SetDefaultSize((pane_width, 1000))
-        self.swnd[1].SetOrientation(wxadv.LAYOUT_VERTICAL)
-        self.swnd[1].SetAlignment(wxadv.LAYOUT_LEFT)
-        self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[1].SetSashVisible(wxadv.SASH_RIGHT, True)
-        self.swnd[1].SetExtraBorderSize(1)
 
         w_adj = 20
         h_adj = 40
@@ -3406,12 +3384,12 @@ class AChildSashWnd(wxadv.SashWindow):
         self.child2_maxh = sz.height
 
         self.child1 = ASourcePane(
-            self.swnd[0], gist,
+            self, gist,
             self.child1_maxw - w_adj, self.child1_maxh - h_adj,
             id = gist.get_new_idval()
             )
         self.child2 = ATargetPane(
-            self.swnd[1], gist,
+            self, gist,
             self.child2_maxw - w_adj, self.child2_maxh - h_adj,
             id = gist.get_new_idval()
             )
@@ -3424,20 +3402,9 @@ class AChildSashWnd(wxadv.SashWindow):
 
         self.child1.take_focus()
 
-        self.remainingSpace = self.swnd[1]
-
-        self.child1_maxw += w_adj
-        self.child2_maxw += w_adj
-
-        ids = []
-        ids.append(self.swnd[0].GetId())
-        ids.append(self.swnd[1].GetId())
-        ids.sort()
-
-        self.Bind(
-            wxadv.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
-            id = ids[0], id2 = ids[1]
-            )
+        self.SplitVertically(self.child1, self.child2, pane_width)
+        self.SetMinimumPaneSize(self.pane_minw)
+        self.SetSashPosition(pane_width, True)
 
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
@@ -3449,56 +3416,8 @@ class AChildSashWnd(wxadv.SashWindow):
         self.child1.init_for_children()
         self.child1.init_for_children()
 
-    def on_sash_drag(self, event):
-        event.Skip()
-
-        if event.GetDragStatus() == wxadv.SASH_STATUS_OUT_OF_RANGE:
-            msg_line_WARN(_('sash drag is out of range'))
-            return
-
-        eobj = event.GetEventObject()
-
-        if eobj is self.swnd[0]:
-            wi = min(event.GetDragRect().width, self.child1_maxw)
-            self.swnd[0].SetDefaultSize((wi, self.child1_maxh))
-
-        elif eobj is self.swnd[1]:
-            wi = min(event.GetDragRect().width, self.child2_maxw)
-            self.swnd[1].SetDefaultSize((wi, self.child2_maxh))
-
-        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
-        self.remainingSpace.Refresh()
-
     def OnSize(self, event):
-        event.Skip()
-
-        sz  = self.swnd[0].GetSize()
-        sz1 = self.swnd[1].GetSize()
-
-        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
-
-        if sz1.width < self.pane_minw:
-            w0 = sz.width - (self.pane_minw - sz1.width)
-            if w0 >= self.pane_minw:
-                self.swnd[0].SetDefaultSize((w0, sz.height))
-            else:
-                self.swnd[0].SetDefaultSize((self.pane_minw, sz.height))
-            wxadv.LayoutAlgorithm().LayoutWindow(
-                self, self.remainingSpace)
-
-        elif sz.width < self.pane_minw:
-            self.swnd[0].SetDefaultSize((self.pane_minw, sz.height))
-            wxadv.LayoutAlgorithm().LayoutWindow(
-                self, self.remainingSpace)
-
-        elif sz1.width > self.child2_maxw:
-            w0 = min(sz.width + (sz1.width - self.child2_maxw),
-                self.child1_maxw)
-            if sz.width < w0:
-                self.swnd[0].SetDefaultSize((w0, sz.height))
-                wxadv.LayoutAlgorithm().LayoutWindow(
-                    self, self.remainingSpace)
-
+        self.UpdateSize()
 
     def get_msg_obj(self):
         return self.swnd[1].get_msg_obj()
@@ -3507,11 +3426,11 @@ class AChildSashWnd(wxadv.SashWindow):
 """
 ASashWnd -- adjustable child of top frame
 """
-class ASashWnd(wxadv.SashWindow):
+class ASashWnd(wx.SplitterWindow):
     def __init__(self, parent, ID, title, gist,
                        init_build = True, size = (800, 600)):
-        wxadv.SashWindow.__init__(self,
-                               parent, ID, name = title, size = size)
+        wx.SplitterWindow.__init__(self, parent, ID,
+            name = title, size = size, style = wx.SP_3D)
 
         self.core_ld = gist
 
@@ -3530,74 +3449,22 @@ class ASashWnd(wxadv.SashWindow):
         parent = self.GetParent()
         gist = self.core_ld
 
-        self.msg_minh = 72
-        self.msg_inith = 100
         sz = self.GetClientSize()
-        #sz.height -= 32 #
-        #sz.height -= self.msg_inith
-        #sz.height -= self.msg_minh
-        top_ht = sz.height - self.msg_inith
+        top_ht = sz.height - 130
 
-        self.swnd = []
-        self.swnd.append(
-            wxadv.SashLayoutWindow(
-                self, gist.get_new_idval(),
-                wx.DefaultPosition,
-                (300, top_ht),
-                wx.NO_BORDER|wxadv.SW_3D
-            ))
-        self.swnd[0].SetDefaultSize((sz.width, top_ht))
-        self.swnd[0].SetOrientation(wxadv.LAYOUT_HORIZONTAL)
-        self.swnd[0].SetAlignment(wxadv.LAYOUT_TOP)
-        self.swnd[0].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[0].SetSashVisible(wxadv.SASH_BOTTOM, True)
-        self.swnd[0].SetExtraBorderSize(1)
-
-        self.swnd.append(
-            wxadv.SashLayoutWindow(
-                self, gist.get_new_idval(),
-                wx.DefaultPosition,
-                (300, self.msg_minh),
-                wx.NO_BORDER|wxadv.SW_3D
-            ))
-        self.swnd[1].SetDefaultSize((sz.width, self.msg_minh))
-        self.swnd[1].SetOrientation(wxadv.LAYOUT_HORIZONTAL)
-        self.swnd[1].SetAlignment(wxadv.LAYOUT_BOTTOM)
-        self.swnd[1].SetBackgroundColour(wx.Colour(240, 240, 240))
-        self.swnd[1].SetSashVisible(wxadv.SASH_BOTTOM, True)
-        self.swnd[1].SetExtraBorderSize(1)
-
-        self.child1_maxw = 16000
-        self.child1_maxh = 16000
-
-        self.child2_maxw = 16000
-        self.child2_maxh = 16000
-
-        # It's not clear why, but top section height
-        # must be further reduced on some GUI systems,
-        # e.g., Xubuntu
-        fudge_ht = 28
-        sz1 = wx.Size(sz.width, top_ht - fudge_ht)
+        sz1 = wx.Size(sz.width, top_ht)
         self.child1 = AChildSashWnd(
-            self.swnd[0], sz1, parent, gist.get_new_idval(),
-            _T("Source and Destination"), gist
-            )
-        self.child2 = AMsgWnd(
-            self.swnd[1], 100, self.msg_minh, id = gist.get_new_idval())
+            self, sz1, parent, gist.get_new_idval(),
+            _T("Source and Destination"), gist)
+        self.child2 = AMsgWnd(self,
+            size = wx.DefaultSize, id = gist.get_new_idval())
+
         self.core_ld.set_msg_wnd(self.child2)
         self.child2.set_scroll_to_end(True)
 
-        self.remainingSpace = self.swnd[1]
-
-        ids = []
-        ids.append(self.swnd[0].GetId())
-        ids.append(self.swnd[1].GetId())
-        ids.sort()
-
-        self.Bind(
-            wxadv.EVT_SASH_DRAGGED_RANGE, self.on_sash_drag,
-            id=ids[0], id2=ids[-1]
-            )
+        self.SplitHorizontally(self.child1, self.child2, top_ht)
+        self.SetMinimumPaneSize(20)
+        self.SetSashPosition(top_ht, True)
 
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
@@ -3608,47 +3475,8 @@ class ASashWnd(wxadv.SashWindow):
         self.SetThemeEnabled(True)
         self.child1.post_contruct()
 
-    def on_sash_drag(self, event):
-        if event.GetDragStatus() == wxadv.SASH_STATUS_OUT_OF_RANGE:
-            msg_line_WARN(_('sash drag is out of range'))
-            return
-
-        eobj = event.GetEventObject()
-
-        if eobj is self.swnd[0]:
-            hi = min(self.child1_maxh, event.GetDragRect().height)
-            self.swnd[0].SetDefaultSize((self.child1_maxw, hi))
-
-        elif eobj is self.swnd[1]:
-            hi = min(self.child2_maxh, event.GetDragRect().height)
-            self.swnd[1].SetDefaultSize((self.child2_maxw, hi))
-
-        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
-        self.remainingSpace.Refresh()
-        self.child2.conditional_scroll_adjust()
-
     def OnSize(self, event):
-        ssz = self.GetClientSize()
-        sz0 = self.swnd[0].GetSize()
-        sz1 = self.swnd[1].GetSize()
-        h0 = sz0.height
-        h1 = sz1.height
-
-        ssz.height -= sz1.height
-
-        if sz0.height > ssz.height:
-            if ssz.height >= self.msg_minh:
-                h0 = ssz.height
-            else:
-                h0 = self.msg_inith
-
-        h1 = ssz.height - h0
-
-        self.swnd[0].SetDefaultSize((sz0.width, h0))
-        self.swnd[1].SetDefaultSize((sz0.width, h1))
-
-        wxadv.LayoutAlgorithm().LayoutWindow(self, self.remainingSpace)
-
+        self.UpdateSize()
         self.child2.conditional_scroll_adjust()
 
     def get_msg_obj(self):
