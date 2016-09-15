@@ -2378,6 +2378,7 @@ class AVolInfPanePanel(wx.Panel):
                 sty, wx.DefaultValidator, key)
             if not sty & wx.TE_MULTILINE:
                 txt.SetMaxLength(flen)
+
             txt.SetValue(deflt)
 
             box.Add(txt, 1, wx.EXPAND|wx.ALL, 2)
