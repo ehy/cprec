@@ -87,7 +87,9 @@ if not _is_py3:
 else:
     unicode = str
 
-# use _T (or _) for all strings for string safety
+# use _T (or _) for all strings for string safety -- _("") for
+# strings that should get language translation, and _T("") for
+# string that should not be translated -- as in wxWidgets C++
 if _ucode_type == None:
     def _T(s):
         return s
@@ -115,34 +117,6 @@ else:
             return _T(s)
         return s
 
-# When 'fp' is a FILE-like object, the fp.write() method will
-# not handle unicode objects with chars beyond ASCII; it
-# will throw UnicodeEncodeError -- there is a wrapper
-# codecs.open() that returns a FILE-like object that
-# handles encoding, but a wrapper for fdopen() is absent
-# (or undocumented) -- so use this fp_write()
-if _is_py3:
-    def fp_write(f_object, s):
-        try:
-            return f_object.write(s)
-        except:
-            if _ucode_type == None:
-                _cod = 'ascii'
-            else:
-                _cod = _ucode_type
-            return f_object.write(bytes(s, _cod))
-
-else:
-    def fp_write(f_object, s):
-        if isinstance(s, unicode):
-            if _ucode_type == None:
-                _cod = 'ascii'
-            else:
-                _cod = _ucode_type
-            return f_object.write(codecs.encode(_Tnec(s), _cod))
-        return f_object.write(s)
-
-
 # inefficient string equality test, unicode vs. ascii safe
 def s_eq(s1, s2):
     if _Tnec(s1) == _Tnec(s2):
@@ -161,6 +135,37 @@ def s_ne(s1, s2):
 def _(s):
     return wx.GetTranslation(_Tnec(s))
 
+# When 'fp' is a FILE-like object, the fp.write() method will
+# not handle unicode objects with chars beyond ASCII; it
+# will throw UnicodeEncodeError -- there is a wrapper
+# codecs.open() that returns a FILE-like object that
+# handles encoding, but a wrapper for fdopen() is absent
+# (or undocumented) -- so use this fp_write()
+if _is_py3:
+    def fp_write(f_object, s):
+        try:
+            return f_object.write(s)
+        except:
+            # TODO: specify exceptions!
+            if _ucode_type == None:
+                _cod = 'ascii'
+            else:
+                _cod = _ucode_type
+            return f_object.write(bytes(s, _cod))
+
+else:
+    def fp_write(f_object, s):
+        if isinstance(s, unicode):
+            if _ucode_type == None:
+                _cod = 'ascii'
+            else:
+                _cod = _ucode_type
+            return f_object.write(codecs.encode(_Tnec(s), _cod))
+        return f_object.write(s)
+
+
+# Make some global message procedures -- initial output to file, and
+# output to GUI object after GUI setup.
 msg_red_color = wx.RED
 msg_green_color = wx.Colour(0, 227, 0)
 msg_blue_color = wx.BLUE
@@ -370,12 +375,11 @@ _dbg(_T("debug file opened"))
 """
 
 # version globals: r/o
-# jump 0.0.2.0->0.3.0 to sync with package
-version_string = _T("0.4.0")
-version_name   = _("Mortal Coil Shed")
+version_string = _T("0.4.1")
+version_name   = _("Serpent Lake")
 version_mjr    = 0
 version_mjrrev = 4
-version_mnr    = 0
+version_mnr    = 1
 version_mnrrev = 0
 version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
@@ -386,8 +390,10 @@ program_site    = _T("https://github.com/ehy/cprec")
 program_desc    = _T("Flexible backup for video DVD discs.")
 program_devs    = [maintainer_name]
 
+# refs to GUI message objects for message procs (above).
 _msg_obj = None
 _msg_obj_init_is_done = False
+
 
 # Two arrow images courtesy of wxPython demo/images.py,
 # for list control columns indicating sort order
