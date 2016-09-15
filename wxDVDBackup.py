@@ -2147,6 +2147,9 @@ class ABasePane(ABasePaneBase):
         self.focus_terminals = {"first" : None, "last" : None}
 
 
+    def AcceptsFocusRecursively(self):
+        return True
+
     # for derived classes hacking control focus behavior --
     # this only works for wxPy 2.8; wxPy 3.0 is broken re. focus
     # and traversal, failing to use the wx 3.x Navigation templates
