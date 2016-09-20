@@ -17,7 +17,7 @@
 #  MA 02110-1301, USA.
 
 """
-DVD Backup fronted for cprec and dd-dvd, growisofs, genisoimage/mkisofs
+DVD Backup frontend for cprec and dd-dvd, growisofs, genisoimage/mkisofs
 """
 
 import codecs
@@ -418,58 +418,60 @@ SmallDnArrow = PyEmbeddedImage(
 """
 
 
-"""
-ChildProcParams:
-Parameter holding object to simplify interface to ChildTwoStreamReader.
-Arguments to constructor:
-    cmd = string, name of command; may or not be path or a simple name,
-    cmdargs = a list object with args -- [0] must be set as usual,
-    cmdenv = any environment variables to be set for the process:
-        this may be a map ('dict') with the variable as key and value
-        as the value, or either a tuple or list of 2-tuples, each
-        of which has the variable at the zero index and value at one,
-    stdin_fd = if present and not None this may be a readable integer
-        file descriptor that will serve as input for the process, or
-        another ChildProcParams object as part of a linked list that
-        will create a process pipline (see below), or a string with a
-        filename to be opened for reading (unchecked); if this is not
-        given or is None then /dev/null will be opened for use;
-        finally, the ChildProcParams object will only close descriptors
-        opened herein -- i.e., a name string or None or not given.
-
-# ChildTwoStreamReader builds a pipeline if ChildProcParams is in fact
-# a list where ChildProcParams.fd is another ChildProcParams and so on.
-#
-# For example, like this . . .
-pipecmds = []
-pipecmds.append( ("cat", (), {}) )
-pipecmds.append( ("sed",
-    ('-e', 's/lucy/& IN THE SKY/g', '-e', 's/kingbee/IM A & BABY/g'),
-     {}) )
-pipecmds.append( ("tr", ('#', '*'), {}) )
-pipecmds.append( ("grep", ('-E', '-v', rxpatt), {}) )
-pipecmds.append( ("sort", (), {"LC_ALL":"C"}) )
-pipecmds.append( ("uniq", (), {}) )
-
-parm_obj = in_fd = os.open(infile, os.O_RDONLY)
-
-for cmd, aargs, envmap in pipecmds:
-    cmdargs = [cmd]
-    for arg in aargs:
-        cmdargs.append(arg)
-    try:
-        parm_obj = ChildProcParams(cmd, cmdargs, envmap, parm_obj)
-    except ChildProcParams.BadParam as e:
-        PutMsgLineERROR("Exception '%s'" % e)
-        exit(1)
-
-if parm_obj:
-    ch_proc = ChildTwoStreamReader(parm_obj)
-    is_ok = ch_proc.go_and_read()
-    status = ch_proc.wait()
-os.close(in_fd)
-"""
 class ChildProcParams:
+    """
+    ChildProcParams:
+    Parameter object to simplify interface to ChildTwoStreamReader.
+    Arguments to constructor:
+     cmd = string, name of command; may or not be path or a simple name,
+     cmdargs = a list object with args -- [0] must be set as usual,
+     cmdenv = any environment variables to be set for the process:
+         this may be a map ('dict') with the variable as key and value
+         as the value, or either a tuple or list of 2-tuples, each
+         of which has the variable at the zero index and value at one,
+     stdin_fd = if present and not None this may be a readable integer
+         file descriptor that will serve as input for the process, or
+         another ChildProcParams object as part of a linked list that
+         will create a process pipline (see below), or a string with a
+         filename to be opened for reading (unchecked); if this is not
+         given or is None then /dev/null will be opened for use;
+         finally, the ChildProcParams object will only close descriptors
+         opened herein -- i.e., a name string or None or not given.
+
+    ChildTwoStreamReader builds a pipeline if ChildProcParams is in
+    fact a list where ChildProcParams.fd is another ChildProcParams,
+    and so on.
+
+    For example, like this . . .
+    pipecmds = []
+    pipecmds.append( ("cat", (), {}) )
+    pipecmds.append( ("sed",
+        ('-e', 's/lucy/& IN THE SKY/g',
+         '-e', 's/kingbee/IM A & BABY/g'),
+         {}) )
+    pipecmds.append( ("tr", ('#', '*'), {}) )
+    pipecmds.append( ("grep", ('-E', '-v', rxpatt), {}) )
+    pipecmds.append( ("sort", (), {"LC_ALL":"C"}) )
+    pipecmds.append( ("uniq", (), {}) )
+
+    parm_obj = in_fd = os.open(infile, os.O_RDONLY)
+
+    for cmd, aargs, envmap in pipecmds:
+        cmdargs = [cmd]
+        for arg in aargs:
+            cmdargs.append(arg)
+        try:
+            parm_obj = ChildProcParams(cmd, cmdargs, envmap, parm_obj)
+        except ChildProcParams.BadParam as e:
+            PutMsgLineERROR("Exception '%s'" % e)
+            exit(1)
+
+    if parm_obj:
+        ch_proc = ChildTwoStreamReader(parm_obj)
+        is_ok = ch_proc.go_and_read()
+        status = ch_proc.wait()
+    os.close(in_fd)
+    """
     def __init__(
         self, cmd, cmdargs = None, cmdenv = None, stdin_fd = None
         ):
@@ -549,19 +551,19 @@ class ChildProcParams:
             Exception.__init__(self, args)
 
 
-"""
-Exec a child process, when both its stdout and stderr are wanted --
-    class ChildProcParams for child parameters.
-Method go() (see comment there) returns read fd on which child
-    stdout lines have prefix "1: " and stderr has "2: " and anything
-    else is a message from an auxiliary child (none at present)
-Method go_and_read() (see comment there) invokes go() and reads and
-    stores lines of outputs in three arrays which can be retrieved
-    with get_read_lists() -- after which reset_read_lists() can be
-    called if object is to be used again.
-See method comments in class definition
-"""
 class ChildTwoStreamReader:
+    """
+    Exec a child process, when both its stdout and stderr are wanted --
+        class ChildProcParams for child parameters.
+    Method go() (see comment there) returns read fd on which child
+        stdout lines have prefix "1: " and stderr has "2: " and anything
+        else is a message from an auxiliary child (none at present)
+    Method go_and_read() (see comment there) invokes go() and reads and
+        stores lines of outputs in three arrays which can be retrieved
+        with get_read_lists() -- after which reset_read_lists() can be
+        called if object is to be used again.
+    See method comments in class definition
+    """
     prefix1 = _T("1: ")
     prefix2 = _T("2: ")
     prefixX = _T("x: ") # Exceptional, errors
@@ -1477,18 +1479,18 @@ class ChildTwoStreamReader:
         return True
 
 
-"""
-RepairedMDDialog -- a multi-directory selection dialog, deriving
-                    from wxPython:agw.MultiDirDialog to repair
-                    broken GTK2 implementation of underlying
-                    wxTreeCtrl by removing misguided false items
-                    "Home directory" etc. -- also repairs bug
-                    in wxPython:agw.MultiDirDialog that returns
-                    items under '/' prefixed with '//'.
-                    Furthermore, parameter defaults are tuned
-                    to my preferences.
-"""
 class RepairedMDDialog(MDD.MultiDirDialog):
+    """
+    RepairedMDDialog -- a multi-directory selection dialog, deriving
+                        from wxPython:agw.MultiDirDialog to repair
+                        broken GTK2 implementation of underlying
+                        wxTreeCtrl by removing misguided false items
+                        "Home directory" etc. -- also repairs bug
+                        in wxPython:agw.MultiDirDialog that returns
+                        items under '/' prefixed with '//'.
+                        Furthermore, parameter defaults are tuned
+                        to my preferences.
+    """
     bugstr = (_T('Home Directory'), _T('Home directory'), _T('Desktop'))
 
     def __init__(self,
@@ -1658,10 +1660,10 @@ class RepairedMDDialog(MDD.MultiDirDialog):
             Exception.__init__(self, args)
 
 
-"""
-AMsgWnd -- a text output window to appear within the ASashWnd
-"""
 class AMsgWnd(wx.TextCtrl):
+    """
+    AMsgWnd -- a text output window to appear within the ASashWnd
+    """
     def __init__(self, parent, id = -1, size = wx.DefaultSize):
         wx.TextCtrl.__init__(self,
             parent, id, _T(""), wx.DefaultPosition, size,
@@ -1822,10 +1824,10 @@ class AMsgWnd(wx.TextCtrl):
 
 
 
-"""
-AFileListCtrl -- Control to display additional file/dir selections
-"""
 class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
+    """
+    AFileListCtrl -- Control to display additional file/dir selections
+    """
     def __init__(self, parent, gist, id = -1, size = wx.DefaultSize):
         wx.ListCtrl.__init__(self, parent, id,
             wx.DefaultPosition, size,
@@ -2083,39 +2085,21 @@ class AFileListCtrl(wx.ListCtrl, listmix.ColumnSorterMixin):
             self.rm_all()
 
 
-"""
-ABasePane -- a base class for scrolling panels used here
-(NOTE: alternative wxPython wx.lib.scrolledpanel -- imported
-as scrollpanel here -- has some subtle advantages, e.g. the
-volume info panel, which is always larger than visible space and
-therefore has vertical a scroll bar, will auto-scroll to reveal
-a newly focused control that had been hidden when tabbing
-through controls; wx.ScrolledWindow does not do so. BUT,
-a major disadvantage: click any text text field and it might
-scroll to bottom! N.G.)
-.
-This class also provides code for transfering child focus to a peer
-window based on this -- see code starting at comment
-    # for derived classes hacking control focus behavior
-The focus transfer code is useful for wxPy (wxWidgets) 2.8.x only!
-In wxPy (wxWidgets) 3.0.x tab traversal is broken for children of
-Sash{Layout}Window (used in this prog) and misc. others.  Using C++,
-tabbing is not technically broken because templates provide tabbing
-code and programs can use, e.g.:
-    typedef wxNavigationEnabled<wxSashWindow> ASashWnd_base;
-    typedef wxNavigationEnabled<wxSashLayoutWindow> ASashWnd_laywin;
-***but*** wxPy 3.0.x has not done this!  Therefore, using panels, and
-expecting panel-parented controls to have tab traversal, will only
-fail if panels are children of wxSashLayoutWindow.  Even using
-<control>.SetFocus() fails, so tab traversal cannot be (re)implemented!
-Still hoping I missed something, or can find a workaround.
-"""
-if True or is_wxpy_v3():
-    ABasePaneBase = scrollpanel.ScrolledPanel
-else:
-    ABasePaneBase = wx.ScrolledWindow
-
+ABasePaneBase = scrollpanel.ScrolledPanel
+#ABasePaneBase = wx.ScrolledWindow
 class ABasePane(ABasePaneBase):
+    """
+    ABasePane -- a base class for scrolling panels used here
+    (NOTE: alternative wxPython wx.lib.scrolledpanel -- imported
+    as scrollpanel here -- has some subtle advantages, e.g. the
+    volume info panel, which is always larger than visible space and
+    therefore has vertical a scroll bar, will auto-scroll to reveal
+    a newly focused control that had been hidden when tabbing
+    through controls; wx.ScrolledWindow does not do so. BUT,
+    a major disadvantage: click any text text field and it might
+    scroll to bottom! N.G.)
+    .
+    """
     def __init__(self, parent, gist, wi, hi, id = -1):
         ABasePaneBase.__init__(self,
                         parent, id,
@@ -2147,13 +2131,14 @@ class ABasePane(ABasePaneBase):
         self.focus_terminals = {"first" : None, "last" : None}
 
 
+    # AcceptsFocusRecursively: override C++ vitual func, return true:
+    # this is needed with wx 3.x for tab traversal into child windows
     def AcceptsFocusRecursively(self):
         return True
 
-    # for derived classes hacking control focus behavior --
-    # this only works for wxPy 2.8; wxPy 3.0 is broken re. focus
-    # and traversal, failing to use the wx 3.x Navigation templates
-    # for wxSash{,Layout)Window
+    # All following *focus* methods:
+    # for derived classes hacking focus behavior --
+    # for passing tab-focus across sibling windows
     def take_focus(self, forward = True):
         if forward:
             if self.focus_terminals["first"]:
@@ -2243,6 +2228,7 @@ class ABasePane(ABasePaneBase):
         f = lambda wnd: wnd.SetThemeEnabled(True)
         invoke_proc_for_window_children(self, f)
 
+    # For derived classes: add child to our list
     def add_child_wnd(self, wnd):
         if not wnd in self.child_wnds:
             self.child_wnds.append(wnd)
@@ -2273,10 +2259,10 @@ class ABasePane(ABasePaneBase):
         pnl.restore_all = self.restore_all
 
 
-"""
-AVolInfPane -- Pane window for operation target volume info fields setup
-"""
 class AVolInfPane(ABasePane):
+    """
+    AVolInfPane -- Pane window for operation target volume info fields setup
+    """
     def __init__(self, parent, gist, wi, hi, id = -1):
         ABasePane.__init__(self, parent, gist, wi, hi, id)
 
@@ -2295,10 +2281,10 @@ class AVolInfPane(ABasePane):
     def config_wr(self, config):
         self.get_panel().config_wr(config)
 
-"""
-AVolInfPanePanel -- Panel window for operation volume info fields setup
-"""
 class AVolInfPanePanel(wx.Panel):
+    """
+    AVolInfPanePanel -- Panel window for operation volume info fields setup
+    """
     def __init__(self, parent, gist, size, id = -1):
         wx.Panel.__init__(self, parent, id, wx.DefaultPosition, size,
                           style = wx.CLIP_CHILDREN |
@@ -2486,10 +2472,10 @@ class AVolInfPanePanel(wx.Panel):
         return r
 
 
-"""
-ATargetPane -- Pane window for operation target setup
-"""
 class ATargetPane(ABasePane):
+    """
+    ATargetPane -- Pane window for operation target setup
+    """
     def __init__(self, parent, gist, wi, hi, id = -1):
         ABasePane.__init__(self, parent, gist, wi, hi, id)
         self.panel = ATargetPanePanel(self, gist, self.sz)
@@ -2505,10 +2491,10 @@ class ATargetPane(ABasePane):
             wx.EVT_KILL_FOCUS, self.kill_focus_last)
 
 
-"""
-ATargetPanePanel -- Pane window for operation target setup
-"""
 class ATargetPanePanel(wx.Panel):
+    """
+    ATargetPanePanel -- Pane window for operation target setup
+    """
     def __init__(self, parent, gist, size, id = -1):
         wx.Panel.__init__(self, parent, id, wx.DefaultPosition, size)
         self.parent = parent
@@ -2853,10 +2839,10 @@ class ATargetPanePanel(wx.Panel):
 
 
 
-"""
-ASourcePane -- Pane window for operation source setup
-"""
 class ASourcePane(ABasePane):
+    """
+    ASourcePane -- Pane window for operation source setup
+    """
     def __init__(self, parent, gist, wi, hi, id = -1):
         ABasePane.__init__(self, parent, gist, wi, hi, id)
         self.panel = ASourcePanePanel(
@@ -2872,10 +2858,10 @@ class ASourcePane(ABasePane):
         self.focus_terminals["last"].Bind(
             wx.EVT_KILL_FOCUS, self.kill_focus_last)
 
-"""
-ASourcePanePanel -- Pane window for operation source setup
-"""
 class ASourcePanePanel(wx.Panel):
+    """
+    ASourcePanePanel -- Pane window for operation source setup
+    """
     def __init__(self, parent, gist, size, id = -1, def_type_opt = 0):
         wx.Panel.__init__(self, parent, id, wx.DefaultPosition, size)
         self.parent = parent
@@ -3325,10 +3311,10 @@ class ASourcePanePanel(wx.Panel):
             msg_line_INFO(_("set source to {0}").format(self.dev))
 
 
-"""
-AProgBarPanel -- small class for wxGauge progress bar
-"""
 class AProgBarPanel(wx.Panel):
+    """
+    AProgBarPanel -- small class for wxGauge progress bar
+    """
     def __init__(self, parent, gist, ID = -1, rang = 1000,
                  style = wx.GA_HORIZONTAL | wx.GA_SMOOTH):
         wx.Panel.__init__(self, parent, ID)
@@ -3370,12 +3356,11 @@ class AProgBarPanel(wx.Panel):
         self.get_gauge().Pulse()
 
 
-"""
-AChildSashWnd -- adjustable child of adjustable child of top frame
-
-                 see ASashWnd class below
-"""
 class AChildSashWnd(wx.SplitterWindow):
+    """
+    AChildSashWnd -- adjustable child of adjustable child of top frame
+                     see ASashWnd class below
+    """
     def __init__(self, parent, sz, logobj, ID, title, gist):
         wx.SplitterWindow.__init__(self, parent, ID,
             style = wx.SP_3D)
@@ -3433,10 +3418,10 @@ class AChildSashWnd(wx.SplitterWindow):
         return self.swnd[1].get_msg_obj()
 
 
-"""
-ASashWnd -- adjustable child of top frame
-"""
 class ASashWnd(wx.SplitterWindow):
+    """
+    ASashWnd -- adjustable child of top frame
+    """
     def __init__(self, parent, ID, title, gist,
                        init_build = True, size = (800, 600)):
         wx.SplitterWindow.__init__(self, parent, ID,
@@ -3493,10 +3478,12 @@ class ASashWnd(wx.SplitterWindow):
         return self.child2
 
 
-# A sequential integer ID dispenser for wx objects like
-# menu/toolbar items, buttons
-# prefix WX in capitols to distinguish from actual wx objects/code
 class WXObjIdSource:
+    """
+    A sequential integer ID dispenser for wx objects like
+    menu/toolbar items, buttons
+    prefix WX in capitols to distinguish from actual wx objects/code
+    """
     seed = wx.ID_HIGHEST + 1000
     cur = seed
     incr = 1
@@ -3523,9 +3510,11 @@ class WXObjIdSource:
         return v
 
 
-# A dialog box for settings
-# using a tabbed interface for sections
 class ASettingsDialog(wx.Dialog):
+    """
+    A dialog box for settings
+    using a tabbed interface for sections
+    """
     def __init__(self,
             parent, ID, gist,
             title = _("{appname} Settings").format(appname = PROG),
@@ -4089,8 +4078,10 @@ class ASettingsDialog(wx.Dialog):
 
 
 
-# top/main frame window class
 class AFrame(wx.Frame):
+    """
+    top/main frame window class
+    """
     about_info = None
 
     def __init__(self,
@@ -4324,9 +4315,11 @@ class AFrame(wx.Frame):
     def put_status(self, msg, pane = 0):
         self.SetStatusText(msg, pane)
 
-# A thread for time consuming child process --
-# cb is a callback, args is/are arguments to pass
 class AChildThread(threading.Thread):
+    """
+    A thread for time consuming child process --
+    cb is a callback, args is/are arguments to pass
+    """
     def __init__(self, topwnd, destwnd_id, cb, args):
         threading.Thread.__init__(self)
 
@@ -4370,19 +4363,23 @@ class AChildThread(threading.Thread):
         self.per_th.do_stop()
 
 
-# A thread for posting an event at intervals --
 class APeriodThread(threading.Thread):
-    # OS unames I feel good about sleep in thread; {Free,Open}BSD
-    # implement sleep() with nanosleep)() and don't diddle signals,
-    # NetBSD and Linux use SIGALRM says manual -- others unknown --
-    # use of python's time.sleep() vs. the others here is not
-    # inconsequential: the others are causing yet another thread
-    # to be created (by python, not here), and sleep is not.
-    # Of course, python time.sleep() is not just a wrapped call
-    # of libc sleep(3); in fact it will take a float argument.
+    """
+    A thread for posting an event at intervals --
+    """
     th_sleep_ok = (_T("FreeBSD"), _T("OpenBSD"))
 
     def __init__(self, topwnd, destwnd_id, interval = 1, msg = None):
+        """
+        OS unames I feel good about sleep in thread; {Free,Open}BSD
+        implement sleep() with nanosleep)() and don't diddle signals,
+        NetBSD and Linux use SIGALRM says manual -- others unknown --
+        use of python's time.sleep() vs. the others here is not
+        inconsequential: the others are causing yet another thread
+        to be created (by python, not here), and sleep is not.
+        Of course, python time.sleep() is not just a wrapped call
+        of libc sleep(3); in fact it will take a float argument.
+        """
         threading.Thread.__init__(self)
 
         self.topwnd = topwnd
@@ -4443,12 +4440,21 @@ class APeriodThread(threading.Thread):
         self.got_stop = True
 
 
-# custom wx event for child handler thread to communicate
-# with main thread safely (post as pending event)
-# see wxPython demo 'demo/PythonEvents.py'
 T_EVT_CHILDPROC_MESSAGE = wx.NewEventType()
 EVT_CHILDPROC_MESSAGE = wx.PyEventBinder(T_EVT_CHILDPROC_MESSAGE, 1)
 class AChildProcEvent(wx.PyCommandEvent):
+    """A custom event for the wxWidgets event mechanism:
+    thread safe, i.e. may pass to main thread from other threads
+    (which is particularly useful to initiate anything that will
+    update the GUI, which must be done in the main thread with
+    wxWidgets).  The evttag argument to the constructor *must*
+    be passed (it associates the event with a type), and the
+    payload argument *may* be passed if the event should carry
+    a message or some data (but be mindful of threading issues),
+    and finally the event will by default be delivered to the
+    main top window, but a different window id may be given
+    in the destid argument.
+    """
     def __init__(self, evttag, payload = None, destid = None):
         if destid == None:
             destid = wx.GetApp().GetTopWindow().GetId()
@@ -4463,14 +4469,19 @@ class AChildProcEvent(wx.PyCommandEvent):
         self.ev_data = payload
 
     def get_content(self):
+        """on receipt, get_content() may be called on the event
+        object to return a tuple with the event type tag at [0]
+        and any data payload (by default None) at [1]
+        """
         return (self.ev_type, self.ev_data)
 
-
-# class to get wanted data from verbose output of "dvd+rw-mediainfo"
-# -- a utility from dvd+rw-tools, along with growisofs -- feed lines
-# to rx_add() method, get data items with get_data_item(key) (see
-# class def for keys) or whole map with get_data()
 class MediaDrive:
+    """
+    class to get wanted data from verbose output of "dvd+rw-mediainfo"
+    -- a utility from dvd+rw-tools, along with growisofs -- feed lines
+    to rx_add() method, get data items with get_data_item(key) (see
+    class def for keys) or whole map with get_data()
+    """
     #re_flags = 0
     re_flags = re.I
 
@@ -4608,12 +4619,16 @@ class MediaDrive:
         return None
 
 
-#
-# classes for the task of getting POSIX df -kP results for a directory
-#
+"""
+  classes for the task of getting POSIX df -kP results for a directory
+"""
 
-# data structure class to hold df -kP output
 class StructDfData:
+    """ data structure class to hold df -kP output
+        Use like C struct, no logic implemented, just
+        get procedures for convenience, although members
+        may be accessed directly
+    """
     def __init__(self,
                  filesystem = None,
                  blocks_total = -1,
@@ -4622,11 +4637,6 @@ class StructDfData:
                  percent_capacity = 100,
                  mount_point = None,
                  size_of_block = 1024):
-        """ data structure class to hold df -kP output
-            Use like C struct, no logic implemented, only
-            get procedures for convenience, although members
-            may be accessed directly
-        """
         self.filesys  = filesystem
         self.blktotal = blocks_total
         self.blkused  = blocks_used
@@ -4657,8 +4667,9 @@ class StructDfData:
     def size_of_block(self):
         return self.blk_sz
 
-# regex class to masticate df -kP child process lines
 class RegexDf_kP:
+    """regex class to masticate df -kP child process lines
+    """
     #re_flags = 0
     re_flags = re.I
 
@@ -4793,8 +4804,10 @@ class RegexDf_kP:
         def __init__(self, msg):
             Exception.__init__(self, msg)
 
-# class to check directories for free space
 class FsDirSpaceCheck:
+    """
+    class to check directories for free space
+    """
     def __init__(self, checkme):
         """Check directory arg(s) in 'checkme' for free space
            'checkme' may be a string for single check, or an
@@ -4942,9 +4955,11 @@ class FsDirSpaceCheck:
 
         return True
 
-# Check for temp directories with sufficient available space,
-# make sorted result available
 class TempDirsCheck:
+    """
+    Check for temp directories with sufficient available space,
+    make sorted result available
+    """
     # default env vars specifying temp dirs
     default_env = [_T("TMPDIR"), _T("TMP"), _T("TEMP")]
 
@@ -5113,16 +5128,18 @@ class TempDirsCheck:
         return False
 
 
-# The gist of it: much of the code in this file concerns
-# GUI setup and logic -- that's unavoidable -- but the GUI
-# classes should have little or no general logic, most of
-# which goes here (other than support classes).
-# This will also have manage interaction among GUI elements
-# in areas that would require GUI classes to know too much
-# about and have references to other GUI classes; so this will
-# keep ref's to some GUI objects, be passed to GUI c'tors,
-# and provide a few procedures.
 class ACoreLogiDat:
+    """
+    The gist of it: much of the code in this file concerns
+    GUI setup and logic -- that's unavoidable -- but the GUI
+    classes should have little or no general logic, most of
+    which goes here (other than support classes).
+    This will also manage interaction among GUI elements
+    in areas that would require GUI classes to know too much
+    about and have references to other GUI classes; so this will
+    keep ref's to some GUI objects, be passed to GUI c'tors,
+    and provide a few (er, many) procedures.
+    """
     opt_values = collections.namedtuple(
         _T('opt_values'),
         [_T('s_whole'), _T('s_hier'), _T('t_disk'),
@@ -8007,6 +8024,9 @@ class ACoreLogiDat:
 
 
 class TheAppClass(wx.App):
+    """
+    The wx application object class
+    """
     def __init__(self, dummy):
         wx.App.__init__(self)
 
