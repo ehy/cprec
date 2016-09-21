@@ -414,9 +414,8 @@ SmallDnArrow = PyEmbeddedImage(
 
 
 """
-    Classes
+    utility classes
 """
-
 
 class ChildProcParams:
     """
@@ -1479,12 +1478,48 @@ class ChildTwoStreamReader:
         return True
 
 
+class WXObjIdSource:
+    """
+    A sequential integer ID dispenser for wx objects like
+    menu/toolbar items, buttons
+    prefix WX in capitols to distinguish from actual wx objects/code
+    """
+    seed = wx.ID_HIGHEST + 1000
+    cur = seed
+    incr = 1
+
+    def __init__(self, offs = 0):
+        self.offs = offs
+
+    def __call__(self):
+        return self.get_new_id()
+
+    def get_seed(self):
+        return self.__class__.seed
+
+    def get_cur(self):
+        return self.__class__.cur
+
+    def get_new_id(self):
+        if True:
+            v = self.__class__.cur + self.offs
+            self.__class__.cur += self.__class__.incr
+        else:
+            v = wx.NewId()
+        wx.RegisterId(v)
+        return v
+
+
+"""
+    interface widget classes
+"""
+
 class RepairedMDDialog(MDD.MultiDirDialog):
     """
     RepairedMDDialog -- a multi-directory selection dialog, deriving
                         from wxPython:agw.MultiDirDialog to repair
                         broken GTK2 implementation of underlying
-                        wxTreeCtrl by removing misguided false items
+                        wxTreeCtrl by removing unwanted false items
                         "Home directory" etc. -- also repairs bug
                         in wxPython:agw.MultiDirDialog that returns
                         items under '/' prefixed with '//'.
@@ -3478,42 +3513,15 @@ class ASashWnd(wx.SplitterWindow):
         return self.child2
 
 
-class WXObjIdSource:
-    """
-    A sequential integer ID dispenser for wx objects like
-    menu/toolbar items, buttons
-    prefix WX in capitols to distinguish from actual wx objects/code
-    """
-    seed = wx.ID_HIGHEST + 1000
-    cur = seed
-    incr = 1
 
-    def __init__(self, offs = 0):
-        self.offs = offs
-
-    def __call__(self):
-        return self.get_new_id()
-
-    def get_seed(self):
-        return self.__class__.seed
-
-    def get_cur(self):
-        return self.__class__.cur
-
-    def get_new_id(self):
-        if True:
-            v = self.__class__.cur + self.offs
-            self.__class__.cur += self.__class__.incr
-        else:
-            v = wx.NewId()
-        wx.RegisterId(v)
-        return v
-
+"""
+    dialogs and main window
+"""
 
 class ASettingsDialog(wx.Dialog):
     """
     A dialog box for settings
-    using a tabbed interface for sections
+    using a tabbed interface for settings sections/groups
     """
     def __init__(self,
             parent, ID, gist,
@@ -3568,13 +3576,13 @@ class ASettingsDialog(wx.Dialog):
         self.Bind(wx.EVT_SYS_COLOUR_CHANGED, self.on_sys_color)
 
 
-    #private
     def on_sys_color(self, event):
         event.Skip()
 
         f = lambda wnd: self._color_proc_per_child(wnd)
         invoke_proc_for_window_children(self, f)
 
+    #private
     def _color_proc_per_child(self, wnd):
         fclr = _msg_obj.GetForegroundColour()
         bclr = _msg_obj.GetBackgroundColour()
@@ -3680,8 +3688,7 @@ class ASettingsDialog(wx.Dialog):
             i1 = self.core_ld.get_new_idval()
 
             # convenience, save space w/ flags
-            #blr = wx.LEFT | wx.RIGHT
-            blr = wx.RIGHT
+            blr = wx.RIGHT # | wx.LEFT
 
             if add_bdr_space:
                 szr.AddSpacer(bdr)
