@@ -4315,6 +4315,45 @@ class AFrame(wx.Frame):
     def put_status(self, msg, pane = 0):
         self.SetStatusText(msg, pane)
 
+
+"""
+    classes for threads
+"""
+
+T_EVT_CHILDPROC_MESSAGE = wx.NewEventType()
+EVT_CHILDPROC_MESSAGE = wx.PyEventBinder(T_EVT_CHILDPROC_MESSAGE, 1)
+class AThreadEvent(wx.PyCommandEvent):
+    """A custom event for the wxWidgets event mechanism:
+    thread safe, i.e. may pass to main thread from other threads
+    (which is particularly useful to initiate anything that will
+    update the GUI, which must be done in the main thread with
+    wxWidgets).  The evttag argument to the constructor *must*
+    be passed (it associates the event with a type), and the
+    payload argument *may* be passed if the event should carry
+    a message or some data (but be mindful of threading issues),
+    and finally the event will by default be delivered to the
+    main top window, but a different window id may be given
+    in the destid argument.
+    """
+    def __init__(self, evttag, payload = None, destid = None):
+        if destid == None:
+            destid = wx.GetApp().GetTopWindow().GetId()
+
+        wx.PyCommandEvent.__init__(
+            self,
+            T_EVT_CHILDPROC_MESSAGE,
+            destid)
+
+        self.ev_type = evttag
+        self.ev_data = payload
+
+    def get_content(self):
+        """on receipt, get_content() may be called on the event
+        object to return a tuple with the event type tag at [0]
+        and any data payload (by default None) at [1]
+        """
+        return (self.ev_type, self.ev_data)
+
 class AChildThread(threading.Thread):
     """
     A thread for time consuming child process --
@@ -4339,7 +4378,7 @@ class AChildThread(threading.Thread):
         self.per_th.start()
 
         m = _T('enter run')
-        wx.PostEvent(self.topwnd, AChildProcEvent(m, t, self.destid))
+        wx.PostEvent(self.topwnd, AThreadEvent(m, t, self.destid))
 
         r = self.cb(self.args)
         self.status = r
@@ -4350,7 +4389,7 @@ class AChildThread(threading.Thread):
         self.per_th.join()
 
         m = _T('exit run')
-        wx.PostEvent(self.topwnd, AChildProcEvent(m, t, self.destid))
+        wx.PostEvent(self.topwnd, AThreadEvent(m, t, self.destid))
 
     def get_status(self):
         return self.status
@@ -4434,46 +4473,15 @@ class APeriodThread(threading.Thread):
         if payload == None:
             payload = self.tmsg
         wx.PostEvent(
-            self.topwnd, AChildProcEvent(m, payload, self.destid))
+            self.topwnd, AThreadEvent(m, payload, self.destid))
 
     def do_stop(self):
         self.got_stop = True
 
 
-T_EVT_CHILDPROC_MESSAGE = wx.NewEventType()
-EVT_CHILDPROC_MESSAGE = wx.PyEventBinder(T_EVT_CHILDPROC_MESSAGE, 1)
-class AChildProcEvent(wx.PyCommandEvent):
-    """A custom event for the wxWidgets event mechanism:
-    thread safe, i.e. may pass to main thread from other threads
-    (which is particularly useful to initiate anything that will
-    update the GUI, which must be done in the main thread with
-    wxWidgets).  The evttag argument to the constructor *must*
-    be passed (it associates the event with a type), and the
-    payload argument *may* be passed if the event should carry
-    a message or some data (but be mindful of threading issues),
-    and finally the event will by default be delivered to the
-    main top window, but a different window id may be given
-    in the destid argument.
-    """
-    def __init__(self, evttag, payload = None, destid = None):
-        if destid == None:
-            destid = wx.GetApp().GetTopWindow().GetId()
-
-        wx.PyCommandEvent.__init__(
-            self,
-            T_EVT_CHILDPROC_MESSAGE,
-            destid
-            )
-
-        self.ev_type = evttag
-        self.ev_data = payload
-
-    def get_content(self):
-        """on receipt, get_content() may be called on the event
-        object to return a tuple with the event type tag at [0]
-        and any data payload (by default None) at [1]
-        """
-        return (self.ev_type, self.ev_data)
+"""
+    classes for media
+"""
 
 class MediaDrive:
     """
@@ -5965,7 +5973,7 @@ class ACoreLogiDat:
         if not self.working():
             return -1
 
-        e = AChildProcEvent(_T("l%d") % n, s, self.topwnd_id)
+        e = AThreadEvent(_T("l%d") % n, s, self.topwnd_id)
         wx.PostEvent(self.topwnd, e)
 
         return 0
