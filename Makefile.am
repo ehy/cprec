@@ -52,11 +52,13 @@ pyprog_sub = sed \
 
 if WITH_DD_DVD
 if WITH_FRONTEND
+#if HAVE_PYTHON
 
 python_PYTHON = wxDVDBackup.py
+pkgpython_PYTHON = wxdvdbackuppkg/*
 bin_SCRIPTS = wxDVDBackup
 CLEANFILES = $(bin_SCRIPTS)
-EXTRA_DIST = wxDVDBackup.in xdg/*
+EXTRA_DIST = wxDVDBackup.in xdg/* wxdvdbackuppkg/*
 
 wxDVDBackup: wxDVDBackup.in Makefile
 	$(pyprog_sub) < $(srcdir)/wxDVDBackup.in > wxDVDBackup
@@ -112,6 +114,8 @@ uninstall-local:
 # if WITH_FRONTEND_XDG
 endif
 
+# if HAVE_PYTHON
+#endif
 # if WITH_FRONTEND
 endif
 # if WITH_DD_DVD

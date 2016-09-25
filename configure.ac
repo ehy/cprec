@@ -200,8 +200,19 @@ dnl subdir configures
 AC_CONFIG_SUBDIRS(lib_misc)
 
 dnl Version 0.2.1, wxPython front end
+if test x"$enable_frontend" = xtrue; then
 AM_PATH_PYTHON([2.7],, [:])
-
+dnl AM_CONDITIONAL([HAVE_PYTHON], [test X"$PYTHON" != X:])
+if test X"$PYTHON" = X: ; then
+AC_MSG_ERROR([a suitable Python was not found -- use --disable-wxpy-frontend to install without the Python graphical frontend])
+elif ! $PYTHON -c 'import wx' >/dev/null 2>&1 ; then
+AC_MSG_ERROR([wxPython (wxWidgets python package) was not found -- use --disable-wxpy-frontend to install without the Python graphical frontend])
+else
+# EH: AM_PATH_PYTHON sets pkgpythondir to $PACKAGE -- override that
+pkgpythondir=\${pythondir}/wxdvdbackuppkg
+fi
+dnl END Version 0.2.1, wxPython front end
+fi
 
 dnl this was original from autopackage: AC_OUTPUT(Makefile cprec.lsm cprec.spec)
 AC_OUTPUT(Makefile)
