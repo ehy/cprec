@@ -197,7 +197,7 @@ AC_CHECK_SIZEOF(char*, 4)
 dnl Checks for library functions.
 
 dnl subdir configures
-AC_CONFIG_SUBDIRS(lib_misc)
+AC_CONFIG_SUBDIRS(lib_misc wxdvdbackuppkg)
 
 dnl Version 0.2.1, wxPython front end
 if test x"$enable_frontend" = xtrue; then

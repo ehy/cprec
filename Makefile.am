@@ -32,7 +32,7 @@ cprec_LDADD = lib_misc/lib_misc.a
 # commented see below
 #EXTRA_DIST=cprec.lsm.in cprec.spec.in cprec.texinfo
 
-SUBDIRS = lib_misc
+SUBDIRS = lib_misc wxdvdbackuppkg
 
 AM_CPPFLAGS = -I$(srcdir)/lib_misc
 
@@ -55,10 +55,10 @@ if WITH_FRONTEND
 #if HAVE_PYTHON
 
 python_PYTHON = wxDVDBackup.py
-pkgpython_PYTHON = wxdvdbackuppkg/*
+#pkgpython_PYTHON = wxdvdbackuppkg/*.py
 bin_SCRIPTS = wxDVDBackup
 CLEANFILES = $(bin_SCRIPTS)
-EXTRA_DIST = wxDVDBackup.in xdg/* wxdvdbackuppkg/*
+EXTRA_DIST = wxDVDBackup.in xdg/*
 
 wxDVDBackup: wxDVDBackup.in Makefile
 	$(pyprog_sub) < $(srcdir)/wxDVDBackup.in > wxDVDBackup
