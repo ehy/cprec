@@ -2482,7 +2482,10 @@ class ACoreLogiDat:
         self.all_tempfile = []
         self.last_burn_speed = None
 
+        # child proc handled by new thread -- refs thread
         self.ch_thread = None
+        # child proc handled in main thread -- refs child proc object
+        self.ch_syncro = None
 
         self.in_check_op = False
 
@@ -2762,6 +2765,9 @@ class ACoreLogiDat:
             return (self.ch_thread.get_args())[2]
         return None
 
+    def get_child_sync(self):
+        return self.ch_syncro
+
     # working state
     # update_working* below are for busy updates to gauge
     # and status bar
@@ -3011,6 +3017,9 @@ class ACoreLogiDat:
 
         while True:
             r = self.do_target_medium_check(outdev, settle_tries)
+            if r == None:
+                break
+
             if r:
                 r = self.do_in_out_size_check(blank_async, verbose)
 
@@ -3044,6 +3053,7 @@ class ACoreLogiDat:
             t = time.time()
             wx.Sleep(settle_time)
             t = time.time() - t
+            t = int(t + 0.5)
             msg_line_INFO(
                 _("Slept {secs} to let drive settle.").format(secs = t))
 
@@ -4015,6 +4025,12 @@ class ACoreLogiDat:
             ch = self.get_child_from_thread()
             ch.kill(signal.SIGUSR1)
             is_gr = ch.is_growisofs()
+        else:
+            ch = self.get_child_sync()
+            if ch:
+                self.ch_syncro = None
+                ch.kill(signal.SIGUSR1)
+                ch.wait()
 
         if not quiet:
             m = _("Operation cancelled")
@@ -4788,7 +4804,12 @@ class ACoreLogiDat:
             self.child_go(ch_proc)
             return True
 
+        self.ch_syncro = ch_proc
         is_ok = ch_proc.go_and_read()
+        if not self.ch_syncro:
+            # cancelled
+            return False
+        self.ch_syncro = None
 
         if not is_ok:
             m = _(
@@ -4870,7 +4891,12 @@ class ACoreLogiDat:
         parm_obj = ChildProcParams(xcmd, xcmdargs, xcmdenv)
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
+        self.ch_syncro = ch_proc
         is_ok = ch_proc.go_and_read()
+        if not self.ch_syncro:
+            # cancelled -- Note: return is None rather than False
+            return None
+        self.ch_syncro = None
 
         if not is_ok:
             m = _(
@@ -4997,7 +5023,12 @@ class ACoreLogiDat:
         parm_obj = ChildProcParams(xcmd, xcmdargs)
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
+        self.ch_syncro = ch_proc
         is_ok = ch_proc.go_and_read()
+        if not self.ch_syncro:
+            # cancelled
+            return False
+        self.ch_syncro = None
 
         if not is_ok:
             m = _(

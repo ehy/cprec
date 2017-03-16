@@ -6,6 +6,7 @@ Thread and related classes.
 import os
 import select
 import threading
+import time
 import wx
 
 import __init__
