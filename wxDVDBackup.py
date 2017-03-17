@@ -4775,7 +4775,7 @@ class ACoreLogiDat:
             self.in_check_op = is_check_op
         except:
             # USR1 is handle specially in child obj class
-            ch_proc.kill_wait(signal.SIGUSR1, 3)
+            ch_proc.kill_wait(signal.SIGUSR1)
             msg_line_ERROR(_("ERROR: could not make or run thread"))
 
 
