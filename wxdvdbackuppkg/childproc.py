@@ -422,6 +422,8 @@ class ChildTwoStreamReader:
         pid = self.procstat[idx][0]
 
         if pid > 0 or pid < -1:
+            if idx == 0: # controller process -- kill group
+                pid = 0 - pid
             try:
                 os.kill(pid, sig)
                 return 0
@@ -514,12 +516,13 @@ class ChildTwoStreamReader:
         return r
 
     """
-    public: do kill and wait on current child
+    public: do kill and wait on current child list
     """
     def kill_wait(self, sig = 0):
-        if self.kill(sig) != 0:
+        if self.kill_index(sig, 0) != 0:
             return -1
-        return self.wait()
+        
+        return self._child_wait_all()
 
     """
     set extra data that instance will carry

@@ -22,7 +22,7 @@ _dbg = pdbg
 
 T_EVT_CHILDPROC_MESSAGE = wx.NewEventType()
 EVT_CHILDPROC_MESSAGE = wx.PyEventBinder(T_EVT_CHILDPROC_MESSAGE, 1)
-class AThreadEvent(wx.PyCommandEvent):
+class AThreadEvent(wx.PyEvent):
     """A custom event for the wxWidgets event mechanism:
     thread safe, i.e. may pass to main thread from other threads
     (which is particularly useful to initiate anything that will
@@ -35,14 +35,10 @@ class AThreadEvent(wx.PyCommandEvent):
     main top window, but a different window id may be given
     in the destid argument.
     """
-    def __init__(self, evttag, payload = None, destid = None):
-        if destid == None:
-            destid = wx.GetApp().GetTopWindow().GetId()
-
-        wx.PyCommandEvent.__init__(
-            self,
-            T_EVT_CHILDPROC_MESSAGE,
-            destid)
+    def __init__(self, evttag, payload = None, destid = -1):
+        wx.PyEvent.__init__(
+            self, destid,
+            T_EVT_CHILDPROC_MESSAGE)
 
         self.ev_type = evttag
         self.ev_data = payload
@@ -59,18 +55,18 @@ class AChildThread(threading.Thread):
     A thread for time consuming child process --
     cb is a callback, args is/are arguments to pass
     """
-    def __init__(self, topwnd, destwnd_id, cb, args):
+    def __init__(self, destobj, destid, cb, args):
         threading.Thread.__init__(self)
 
-        self.topwnd = topwnd
-        self.destid = destwnd_id
+        self.destobj = destobj
+        self.destid = destid
         self.cb = cb
         self.args = args
 
         self.status = -1
         self.got_quit = False
 
-        self.per_th = APeriodThread(topwnd, destwnd_id)
+        self.per_th = APeriodThread(destobj, destid)
 
     def run(self):
         tid = threading.current_thread().ident
@@ -78,18 +74,21 @@ class AChildThread(threading.Thread):
         self.per_th.start()
 
         m = _T('enter run')
-        wx.PostEvent(self.topwnd, AThreadEvent(m, t, self.destid))
+        wx.CallAfter(wx.PostEvent,
+            self.destobj, AThreadEvent(m, t, self.destid))
 
         r = self.cb(self.args)
         self.status = r
         self.per_th.do_stop()
+        while self.per_th.is_alive():
+            self.per_th.join()
+
         if self.got_quit:
             return
 
-        self.per_th.join()
-
         m = _T('exit run')
-        wx.PostEvent(self.topwnd, AThreadEvent(m, t, self.destid))
+        wx.CallAfter(wx.PostEvent,
+            self.destobj, AThreadEvent(m, t, self.destid))
 
     def get_status(self):
         return self.status
@@ -108,7 +107,7 @@ class APeriodThread(threading.Thread):
     """
     th_sleep_ok = (_T("FreeBSD"), _T("OpenBSD"))
 
-    def __init__(self, topwnd, destwnd_id, interval = 1, msg = None):
+    def __init__(self, destobj, destid, interval = 1, msg = None):
         """
         OS unames I feel good about sleep in thread; {Free,Open}BSD
         implement sleep() with nanosleep)() and don't diddle signals,
@@ -121,8 +120,8 @@ class APeriodThread(threading.Thread):
         """
         threading.Thread.__init__(self)
 
-        self.topwnd = topwnd
-        self.destid = destwnd_id
+        self.destobj = destobj
+        self.destid = destid
         self.got_stop = False
         self.intvl = interval
         self.tid = 0
@@ -172,8 +171,8 @@ class APeriodThread(threading.Thread):
             return
         if payload == None:
             payload = self.tmsg
-        wx.PostEvent(
-            self.topwnd, AThreadEvent(m, payload, self.destid))
+        wx.CallAfter(wx.PostEvent,
+            self.destobj, AThreadEvent(m, payload, self.destid))
 
     def do_stop(self):
         self.got_stop = True
