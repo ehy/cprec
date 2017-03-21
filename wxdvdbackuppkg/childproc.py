@@ -324,21 +324,28 @@ class ChildTwoStreamReader:
     """
     def _child_sigs_handle(self, sig, frame):
         mpid = os.getpid()
-        _dbg(_T("handler pid %d, with signal %d") % (mpid, sig))
+        _dbg(_T("handler pid {}, with signal {}").format(mpid, sig))
         # are we 1st child. grouper leader w/ children?
         if not self.root:
             # USR1 used by this prog
             if sig == signal.SIGUSR1:
                 sig = signal.SIGINT
                 for p, s, b, x in self.procstat:
-                    _dbg(_T("handler kill {p}, with signal {s}").format(
+                    _dbg(_T("handler USR1 kill {p}, signal {s}").format(
                         p = p, s = sig))
                     self.kill(sig, p)
+            elif sig == signal.SIGUSR2:
+                pg = os.getpgrp()
+                sig = signal.SIGINT
+                _dbg(_T("handler USR2 kill grp {g}, signal {s}").format(
+                    g = pg, s = sig))
+                os.killpg(pg, sig)
             else:
                 self.kill(sig)
             return
         if sig in self._exit_sigs:
-            _dbg(_T("handler:exit pid %d, with signal %d") % (mpid, sig))
+            _dbg(_T("handler:exit pid {}, with signal {}").format(
+                mpid, sig))
             os._exit(1)
 
     """
