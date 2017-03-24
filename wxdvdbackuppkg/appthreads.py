@@ -17,7 +17,15 @@ from debug import pdbg
 _dbg = pdbg
 
 """
-    classes for threads
+    classes for threads --
+    
+    NOTE: testing suggests that the event delivery is picky, as follows:
+    *   wx.PyCommandEvent will not be delivered to the application
+        object; wx.PyEvent will
+    *   wx.PyEvent will not be delivered to the top frame window, at
+        least not after Window::Show(false) is called
+    therefore be thought full about which (sub-)class to choose,
+    according to delivery target type
 """
 
 T_EVT_CHILDPROC_MESSAGE = wx.NewEventType()
@@ -37,6 +45,34 @@ class AThreadEvent(wx.PyEvent):
     """
     def __init__(self, evttag, payload = None, destid = -1):
         wx.PyEvent.__init__(
+            self, destid,
+            T_EVT_CHILDPROC_MESSAGE)
+
+        self.ev_type = evttag
+        self.ev_data = payload
+
+    def get_content(self):
+        """on receipt, get_content() may be called on the event
+        object to return a tuple with the event type tag at [0]
+        and any data payload (by default None) at [1]
+        """
+        return (self.ev_type, self.ev_data)
+
+class AThreadCommandEvent(wx.PyCommandEvent):
+    """A custom event for the wxWidgets event mechanism:
+    thread safe, i.e. may pass to main thread from other threads
+    (which is particularly useful to initiate anything that will
+    update the GUI, which must be done in the main thread with
+    wxWidgets).  The evttag argument to the constructor *must*
+    be passed (it associates the event with a type), and the
+    payload argument *may* be passed if the event should carry
+    a message or some data (but be mindful of threading issues),
+    and finally the event will by default be delivered to the
+    main top window, but a different window id may be given
+    in the destid argument.
+    """
+    def __init__(self, evttag, payload = None, destid = -1):
+        wx.PyCommandEvent.__init__(
             self, destid,
             T_EVT_CHILDPROC_MESSAGE)
 
