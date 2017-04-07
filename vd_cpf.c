@@ -115,11 +115,11 @@ implementations of procedures with static linkage
 static ssize_t
 vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
 {
-    /* break out all struct members: optimizing compiler should
-     * dispose of unused automatics
-     */
+#if _DECL_UNUSED
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
     int             inp         = pargs->vd_inp;
+    size_t*         numbadblk   = pargs->vd_numbadblk;
+#endif /* _DECL_UNUSED */
     int             out         = pargs->vd_out;
     const char*     progname    = pargs->vd_program_name;
     const char*     inp_fname   = pargs->vd_inp_fname;
@@ -128,7 +128,6 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
     size_t          blknrd      = pargs->vd_blknrd;
     size_t          blk_sz      = pargs->vd_blk_sz;
     size_t          blknretry   = pargs->vd_retrybadblk;
-    size_t*         numbadblk   = pargs->vd_numbadblk;
     int*            poff        = pargs->vd_poff;
     unsigned char*  buf         = pargs->vd_buf;
 
@@ -218,14 +217,16 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
 static ssize_t
 vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
 {
+#if _DECL_UNUSED
     drd_file_t*     dvdfile     = pargs->vd_dvdfile;
+    const char*     progname    = pargs->vd_program_name;
+    size_t          blknrd      = pargs->vd_blknrd;
+#endif /* _DECL_UNUSED */
     int             inp         = pargs->vd_inp;
     int             out         = pargs->vd_out;
-    const char*     progname    = pargs->vd_program_name;
     const char*     inp_fname   = pargs->vd_inp_fname;
     const char*     out_fname   = pargs->vd_out_fname;
     size_t          blkcnt      = pargs->vd_blkcnt;
-    size_t          blknrd      = pargs->vd_blknrd;
     size_t          blk_sz      = pargs->vd_blk_sz;
     size_t          blknretry   = pargs->vd_retrybadblk;
     size_t*         numbadblk   = pargs->vd_numbadblk;
@@ -234,7 +235,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
     time_t tm1, tm2;
     size_t nbr;
-    off_t rdp;
+    off_t rdp = 0; /* silence mybe unused warning */
     unsigned long good = 0, bad = 0;
     size_t cnt = blkcnt * blk_sz;
     unsigned char* prd = buf;

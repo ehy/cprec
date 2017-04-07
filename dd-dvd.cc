@@ -197,7 +197,8 @@ public:
 
     vt_file(string nm, uint32_t blk, uint32_t sz,
         unsigned setn, unsigned filen, vtf_type typ = vtf_vob)
-     : block(blk), size(sz), nset(setn), nfile(filen), name(nm), type(typ)
+     : block(blk), size(sz), nset(setn)
+     , nfile(filen), type(typ), name(nm)
     { }
 
     bool isvob() const { return type == vtf_vob; }
@@ -274,7 +275,7 @@ public:
 
     vt_file& operator [](int ix) throw(invalid_argument)
     {
-        if ( ix < 0 || ix >= count() ) {
+        if ( ix < 0 || size_t(ix) >= count() ) {
             throw invalid_argument(
                 "VT set index out of range");
         }
@@ -290,7 +291,7 @@ public:
 
     const vt_file& operator [](int ix) const throw(invalid_argument)
     {
-        if ( ix < 0 || ix >= count() ) {
+        if ( ix < 0 || size_t(ix) >= count() ) {
             throw invalid_argument(
                 "VT set index out of range");
         }
@@ -715,7 +716,7 @@ dd_ops_exec(
 
                 ret = vd_rw_vob_blks(&pargs);
 
-                if ( ret != ddbsz ) {
+                if ( size_t(ret) != ddbsz ) {
                     pfeall(_("%s: read failed at block %llu, %llu\n"),
                         program_name,
                         (unsigned long long)fptr, CAST_ULL(ddbsz));
@@ -826,7 +827,7 @@ dd_ops_exec(
 
         ret = vd_rw_vob_blks(&pargs);
 
-        if ( ret != ddbsz ) {
+        if ( size_t(ret) != ddbsz ) {
             pfeall("DD failed at block %llu, %llu\n",
                 (unsigned long long)fptr, CAST_ULL(ddbsz));
             exit(EXIT_FAILURE);
@@ -1127,7 +1128,7 @@ env_checkvars()
         errno = 0;
         long lv = strtol(ep, 0, 0);
 
-        if ( errno || lv < 1 || lv > def_block_read_count ) {
+        if ( errno || lv < 1 || size_t(lv) > def_block_read_count ) {
             perror("bad \"DDD_RETRYBLOCKS\" value");
         } else {
             retrybadblk = static_cast<size_t>(lv);
@@ -1482,7 +1483,7 @@ main(int argc, char* argv[])
     off_t wrbl;
     if ( dryrun || verbose >= 3 ) {
         wrbl = dd_ops_print(setlist, setmap, volblks);
-        if ( wrbl != volblks ) {
+        if ( size_t(wrbl) != volblks ) {
             pfeall("FAIL: %llu written; expected %llu\n",
                 CAST_ULL(wrbl) * blk_sz, CAST_ULL(volblks) * blk_sz);
             return EXIT_FAILURE;
@@ -1492,7 +1493,7 @@ main(int argc, char* argv[])
     if ( !dryrun ) {
         wrbl =
           dd_ops_exec(setlist, setmap, volblks, drd, inp, out);
-        if ( wrbl != volblks ) {
+        if ( size_t(wrbl) != volblks ) {
             pfeall("FAIL: %llu written; expected %llu\n",
                 CAST_ULL(wrbl) * blk_sz, CAST_ULL(volblks) * blk_sz);
             return EXIT_FAILURE;
