@@ -84,7 +84,9 @@ install-data-hook:
 	&& XMM=$$(which $(XDG_INST_MIME)) \
 	|| { echo cannot find $(XDG_INST_ICON) or $(XDG_INST_MENU); \
 		echo will not do xdg icon and menu item install; exit 0; } ; \
+	XDG_DATA_DIRS="$(STORE_XDG_DATA_DIRS)"; export XDG_DATA_DIRS; \
 	for s in $(XICOSIZE) ; do \
+		echo installing icon size $$s; \
 		I="$(srcdir)/xdg/$(XDGRESNAME)-$${s}.png"; test -f "$$I" || \
 			{ echo icon "$$I" is missing; continue; } ; \
 		$$XII $(XICOARGS) $$s  "$$I" $(XDGRESNAME) || \
@@ -92,8 +94,10 @@ install-data-hook:
 	done; \
 	$$XII forceupdate; \
 	I="$(srcdir)/xdg/$(XDGRESNAME).desktop"; test -f "$$I" || exit 0; \
-	$$XIM install --novendor "$$I" || \
-		{ echo failed to install "$$I"; true; }
+	echo XDG_DATA_DIRS contains $$XDG_DATA_DIRS ; \
+	XDG_UTILS_DEBUG_LEVEL=3 $$XIM install --novendor "$$I" && \
+		$$XIM forceupdate >/dev/null 2>/dev/null || \
+			{ echo failed to install "$$I" -- status $$?; true; }
 
 
 uninstall-local:
@@ -102,6 +106,7 @@ uninstall-local:
 	&& XMM=$$(which $(XDG_INST_MIME)) \
 	|| { echo cannot find $(XDG_INST_ICON) or $(XDG_INST_MENU); \
 		echo will not do xdg icon and menu item uninstall; exit 0; } ; \
+	XDG_DATA_DIRS="$(STORE_XDG_DATA_DIRS)"; export XDG_DATA_DIRS; \
 	I="$(XDGRESNAME).desktop"; \
 	$$XIM uninstall "$$I" || \
 		{ echo failed to uninstall "$$I"; true; } ; \
@@ -109,7 +114,8 @@ uninstall-local:
 		$$XII $(XICOARGSU) $$s $(XDGRESNAME) || \
 			{ echo failed uninstalling icon size $$s; true; } ; \
 	done; \
-	$$XII forceupdate || true
+	$$XII forceupdate >/dev/null 2>/dev/null || true
+
 
 # if WITH_FRONTEND_XDG
 endif

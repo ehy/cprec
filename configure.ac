@@ -88,6 +88,14 @@ AC_ARG_ENABLE([wxpy-frontend-xdg],
 	esac],[enable_frontend_xdg=true])
 AM_CONDITIONAL([WITH_FRONTEND_XDG], [test x$enable_frontend_xdg = xtrue])
 
+dnl WRT xdg items: scripts such as xdg-desktop-menu check env
+dnl for XDG_DATA_DIRS, and provide defaults if not found; but,
+dnl the scripts defaults might not be right, and doing su/sudo
+dnl make install very well might strip XDG_DATA_DIRS from the
+dnl environment -- so try to record configure-time $XDG_DATA_DIRS
+dnl value so it is available to the xdg* {,un}install rule.
+AC_SUBST([STORE_XDG_DATA_DIRS], [$XDG_DATA_DIRS])
+
 dnl Checks for programs.
 AC_PROG_INSTALL
 AC_PROG_CC
@@ -200,17 +208,57 @@ dnl subdir configures
 AC_CONFIG_SUBDIRS(lib_misc wxdvdbackuppkg)
 
 dnl Version 0.2.1, wxPython front end
+# if python was found, then test suitable wx module
+dnl NOTE:
+dnl in configure.ac this entire function must be enclosed in
+dnl brackets to quote it, since the here-doc contains brackets
+[_py_test_wx_ok () {
+    PY="$1"
+    "$PY" <<"NIK"
+try:
+    import wx
+except ImportError:
+    print("wxPython module not found: import exception")
+    exit(1)
+
+v = int(wx.VERSION[0])
+m = int(wx.VERSION[1])
+if v < 2 or (v == 2 and m < 8):
+    s ="wxPython version {}.{} found, *need* 2.8 or greater".format(v,m)
+    print(s)
+    exit(1)
+
+print("good, found wxPython version '{}'".format(wx.version()))
+exit(0)
+NIK
+
+    return $?
+}]
+
 if test x"$enable_frontend" = xtrue; then
 AM_PATH_PYTHON([2.7],, [:])
 dnl AM_CONDITIONAL([HAVE_PYTHON], [test X"$PYTHON" != X:])
+
+
+# Test python check result, and wx version
 if test X"$PYTHON" = X: ; then
-AC_MSG_ERROR([a suitable Python was not found -- use --disable-wxpy-frontend to install without the Python graphical frontend])
-elif ! $PYTHON -c 'import wx' >/dev/null 2>&1 ; then
-AC_MSG_ERROR([wxPython (wxWidgets python package) was not found -- use --disable-wxpy-frontend to install without the Python graphical frontend])
-else
-# EH: AM_PATH_PYTHON sets pkgpythondir to $PACKAGE -- override that
-pkgpythondir=\${pythondir}/wxdvdbackuppkg
+    AC_MSG_ERROR([
+    wxPython (wxWidgets python package) was not found -- use --disable-wxpy-frontend to install without the Python graphical frontend])
 fi
+
+dnl Python seems OK; now check wx module
+AC_MSG_CHECKING([for wxPython presence and version])
+if ! _PYCHECKRES=`_py_test_wx_ok "$PYTHON" 2>&1` ; then
+    AC_MSG_RESULT([$_PYCHECKRES])
+    AC_MSG_ERROR([
+    sorry, Python graphical frontend requires wxPython with wxWidgets 2.8 or greater;
+    use --disable-wxpy-frontend to install without it])
+else
+    AC_MSG_RESULT([$_PYCHECKRES])
+    # EH: AM_PATH_PYTHON sets pkgpythondir to $PACKAGE -- override that
+    pkgpythondir=\${pythondir}/wxdvdbackuppkg
+fi
+
 dnl END Version 0.2.1, wxPython front end
 fi
 
