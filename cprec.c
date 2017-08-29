@@ -437,6 +437,7 @@ get_env_vars_0th()
         }
     }
 }
+
 static unsigned char*
 setup_global_buffer(void)
 {
