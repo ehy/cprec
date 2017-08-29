@@ -97,7 +97,6 @@ unsigned char* global_aligned_buffer;
 size_t         global_buffer_size;
 size_t         global_buffer_align;
 
-
 /* Option flags and variables */
 int nfdresv = 8;   /* reserve this from ftw() for other use */
 int nfdmax  = 64;  /* use no more than this number of dir fd */
