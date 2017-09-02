@@ -6,6 +6,21 @@
 # License inherited from enclosing/including source package.
 #
 
+# auto* tools might demand version be specified in environment
+# if multiple versions are installed
+# autoconf and automake --version will succeed, or fail; in the
+# latter case try forcing versions (and if they are wrong, then
+# let the user figure it out)
+autoconf --version >/dev/null 2>&1 || {
+	: ${AUTOCONF_VERSION:=2.69}
+	export AUTOCONF_VERSION
+}
+
+automake --version >/dev/null 2>&1 || {
+	: ${AUTOMAKE_VERSION:=1.11}
+	export AUTOMAKE_VERSION
+}
+
 PROG=${0##*/}
 
 : ${ALLDIRS:="lib_misc ."}
@@ -13,7 +28,8 @@ PROG=${0##*/}
 e2 () { printf '%s: %s\n' "$PROG" "$*" 1>&2; }
 fail () { e2 "$@"; exit 1; }
 
-AREC='autoreconf -fiv --no-recursive'
+#AREC='autoreconf -fiv --no-recursive'
+AREC='autoreconf -fiv'
 
 splay () {
 	( cd "$1" && $AREC ) || \
