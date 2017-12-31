@@ -53,7 +53,7 @@ AC_CONFIG_LINKS(media.py:media.py)
 AC_CONFIG_LINKS(msgprocs.py:msgprocs.py)
 AC_CONFIG_LINKS(tmpdirschk.py:tmpdirschk.py)
 AC_CONFIG_LINKS(util.py:util.py)
-AC_CONFIG_LINKS(tasks.py:tasks.py)
+dnl AC_CONFIG_LINKS(tasks.py:tasks.py)
 dnl template for new additions:
 dnl AC_CONFIG_LINKS(.py:.py)
 fi
