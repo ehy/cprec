@@ -235,7 +235,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
     time_t tm1, tm2;
     size_t nbr;
-    off_t rdp = 0; /* silence mybe unused warning */
+    off_t rdp = 0; /* silence maybe unused warning */
     unsigned long good = 0, bad = 0;
     size_t cnt = blkcnt * blk_sz;
     unsigned char* prd = buf;
@@ -322,9 +322,13 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
     _("%s: %lu bad blocks zeroed in read of %lu in %llu seconds\n"),
         inp_fname, bad, (unsigned long)blkcnt,
         (unsigned long long)tm2 - tm1);
+    pfeall(
+    _("%s: %lu good blocks zeroed in read of %lu in %llu seconds\n"),
+        inp_fname, good, (unsigned long)blkcnt,
+        (unsigned long long)tm2 - tm1);
 
 
-    return cnt / blk_sz;
+    return nbr / blk_sz;
 }
 
 /* reader for 'low level' read(2) syscall on file descriptor */
