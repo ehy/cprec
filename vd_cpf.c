@@ -182,6 +182,8 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
             pargs->vd_blkcnt = blkcnt;
 
             if ( nb >= 0 ) {
+                pfeall(_("%s: %zd blocks read on retry\n"),
+                    progname, nb / blk_sz);
                 cnt -= nb;
                 continue;
             }
@@ -319,14 +321,9 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
     tm2 = time(0);
 
     pfeall(
-    _("%s: %lu bad blocks zeroed in read of %lu in %llu seconds\n"),
-        inp_fname, bad, (unsigned long)blkcnt,
+    _("%s: %lu good, %lu bad blocks in read of %lu in %llu seconds\n"),
+        inp_fname, good, bad, (unsigned long)blkcnt,
         (unsigned long long)tm2 - tm1);
-    pfeall(
-    _("%s: %lu good blocks zeroed in read of %lu in %llu seconds\n"),
-        inp_fname, good, (unsigned long)blkcnt,
-        (unsigned long long)tm2 - tm1);
-
 
     return nbr / blk_sz;
 }
