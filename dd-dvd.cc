@@ -65,6 +65,14 @@ extern "C" {
 #define EXIT_FAILURE 1
 #endif
 
+/* by default, eliminate C++98 throw() specs --
+ * they're deprecated in C++11 -- if wanted, then
+ * #define _THROW(x) throw(x)
+ */
+#ifndef _THROW
+#define _THROW(x)
+#endif
+
 /* PACKAGE_VERSION is an autoconf macro */
 const char version[] = PACKAGE_VERSION;
 
@@ -197,7 +205,8 @@ public:
 
     vt_file(string nm, uint32_t blk, uint32_t sz,
         unsigned setn, unsigned filen, vtf_type typ = vtf_vob)
-     : block(blk), size(sz), nset(setn), nfile(filen), name(nm), type(typ)
+     : block(blk), size(sz), nset(setn)
+     , nfile(filen), type(typ), name(nm)
     { }
 
     bool isvob() const { return type == vtf_vob; }
@@ -260,7 +269,7 @@ public:
         }
     }
 
-    void addfile(const vt_file& fil) throw(invalid_argument)
+    void addfile(const vt_file& fil) _THROW(invalid_argument)
     {
         if ( fil.nset != nset || fil.type != type ) {
             throw invalid_argument("VT set mismatch");
@@ -272,9 +281,9 @@ public:
         block_1st = lst.front().block;
     }
 
-    vt_file& operator [](int ix) throw(invalid_argument)
+    vt_file& operator [](int ix) _THROW(invalid_argument)
     {
-        if ( ix < 0 || ix >= count() ) {
+        if ( ix < 0 || size_t(ix) >= count() ) {
             throw invalid_argument(
                 "VT set index out of range");
         }
@@ -288,9 +297,9 @@ public:
         throw invalid_argument("VT set index invalid");
     }
 
-    const vt_file& operator [](int ix) const throw(invalid_argument)
+    const vt_file& operator [](int ix) const _THROW(invalid_argument)
     {
-        if ( ix < 0 || ix >= count() ) {
+        if ( ix < 0 || size_t(ix) >= count() ) {
             throw invalid_argument(
                 "VT set index out of range");
         }
@@ -715,7 +724,7 @@ dd_ops_exec(
 
                 ret = vd_rw_vob_blks(&pargs);
 
-                if ( ret != ddbsz ) {
+                if ( size_t(ret) != ddbsz ) {
                     pfeall(_("%s: read failed at block %llu, %llu\n"),
                         program_name,
                         (unsigned long long)fptr, CAST_ULL(ddbsz));
@@ -826,7 +835,7 @@ dd_ops_exec(
 
         ret = vd_rw_vob_blks(&pargs);
 
-        if ( ret != ddbsz ) {
+        if ( size_t(ret) != ddbsz ) {
             pfeall("DD failed at block %llu, %llu\n",
                 (unsigned long long)fptr, CAST_ULL(ddbsz));
             exit(EXIT_FAILURE);
@@ -1127,7 +1136,7 @@ env_checkvars()
         errno = 0;
         long lv = strtol(ep, 0, 0);
 
-        if ( errno || lv < 1 || lv > def_block_read_count ) {
+        if ( errno || lv < 1 || size_t(lv) > def_block_read_count ) {
             perror("bad \"DDD_RETRYBLOCKS\" value");
         } else {
             retrybadblk = static_cast<size_t>(lv);
@@ -1163,7 +1172,7 @@ usage(int status)
 {
       fprintf(stderr, _("%s - \
 A simple utility to make a backup copy of a DVD filesystem.\n"), program_name);
-      fprintf(stderr, _("Usage: %s [OPTIONS] <SOURCE device node> <TARGET file>\n"), program_name);
+      fprintf(stderr, _("Usage: %s [OPTIONS] SOURCE(device node) [TARGET]\n"), program_name);
 
       fprintf(stderr, _("\
 Options:\n\
@@ -1482,7 +1491,7 @@ main(int argc, char* argv[])
     off_t wrbl;
     if ( dryrun || verbose >= 3 ) {
         wrbl = dd_ops_print(setlist, setmap, volblks);
-        if ( wrbl != volblks ) {
+        if ( size_t(wrbl) != volblks ) {
             pfeall("FAIL: %llu written; expected %llu\n",
                 CAST_ULL(wrbl) * blk_sz, CAST_ULL(volblks) * blk_sz);
             return EXIT_FAILURE;
@@ -1492,7 +1501,7 @@ main(int argc, char* argv[])
     if ( !dryrun ) {
         wrbl =
           dd_ops_exec(setlist, setmap, volblks, drd, inp, out);
-        if ( wrbl != volblks ) {
+        if ( size_t(wrbl) != volblks ) {
             pfeall("FAIL: %llu written; expected %llu\n",
                 CAST_ULL(wrbl) * blk_sz, CAST_ULL(volblks) * blk_sz);
             return EXIT_FAILURE;

@@ -938,7 +938,7 @@ copy_bup_ifo(char* src, const char* dest)
             program_name, t, dest);
     }
 
-    strlcpy(p, buf, strlen(buf) + 1);
+    strncpy(p, buf, strlen(buf) + 1);
 
     if ( r ) {
         free(r);
@@ -951,10 +951,9 @@ int
 copy_file_force(const char* src, const char* dest, size_t retry_blocks)
 {
     int ifd, ofd;
-    ssize_t szi, szo;
     unsigned char* buf;
     struct stat sb;
-    size_t n, wrcnt, blcnt, rem, badblk;
+    size_t wrcnt, blcnt, rem, badblk;
     vd_rw_proc_args pargs;
 
     buf = global_aligned_buffer;
@@ -1199,7 +1198,8 @@ wr_regmask(char* d, int dlen, unsigned val)
             exit(52);
         }
 
-        pfoopt(_("Read category 0x%08lX from %s\n"), uc.u[0], d);
+        pfoopt(_("Read category 0x%08X from %s\n"),
+            (unsigned)uc.u[0], d);
 
         if ( uc.c[1] == (char)(val & 0xFFU) ) {
             pfoopt(_("Found desired value 0x%02X, no change\n"),
@@ -1238,7 +1238,8 @@ wr_regmask(char* d, int dlen, unsigned val)
             exit(56);
         }
 
-        pfoopt(_("Wrote category 0x%08lX to %s\n"), uc.u[0], d);
+        pfoopt(_("Wrote category 0x%08X to %s\n"),
+            (unsigned)uc.u[0], d);
 
         set_f_meta(d, &sb);
     }
