@@ -155,7 +155,7 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
         errno = 0;
 
-        nb  = rproc(&data);
+        nb = rproc(&data);
 
         if ( nb < 0 || (nb == 0 && errno != 0) ) {
             pfeall(_("%s: error reading '%s' -- '%s'\n"),
@@ -178,10 +178,12 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
              * a video dvd _might_ remain usable
              */
             pargs->vd_blkcnt = nbr / blk_sz;
-            nb = vd_rw_in_out_retry(pargs, rproc);
+            nb = vd_rw_in_out_retry(pargs, rproc) * blk_sz;
             pargs->vd_blkcnt = blkcnt;
 
             if ( nb >= 0 ) {
+                pfeall(_("%s: %zd blocks read on retry\n"),
+                    progname, nb / blk_sz);
                 cnt -= nb;
                 continue;
             }
@@ -235,7 +237,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
     time_t tm1, tm2;
     size_t nbr;
-    off_t rdp = 0; /* silence mybe unused warning */
+    off_t rdp = 0; /* silence maybe unused warning */
     unsigned long good = 0, bad = 0;
     size_t cnt = blkcnt * blk_sz;
     unsigned char* prd = buf;
@@ -272,7 +274,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
         errno = 0;
 
-        nb  = rproc(&data);
+        nb = rproc(&data);
 
         if ( nb == 0 ) {
             break;
@@ -309,7 +311,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
     cnt = blkcnt * blk_sz - cnt;
     nbr = cnt;
 
-    if ( write_all(out, buf, nbr) != nbr ) {
+    if ( nbr > 0 && write_all(out, buf, nbr) != nbr ) {
         perror(out_fname);
         return -1;
     }
@@ -319,12 +321,16 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
     tm2 = time(0);
 
     pfeall(
-    _("%s: %lu bad blocks zeroed in read of %lu in %llu seconds\n"),
-        inp_fname, bad, (unsigned long)blkcnt,
+    _("%s: %lu good, %lu bad blocks in read of %lu in %llu seconds\n"),
+        inp_fname, good, bad, (unsigned long)blkcnt,
         (unsigned long long)tm2 - tm1);
 
+    pfeopt(
+    _("%s: %zu mixed bytes (%zu blocks) written in %llu seconds\n"),
+        inp_fname, nbr, nbr / blk_sz,
+        (unsigned long long)tm2 - tm1);
 
-    return cnt / blk_sz;
+    return nbr / blk_sz;
 }
 
 /* reader for 'low level' read(2) syscall on file descriptor */

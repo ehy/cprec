@@ -938,7 +938,7 @@ copy_bup_ifo(char* src, const char* dest)
             program_name, t, dest);
     }
 
-    strlcpy(p, buf, strlen(buf) + 1);
+    strncpy(p, buf, strlen(buf) + 1);
 
     if ( r ) {
         free(r);
