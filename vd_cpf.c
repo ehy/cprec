@@ -155,7 +155,7 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
         errno = 0;
 
-        nb  = rproc(&data);
+        nb = rproc(&data);
 
         if ( nb < 0 || (nb == 0 && errno != 0) ) {
             pfeall(_("%s: error reading '%s' -- '%s'\n"),
@@ -178,7 +178,7 @@ vd_rw_in_out(vd_rw_proc_args* pargs, vd_read_proc rproc)
              * a video dvd _might_ remain usable
              */
             pargs->vd_blkcnt = nbr / blk_sz;
-            nb = vd_rw_in_out_retry(pargs, rproc);
+            nb = vd_rw_in_out_retry(pargs, rproc) * blk_sz;
             pargs->vd_blkcnt = blkcnt;
 
             if ( nb >= 0 ) {
@@ -274,7 +274,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
 
         errno = 0;
 
-        nb  = rproc(&data);
+        nb = rproc(&data);
 
         if ( nb == 0 ) {
             break;
@@ -311,7 +311,7 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
     cnt = blkcnt * blk_sz - cnt;
     nbr = cnt;
 
-    if ( write_all(out, buf, nbr) != nbr ) {
+    if ( nbr > 0 && write_all(out, buf, nbr) != nbr ) {
         perror(out_fname);
         return -1;
     }
@@ -323,6 +323,11 @@ vd_rw_in_out_retry(vd_rw_proc_args* pargs, vd_read_proc rproc)
     pfeall(
     _("%s: %lu good, %lu bad blocks in read of %lu in %llu seconds\n"),
         inp_fname, good, bad, (unsigned long)blkcnt,
+        (unsigned long long)tm2 - tm1);
+
+    pfeopt(
+    _("%s: %zu mixed bytes (%zu blocks) written in %llu seconds\n"),
+        inp_fname, nbr, nbr / blk_sz,
         (unsigned long long)tm2 - tm1);
 
     return nbr / blk_sz;
