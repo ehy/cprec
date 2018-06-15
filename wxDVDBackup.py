@@ -371,8 +371,8 @@ _dbg(_T("debug file opened"))
 
 # version globals: r/o
 # jump 0.0.2.0->0.3.0 to sync with package
-version_string = _T("0.4.0")
-version_name   = _("Mortal Coil Shed")
+version_string = _T("0.4.0p1")
+version_name   = _("Mortal Coil Shed [squash 1]")
 version_mjr    = 0
 version_mjrrev = 4
 version_mnr    = 0
@@ -381,7 +381,7 @@ version = (
     version_mjr<<24|version_mjrrev<<16|version_mnr<<8|version_mnrrev)
 maintainer_name = _T("Ed Hynan")
 maintainer_addr = _T("<edhynan@gmail.com>")
-copyright_years = _T("2016")
+copyright_years = _T("2018")
 program_site    = _T("https://github.com/ehy/cprec")
 program_desc    = _T("Flexible backup for video DVD discs.")
 program_devs    = [maintainer_name]
