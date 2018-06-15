@@ -65,6 +65,14 @@ extern "C" {
 #define EXIT_FAILURE 1
 #endif
 
+/* by default, eliminate C++98 throw() specs --
+ * they're deprecated in C++11 -- if wanted, then
+ * #define _THROW(x) throw(x)
+ */
+#ifndef _THROW
+#define _THROW(x)
+#endif
+
 /* PACKAGE_VERSION is an autoconf macro */
 const char version[] = PACKAGE_VERSION;
 
@@ -261,7 +269,7 @@ public:
         }
     }
 
-    void addfile(const vt_file& fil) throw(invalid_argument)
+    void addfile(const vt_file& fil) _THROW(invalid_argument)
     {
         if ( fil.nset != nset || fil.type != type ) {
             throw invalid_argument("VT set mismatch");
@@ -273,7 +281,7 @@ public:
         block_1st = lst.front().block;
     }
 
-    vt_file& operator [](int ix) throw(invalid_argument)
+    vt_file& operator [](int ix) _THROW(invalid_argument)
     {
         if ( ix < 0 || size_t(ix) >= count() ) {
             throw invalid_argument(
@@ -289,7 +297,7 @@ public:
         throw invalid_argument("VT set index invalid");
     }
 
-    const vt_file& operator [](int ix) const throw(invalid_argument)
+    const vt_file& operator [](int ix) const _THROW(invalid_argument)
     {
         if ( ix < 0 || size_t(ix) >= count() ) {
             throw invalid_argument(
