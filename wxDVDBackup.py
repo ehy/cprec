@@ -118,8 +118,10 @@ if "-XGETTEXT" in sys.argv:
 
 
 if "-DBG" in sys.argv:
-    _ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-")
-    if wxdvdbackuppkg.debug.dbg_open(_fdbg_name, _ofd):
+    #_ofd, _fdbg_name = tempfile.mkstemp(".dbg", "_DBG_wxDVDBackup-")
+    _ofd = None
+    _fdbg_name = "/dev/stderr"
+    if dbg_open(_fdbg_name, _ofd):
         _dbg(_T("debug file opened"))
 
 """
@@ -3643,8 +3645,11 @@ class ACoreLogiDat:
             use_mod_tempfile = use_mod_tempfile, do_expand = do_expand,
             min_space = min_space, addl_dirs = addl)
 
-        res = chk.do()
-        err = chk.get_error()
+        try:
+            res = chk.do()
+            err = chk.get_error()
+        except:
+            return False
 
         if err:
             msg_line_WARN(_("directory errors:\n") + err)
@@ -3673,10 +3678,12 @@ class ACoreLogiDat:
         return res
 
     def get_tempfile(self):
+        _dbg(_T("Getting temp dir"))
         da = self.get_usable_temp_directory()
+        _dbg(_T("Got temp dir '{}'").format(da))
         if not da:
             msg_line_ERROR(_T("CANNOT FIND SUFFICIENT TEMP SPACE."))
-            return False
+            return (False, False)
 
         d = da[0][0]
         msg_line_INFO(_(
@@ -3692,7 +3699,7 @@ class ACoreLogiDat:
             msg_line_ERROR(m)
             self.get_stat_wnd().put_status(m)
             self.dialog(m, _T("msg"), wx.OK|wx.ICON_EXCLAMATION)
-            return False
+            return (False, False)
 
     # not *the* temp dir like /tmp. but a temporary directory
     def get_tempdir(self):
@@ -4616,7 +4623,13 @@ class ACoreLogiDat:
                     outf = self.check_target_dev(target_dev)
                 if outf:
                     target_dev = outf
-                    ofd, outf = self.get_tempfile()
+                    try:
+                        ofd, outf = self.get_tempfile()
+                    except:
+                        _dbg(_T("GET_TEMPFILE() exception"))
+                        return False
+                    if not (ofd and outf):
+                        return False
             elif is_direct:
                 outdev = self.check_target_dev(target_dev)
                 if not outdev:
@@ -4629,6 +4642,7 @@ class ACoreLogiDat:
             if outf == False:
                 return False
         except:
+            _dbg(_T("DEV check exception in do_dd_dvd_run"))
             return False
 
         if not is_direct:
@@ -4716,6 +4730,7 @@ class ACoreLogiDat:
                 ).format(cmd = ycmd, dev = outdev, fil = outf))
             parm_obj = ChildProcParams(ycmd, ycmdargs, xcmdenv, inp_obj)
 
+        _dbg(_T("make child with params '{}'").format(parm_obj))
         ch_proc = ChildTwoStreamReader(parm_obj, self)
 
         if is_gr:
@@ -4732,6 +4747,7 @@ class ACoreLogiDat:
             dat[_T("in_burn")] = False
             ch_proc.set_extra_data(dat)
 
+        _dbg(_T("GO child with params '{}'").format(parm_obj))
         self.child_go(ch_proc)
 
         if ofd > -1:

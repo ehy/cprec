@@ -111,11 +111,19 @@ class TempDirsCheck:
 
         try:
             chk = FsDirSpaceCheck(self.chks)
+        except:
+            self._init_error(
+                _T("an exception occurred making space check object"))
+            return self.res
 
+        try:
             r_chk = chk.go()
+        except:
+            self._init_error(_T("an exception occurred checking space"))
+            return self.res
 
-            r_ok, r_ng = chk.get_results()
-
+        r_ok, r_ng = chk.get_results()
+        try:
             if not r_chk:
                 e, s = chk.error
                 self._init_error(_(
@@ -131,7 +139,9 @@ class TempDirsCheck:
             for (d, r) in r_ok:
                 bla = r.blocks_avail()
                 bls = r.size_of_block()
+                _dbg(_T("imx = sys.maxsize / bls"))
                 imx = sys.maxsize / bls
+                _dbg(_T("imx is %d" % imx))
 
                 if bls < 1:
                     #paranoia
@@ -167,10 +177,10 @@ class TempDirsCheck:
 
             self.res = res
 
-        except Exception as s:
-            self._init_error(s)
+        #except Exception as s:
+        #    self._init_error(_T("'{}'").format(s))
         except:
-            self._init_error(_T("an unknown error occurred"))
+            self._init_error(_T("an unknown exception occurred"))
 
         return self.res
 

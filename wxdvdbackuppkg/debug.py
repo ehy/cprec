@@ -42,21 +42,23 @@ def dbg_open(name = None, opened_fd = None):
     _fdbg_name = None
     _ofd = None
 
-    if not (opened_fd and name):
+    if not name:
         """Just closing old file."""
         return True
 
     if not opened_fd:
         try:
             opened_fd = os.open(name, os.O_WRONLY)
-        except:
+        except OSError as e:
+            print("FAILED opening '{}'; '{}'!".format(name, e.strerror))
             return False
 
     try:
-        _fdbg = os.fdopen(opened_fd, "w", 0)
+        _fdbg = os.fdopen(opened_fd, "w", 128)
         _ofd = opened_fd
         _fdbg_name = name
-    except:
+    except OSError as e:
+        print("FAILED FDOPEN '{}'; '{}'!".format(name, e.strerror))
         return False
 
     return True
@@ -70,3 +72,4 @@ def pdbg(msg):
     if not _fdbg:
         return
     _fp_write(_fdbg, u"{0}: {1}\n".format(time.time(), msg))
+    _fdbg.flush()

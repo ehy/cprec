@@ -229,8 +229,10 @@ class FsDirSpaceCheck:
                 self.chks.append(d)
             except (OSError, IOError,
                     self.__class__._internal_except) as e:
+                _dbg(_T("FsDirSpaceCheck: {}").format([d, e.strerror]))
                 self.errs.append([d, e.strerror])
 
+        _dbg(_T("FsDirSpaceCheck: {}").format(self.chks))
         self.error = (0, _("No error"))
 
     def chk_dir(self, d):
@@ -241,7 +243,15 @@ class FsDirSpaceCheck:
 
     def chk_access(self, d):
         fd, nm = tempfile.mkstemp(_T("file"), _T("test"), d)
-        fp = os.fdopen(fd, _T("wrb"), 128)
+        try:
+            fp = os.fdopen(fd, _T("w"), 128)
+        except OSError as e:
+            _dbg(_T("space access X: {} '{}'").format(
+                                                e.errno, e.strerror))
+            raise e
+        except Exception as e:
+            _dbg(_T("space access X: '{}'").format(e))
+            self._raise(e.errno, e.strerror)
         fp.write(_T("This test file should not exist unless error"))
         fp.flush()
         fp.close()
@@ -251,7 +261,7 @@ class FsDirSpaceCheck:
     def _raise(self, e, s):
         raise self.__class__._internal_except(e, s)
 
-    class _internal_except:
+    class _internal_except(Exception):
         def __init__(self, eno, est):
             self.errno = eno
             self.strerror = est

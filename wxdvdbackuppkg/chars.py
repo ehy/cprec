@@ -7,7 +7,8 @@ import wx
 import sys
 
 __all__ = (
-    'py_v_is_3', '_T', '_', '_Tnec', 's_eq', 's_ne', '_ucode_type')
+    'py_v_is_3', '_T', '_', '_Tnec', 's_eq', 's_ne',
+    'unicode', '_ucode_type')
 
 # will often need to know whether interpreter is Python 3
 py_v_is_3 = False
