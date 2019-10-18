@@ -11,6 +11,5 @@ from .fsdirspace import *
 from .globaldata import *
 from .media import *
 from .msgprocs import *
-from .tasks import *
 from .tmpdirschk import *
 from .util import *
