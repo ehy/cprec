@@ -6,11 +6,11 @@ import sys
 import tempfile
 import time
 
-import __init__
-from chars import *
-import fp_write
+#import __init__
+from .chars import *
+from .fp_write import *
 
-_fp_write = fp_write.fp_write
+_fp_write = fp_write
 
 _fdbg = None
 _fdbg_name = None

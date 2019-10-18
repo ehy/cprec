@@ -9,12 +9,12 @@ import re
 import stat
 import tempfile
 
-import __init__
-from chars import *
-from msgprocs import *
-from debug import pdbg
-from util import *
-from childproc import *
+#import __init__
+from .chars import *
+from .msgprocs import *
+from .debug import pdbg
+from .util import *
+from .childproc import *
 
 _dbg = pdbg
 

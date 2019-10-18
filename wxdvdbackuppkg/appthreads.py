@@ -9,16 +9,16 @@ import threading
 import time
 import wx
 
-import __init__
-from chars import *
-from msgprocs import *
-from debug import pdbg
+#import __init__
+from .chars import *
+from .msgprocs import *
+from .debug import pdbg
 
 _dbg = pdbg
 
 """
     classes for threads --
-    
+
     NOTE: testing suggests that the event delivery is picky, as follows:
     *   wx.PyCommandEvent will not be delivered to the application
         object; wx.PyEvent will

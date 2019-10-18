@@ -7,12 +7,12 @@ then use that.
 import sys
 import wx
 
-import __init__
-from chars import *
-import fp_write
-from debug import pdbg
+#import __init__
+from .chars import *
+from .fp_write import *
+from .debug import pdbg
 
-_fp_write = fp_write.fp_write
+_fp_write = fp_write
 _dbg = pdbg
 
 # Make some global message procedures -- initial output to file, and

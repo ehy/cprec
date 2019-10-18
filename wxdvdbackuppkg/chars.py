@@ -3,11 +3,19 @@
 
 import wx
 
-import __init__
+#import __init__
+import sys
 
-__all__ = ('_T', '_', '_Tnec', 's_eq', 's_ne', '_ucode_type')
+__all__ = (
+    'py_v_is_3', '_T', '_', '_Tnec', 's_eq', 's_ne', '_ucode_type')
 
-py_v_is_3 = __init__.py_v_is_3
+# will often need to know whether interpreter is Python 3
+py_v_is_3 = False
+if sys.version_info.major >= 3:
+    py_v_is_3 = True
+
+
+#py_v_is_3 = __init__.py_v_is_3
 
 # Charset and string hacks
 # Python 2.7 and 3.x differ significantly

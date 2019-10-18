@@ -1,10 +1,16 @@
 # coding=utf-8
 """Packaged code specific to wxDVDBackup."""
 
-import sys
-
-# will often need to know whether interpreter is Python 3
-py_v_is_3 = False
-if sys.version_info.major >= 3:
-    py_v_is_3 = True
-
+from .appthreads import *
+from .chars import *
+from .childproc import *
+from .debug import *
+from .dialogs import *
+from .fp_write import *
+from .fsdirspace import *
+from .globaldata import *
+from .media import *
+from .msgprocs import *
+from .tasks import *
+from .tmpdirschk import *
+from .util import *

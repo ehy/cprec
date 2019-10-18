@@ -3,7 +3,7 @@
 
 import re
 
-from chars import *
+from .chars import *
 
 class MediaDrive:
     """

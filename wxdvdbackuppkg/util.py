@@ -13,10 +13,10 @@ import re
 import stat
 import wx
 
-import __init__
-from chars import *
-from msgprocs import *
-from debug import pdbg
+#import __init__
+from .chars import *
+from .msgprocs import *
+from .debug import pdbg
 
 _dbg = pdbg
 

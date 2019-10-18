@@ -3,8 +3,8 @@
 
 import codecs
 
-import __init__
-from chars import *
+#import __init__
+from .chars import *
 
 # When 'fp' is a FILE-like object, the fp.write() method will
 # not handle unicode objects with chars beyond ASCII; it
@@ -12,7 +12,7 @@ from chars import *
 # codecs.open() that returns a FILE-like object that
 # handles encoding, but a wrapper for fdopen() is absent
 # (or undocumented) -- so use this fp_write()
-if __init__.py_v_is_3:
+if py_v_is_3:
     def fp_write(f_object, s):
         try:
             return f_object.write(s)

@@ -57,24 +57,19 @@ except:
 # end from wxPython samples
 
 # packaged code specific to this app:
-#from wxdvdbackuppkg import *
 from wxdvdbackuppkg.chars import *
-import wxdvdbackuppkg.fp_write
-import wxdvdbackuppkg.debug
+from wxdvdbackuppkg.fp_write import *
+from wxdvdbackuppkg.debug import *
 from wxdvdbackuppkg.msgprocs import *
 from wxdvdbackuppkg.util import *
 from wxdvdbackuppkg.globaldata import *
 from wxdvdbackuppkg.childproc import *
 from wxdvdbackuppkg.tmpdirschk import TempDirsCheck
-import wxdvdbackuppkg.media
+from wxdvdbackuppkg.media import *
 from wxdvdbackuppkg.appthreads import *
 from wxdvdbackuppkg.dialogs import ASettingsDialog
 
-_dbg = wxdvdbackuppkg.debug.pdbg
-fp_write = wxdvdbackuppkg.fp_write.fp_write
-MediaDrive = wxdvdbackuppkg.media.MediaDrive
-ASettingsDialog = wxdvdbackuppkg.dialogs.ASettingsDialog
-
+_dbg = pdbg
 
 """
     Global procedures
@@ -132,8 +127,8 @@ if "-DBG" in sys.argv:
 """
 
 # version globals: r/o
-version_string = _T("0.4.1")
-version_name   = _("Serpent Lake")
+version_string = _T("0.4.2")
+version_name   = _("Serpent of Dreams")
 version_mjr    = 0
 version_mjrrev = 4
 version_mnr    = 1

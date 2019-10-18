@@ -13,15 +13,15 @@ import string
 import sys
 import threading
 
-import __init__
-from chars import *
-import fp_write
-from msgprocs import *
-from debug import pdbg
-from util import *
+#import __init__
+from .chars import *
+from .fp_write import *
+from .msgprocs import *
+from .debug import pdbg
+from .util import *
 
 _dbg = pdbg
-_fp_write = fp_write.fp_write
+_fp_write = fp_write
 
 class ChildProcParams:
     """
@@ -528,7 +528,7 @@ class ChildTwoStreamReader:
     def kill_wait(self, sig = 0):
         if self.kill_index(sig, 0) != 0:
             return -1
-        
+
         return self._child_wait_all()
 
     """

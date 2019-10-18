@@ -8,12 +8,12 @@ import os
 import sys
 import tempfile
 
-import __init__
-from chars import *
-from msgprocs import *
-from debug import pdbg
-from util import *
-from fsdirspace import FsDirSpaceCheck
+#import __init__
+from .chars import *
+from .msgprocs import *
+from .debug import pdbg
+from .util import *
+from .fsdirspace import FsDirSpaceCheck
 
 _dbg = pdbg
 

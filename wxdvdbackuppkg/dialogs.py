@@ -5,10 +5,10 @@ The application dialog window classes.
 
 import wx
 
-import __init__
-from chars import *
-from msgprocs import *
-from debug import pdbg
+#import __init__
+from .chars import *
+from .msgprocs import *
+from .debug import pdbg
 
 _dbg = pdbg
 
@@ -175,7 +175,7 @@ class ASettingsDialog(wx.Dialog):
             for c in range(0, 4):
                 szr.AddSpacer(bdr)
 
-        for idx in xrange(dlen):
+        for idx in range(dlen):
             a = dat[idx]
             typ = a.typ
             i0 = self.core_ld.get_new_idval()
@@ -479,7 +479,7 @@ class ASettingsDialog(wx.Dialog):
             config.SetPath(_T("/main/settings/") + pth)
 
             dlen = len(dat)
-            for idx in xrange(dlen):
+            for idx in range(dlen):
                 a = dat[idx]
                 typ = a.typ
 
@@ -528,7 +528,7 @@ class ASettingsDialog(wx.Dialog):
             config.SetPath(_T("/main/settings/") + pth)
 
             dlen = len(dat)
-            for idx in xrange(dlen):
+            for idx in range(dlen):
                 a = dat[idx]
                 typ = a.typ
 
