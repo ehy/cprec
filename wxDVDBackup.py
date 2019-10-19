@@ -3359,15 +3359,19 @@ class ACoreLogiDat:
         slno = self.get_stat_wnd()
 
         typ, dat = event.get_content()
+        tmper = True if s_eq(typ, 'time period') else False
 
         m = _T('')
         try:
             m = dat.rstrip(_T(' \n\r\t'))
-            _dbg(_T("%s: %s") % (typ, m))
+            # 'time period' message is too frequent; not really needed
+            if not tmper:
+                _dbg(_T("%s: %s") % (typ, m))
         except:
-            _dbg(_T("%s: <no data>") % typ)
+            if not tmper:
+                _dbg(_T("%s: <no data>") % typ)
 
-        if mth and s_eq(typ, 'time period'):
+        if mth and tmper:
             if not self.in_check_op:
                 self.update_working_gauge()
                 self.update_working_msg(slno)
