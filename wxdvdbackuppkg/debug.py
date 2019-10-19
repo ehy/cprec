@@ -6,7 +6,6 @@ import sys
 import tempfile
 import time
 
-#import __init__
 from .chars import *
 from .fp_write import *
 

@@ -3,7 +3,6 @@
 
 import codecs
 
-#import __init__
 from .chars import *
 
 # When 'fp' is a FILE-like object, the fp.write() method will

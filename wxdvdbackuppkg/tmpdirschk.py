@@ -8,7 +8,6 @@ import os
 import sys
 import tempfile
 
-#import __init__
 from .chars import *
 from .msgprocs import *
 from .debug import pdbg

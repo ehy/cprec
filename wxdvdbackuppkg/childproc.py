@@ -13,7 +13,6 @@ import string
 import sys
 import threading
 
-#import __init__
 from .chars import *
 from .fp_write import *
 from .msgprocs import *

@@ -7,7 +7,6 @@ then use that.
 import sys
 import wx
 
-#import __init__
 from .chars import *
 from .fp_write import *
 from .debug import pdbg

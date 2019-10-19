@@ -9,7 +9,6 @@ import re
 import stat
 import tempfile
 
-#import __init__
 from .chars import *
 from .msgprocs import *
 from .debug import pdbg

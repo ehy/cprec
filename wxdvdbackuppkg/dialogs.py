@@ -5,7 +5,6 @@ The application dialog window classes.
 
 import wx
 
-#import __init__
 from .chars import *
 from .msgprocs import *
 from .debug import pdbg

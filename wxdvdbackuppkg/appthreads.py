@@ -9,7 +9,6 @@ import threading
 import time
 import wx
 
-#import __init__
 from .chars import *
 from .msgprocs import *
 from .debug import pdbg

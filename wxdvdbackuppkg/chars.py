@@ -3,11 +3,9 @@
 
 import wx
 
-#import __init__
 import sys
 
 # will often need to know whether interpreter is Python 3
-py_v_is_3 = False
 if sys.version_info.major >= 3:
     __all__ = (
         'py_v_is_3', '_T', '_', '_Tnec', 's_eq', 's_ne',
