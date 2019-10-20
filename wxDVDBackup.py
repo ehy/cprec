@@ -3243,6 +3243,37 @@ class ACoreLogiDat:
 
         return 0
 
+    # called to retry a burn until user declines
+    def do_child_another(self, msg, chil, outf):
+        while True:
+            self.get_gauge_wnd().SetValue(0)
+            d = chil.get_extra_data()
+            r = self.dialog(
+                msg, _T("sty"),
+                wx.YES_NO|wx.ICON_QUESTION)
+            if r == wx.YES:
+                r = self.do_target_check_insert(outf, reset = True)
+                if r:
+                    d[_T("in_burn")] = False
+                    d[_T("target_dev")] = self.checked_output_arg
+                    outf = d[_T("target_dev")]
+                    if self.do_burn(chil, d):
+                        msg_line_INFO(_("Burn started."))
+                        _dbg(_T("do_child_another do_burn True"))
+                        return True
+                    else:
+                        msg_line_ERROR(_("Burn failed."))
+                        _dbg(_T("do_child_another do_burn Burn Failed"))
+                        msg = _("Burn Failed. Try another disc?")
+                else:
+                    msg_line_ERROR(_("Media Error."))
+                    _dbg(_T("do_child_another do_burn Media Error"))
+                    msg = _("Media Error. Try another disc?")
+
+            else:
+                _dbg(_T("do_child_another user selected 'No'"))
+                return False
+
     # called with status of a child process
     def do_child_status(self, stat, chil):
         self.get_gauge_wnd().SetValue(0)
@@ -3294,6 +3325,12 @@ class ACoreLogiDat:
                             msg_line_INFO(_("Additional burn started."))
                             return
                     else:
+                        msg = _("Media Error. Try another disc?")
+                        #msg = _("Burn Failed. Try another disc?")
+
+                        r = self.do_child_another(msg, chil, outf)
+                        if r:
+                            return
                         merr = _("Media Error")
 
             else:
@@ -3311,8 +3348,20 @@ class ACoreLogiDat:
                             msg_line_INFO(_("Burn started."))
                             return
                         else:
+                            #msg = _("Media Error. Try another disc?")
+                            msg = _("Burn Failed. Try another disc?")
+
+                            r = self.do_child_another(msg, chil, outf)
+                            if r:
+                                return
                             merr = _("Burn Failed")
                     else:
+                        msg = _("Media Error. Try another disc?")
+                        #msg = _("Burn Failed. Try another disc?")
+
+                        r = self.do_child_another(msg, chil, outf)
+                        if r:
+                            return
                         merr = _("Media Error")
 
                 #else:
@@ -3326,7 +3375,14 @@ class ACoreLogiDat:
                 self.get_stat_wnd().put_status(mdone)
 
         elif stat != 0 and chil.get_extra_data():
-            pass
+            d = chil.get_extra_data()
+            outf = d[_T("target_dev")]
+            #msg = _("Media Error. Try another disc?")
+            msg = _("Burn Failed. Try another disc?")
+
+            r = self.do_child_another(msg, chil, outf)
+            if r:
+                return
 
         self.target.set_run_label()
         self.cleanup_run()
