@@ -3012,6 +3012,9 @@ class ACoreLogiDat:
 
         settle_tries = wait_retry
 
+        # set object flag indicating user reponse was decline
+        self.flag_check_target_prompt_declined = False
+
         while True:
             r = self.do_target_medium_check(outdev, settle_tries)
             if r == None:
@@ -3022,6 +3025,8 @@ class ACoreLogiDat:
 
             if r:
                 return True
+            elif self.flag_check_target_prompt_declined:
+                break;
 
             if settle_tries < 1 and self.get_is_dev_direct_target():
                 break
@@ -3032,6 +3037,7 @@ class ACoreLogiDat:
 
                 r = self.dialog(m, _T("yesno"), wx.YES_NO)
                 if r != wx.YES:
+                    self.flag_check_target_prompt_declined = True
                     break
 
                 settle_tries = wait_retry
@@ -3052,7 +3058,7 @@ class ACoreLogiDat:
             t = time.time() - t
             t = int(t + 0.5)
             msg_line_INFO(
-                _("Slept {secs} to let drive settle.").format(secs = t))
+                _("Slept {sec}s to let drive settle.").format(sec = t))
 
 
         return False
@@ -3097,6 +3103,8 @@ class ACoreLogiDat:
                     self.do_target_check(reset = True)
                     if self.checked_output_arg:
                         return True
+                else:
+                    self.flag_check_target_prompt_declined = True
 
             return False
 
@@ -3243,8 +3251,16 @@ class ACoreLogiDat:
 
         return 0
 
-    # called to retry a burn until user declines
+    # called to retry a burn, after failure, until user declines
     def do_child_another(self, msg, chil, outf):
+        try:
+            r = self.flag_check_target_prompt_declined
+        except:
+            r = False
+        self.flag_check_target_prompt_declined = False
+        if r:
+            return False
+
         while True:
             self.get_gauge_wnd().SetValue(0)
             d = chil.get_extra_data()
@@ -3387,6 +3403,7 @@ class ACoreLogiDat:
         self.target.set_run_label()
         self.cleanup_run()
         self.enable_panes(True, True)
+        self.flag_check_target_prompt_declined = False
 
     # for a msg_*() invocation using monospace face -- static
     def mono_message(
