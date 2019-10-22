@@ -2661,7 +2661,7 @@ class ACoreLogiDat:
 
     def get_new_idval(self, wx_new_id = False):
         if wx_new_id:
-            return wx.NewId()
+            return new_wx_id()
         return WXObjIdSource()()
 
     def get_config(self):
@@ -5412,8 +5412,10 @@ class TheAppClass(wx.App):
     """
     The wx application object class
     """
-    def __init__(self, dummy):
+    def __init__(self, argv = None):
         wx.App.__init__(self)
+
+        self.argv = [_('wxDVDBackup')] if not argv else argv
 
     def OnExit(self):
         config = self.get_config()
@@ -5499,7 +5501,28 @@ class TheAppClass(wx.App):
         return self.GetTopWindow().get_msg_obj()
 
 
-if __name__ == '__main__':
-    app = TheAppClass(0)
+"""
+main proc to get the show on the road
+"""
+
+##
+## main function callable if this is imported as module,
+## or herein in a if __name__ == '__main__': block
+##
+def wxdbk_main(argv = None):
+    if argv == None:
+        argv = sys.argv
+
+    # http://wiki.wxpython.org/MakingSampleApps:
+    if "-inspection" in argv:
+        import wx.lib.inspection
+        wx.lib.inspection.InspectionTool().Show()
+
+    app = TheAppClass(argv = argv)
     app.MainLoop()
+    # FPO: not reached
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(wxdbk_main(argv = sys.argv))
 

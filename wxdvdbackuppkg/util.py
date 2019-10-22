@@ -97,6 +97,16 @@ def block_node_path(pth):
     return pth
 
 
+# As of wxPython 4.0.2 (Pheonix) wx.NewId() is deprecated --
+# there was a discussion of the on the mailing list, June 2018
+def new_wx_id():
+    try:
+        # this is a new replacement function for deprecated NewId();
+        # note that return is not int, but object w/ __int__ method
+        return wx.NewIdRef()
+    except AttributeError:
+        return wx.NewId()
+
 
 """
     utility classes
@@ -130,6 +140,6 @@ class WXObjIdSource:
             v = self.__class__.cur + self.offs
             self.__class__.cur += self.__class__.incr
         else:
-            v = wx.NewId()
-        wx.RegisterId(v)
+            v = new_wx_id()
+        wx.RegisterId(int(v))
         return v

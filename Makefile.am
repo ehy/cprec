@@ -48,14 +48,14 @@ pyprog_sub = sed \
 			-e 's,[@]pyexecdir[@],$(pyexecdir),g' \
 			-e 's,[@]pkgpyexecdir[@],$(pkgpyexecdir),g' \
 			-e 's,[@]PACKAGE[@],$(PACKAGE),g' \
-			-e 's,[@]VERSION[@],$(VERSION),g'
+			-e 's,[@]VERSION[@],$(VERSION),g' \
+			-e 's,[@]XHELPERPATH[@],$(libexecdir)/$(XHELPERNAME),g'
 
 if WITH_DD_DVD
 if WITH_FRONTEND
 #if HAVE_PYTHON
 
-python_PYTHON = wxDVDBackup.py
-#pkgpython_PYTHON = wxdvdbackuppkg/*.py
+python_PYTHON = wxDVDBackup_main.py
 bin_SCRIPTS = wxDVDBackup
 CLEANFILES = $(bin_SCRIPTS)
 EXTRA_DIST = wxDVDBackup.in xdg/*
