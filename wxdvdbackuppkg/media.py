@@ -4,6 +4,7 @@
 import re
 
 from .chars import *
+from .msgprocs import *
 
 class MediaDrive:
     """
