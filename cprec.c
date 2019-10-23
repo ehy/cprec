@@ -64,7 +64,7 @@ static void resolve_dvd_dev();
 /* call get_max_path(); on failure exit fail_statux */
 static size_t fatal_max_path(int fail_status);
 static unsigned char* setup_global_buffer(void);
-static void get_env_vars_2nd(int* doregmask, int* regmask);
+static void get_env_vars_2nd(int* doregmask, unsigned* regmask);
 static void get_env_vars_1st();
 static void get_env_vars_0th();
 static void usage(int status);
@@ -96,7 +96,6 @@ unsigned char* global_buffer;
 unsigned char* global_aligned_buffer;
 size_t         global_buffer_size;
 size_t         global_buffer_align;
-
 
 /* Option flags and variables */
 int nfdresv = 8;   /* reserve this from ftw() for other use */
@@ -341,7 +340,7 @@ init_lib_drd(void)
 }
 
 static void
-get_env_vars_2nd(int* doregmask, int* regmask)
+get_env_vars_2nd(int* doregmask, unsigned* regmask)
 {
     const char*       penv;
 
@@ -437,6 +436,7 @@ get_env_vars_0th()
         }
     }
 }
+
 static unsigned char*
 setup_global_buffer(void)
 {
@@ -805,7 +805,7 @@ cprec(int texist, int tisdir)
     blk_free_storage();
 
     if ( numbadblk ) {
-        pfeopt(_("%s: found %llu bad blocks\n"),
+        pfeopt(_("%s: found %llu bad blocks%s\n"),
             program_name, CAST_ULL(numbadblk),
             numbadblk ? "; bad blocks are zeroed in output" : "");
     }
@@ -1118,7 +1118,7 @@ usage(int status)
 {
     printf(_("%s - \
 A recursive directory hierarchy copier; much like 'cp -R'.\n"), program_name);
-    printf(_("Usage: %s [OPTIONS] <SOURCE ...> <TARGET>\n"), program_name);
+    printf(_("Usage: %s [OPTIONS] SOURCES... TARGET\n"), program_name);
 
 /* dry-run is unmaintained; makes segfaults */
 /*  --dry-run                  take no real actions\n\ */

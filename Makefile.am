@@ -32,7 +32,7 @@ cprec_LDADD = lib_misc/lib_misc.a
 # commented see below
 #EXTRA_DIST=cprec.lsm.in cprec.spec.in cprec.texinfo
 
-SUBDIRS = lib_misc
+SUBDIRS = lib_misc wxdvdbackuppkg
 
 AM_CPPFLAGS = -I$(srcdir)/lib_misc
 
@@ -48,12 +48,14 @@ pyprog_sub = sed \
 			-e 's,[@]pyexecdir[@],$(pyexecdir),g' \
 			-e 's,[@]pkgpyexecdir[@],$(pkgpyexecdir),g' \
 			-e 's,[@]PACKAGE[@],$(PACKAGE),g' \
-			-e 's,[@]VERSION[@],$(VERSION),g'
+			-e 's,[@]VERSION[@],$(VERSION),g' \
+			-e 's,[@]XHELPERPATH[@],$(libexecdir)/$(XHELPERNAME),g'
 
 if WITH_DD_DVD
 if WITH_FRONTEND
+#if HAVE_PYTHON
 
-python_PYTHON = wxDVDBackup.py
+python_PYTHON = wxDVDBackup_main.py
 bin_SCRIPTS = wxDVDBackup
 CLEANFILES = $(bin_SCRIPTS)
 EXTRA_DIST = wxDVDBackup.in xdg/*
@@ -82,7 +84,9 @@ install-data-hook:
 	&& XMM=$$(which $(XDG_INST_MIME)) \
 	|| { echo cannot find $(XDG_INST_ICON) or $(XDG_INST_MENU); \
 		echo will not do xdg icon and menu item install; exit 0; } ; \
+	XDG_DATA_DIRS="$(STORE_XDG_DATA_DIRS)"; export XDG_DATA_DIRS; \
 	for s in $(XICOSIZE) ; do \
+		echo installing icon size $$s; \
 		I="$(srcdir)/xdg/$(XDGRESNAME)-$${s}.png"; test -f "$$I" || \
 			{ echo icon "$$I" is missing; continue; } ; \
 		$$XII $(XICOARGS) $$s  "$$I" $(XDGRESNAME) || \
@@ -90,8 +94,10 @@ install-data-hook:
 	done; \
 	$$XII forceupdate; \
 	I="$(srcdir)/xdg/$(XDGRESNAME).desktop"; test -f "$$I" || exit 0; \
-	$$XIM install --novendor "$$I" || \
-		{ echo failed to install "$$I"; true; }
+	echo XDG_DATA_DIRS contains $$XDG_DATA_DIRS ; \
+	XDG_UTILS_DEBUG_LEVEL=3 $$XIM install --novendor "$$I" && \
+		$$XIM forceupdate >/dev/null 2>/dev/null || \
+			{ echo failed to install "$$I" -- status $$?; true; }
 
 
 uninstall-local:
@@ -100,6 +106,7 @@ uninstall-local:
 	&& XMM=$$(which $(XDG_INST_MIME)) \
 	|| { echo cannot find $(XDG_INST_ICON) or $(XDG_INST_MENU); \
 		echo will not do xdg icon and menu item uninstall; exit 0; } ; \
+	XDG_DATA_DIRS="$(STORE_XDG_DATA_DIRS)"; export XDG_DATA_DIRS; \
 	I="$(XDGRESNAME).desktop"; \
 	$$XIM uninstall "$$I" || \
 		{ echo failed to uninstall "$$I"; true; } ; \
@@ -107,11 +114,14 @@ uninstall-local:
 		$$XII $(XICOARGSU) $$s $(XDGRESNAME) || \
 			{ echo failed uninstalling icon size $$s; true; } ; \
 	done; \
-	$$XII forceupdate || true
+	$$XII forceupdate >/dev/null 2>/dev/null || true
+
 
 # if WITH_FRONTEND_XDG
 endif
 
+# if HAVE_PYTHON
+#endif
 # if WITH_FRONTEND
 endif
 # if WITH_DD_DVD

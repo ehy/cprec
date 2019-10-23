@@ -157,16 +157,33 @@ int lmsc_s_tol(const char* str, long* result, char** endp, int base);
 extern const char* lmsc_x_strdup_failmsg;
 char* lmsc_x_strdup(const char*);
 
+/* macros for some fmt+varargs protos below -- although
+ * this code is written in C and C++, not GCC and G++,
+ * these format string and args checks are desirable
+ */
+#if defined(__GNUC__) || defined(__GNUG__)
+#define _CKFMT1 __attribute__((__format__ (__printf__, 1, 2)))
+#define _CKFMT3 __attribute__((__format__ (__printf__, 3, 4)))
+#else  /* defined(__GCC__) || defined(__GNUG__) */
+#define _CKFMT1
+#define _CKFMT3
+#endif /* defined(__GCC__) || defined(__GNUG__) */
+
 /*
  * print format to out or err streams optionally or unconditionally.
  */
-int lmsc_pfoopt(const char*, ...); /* print to stdout optionally */
-int lmsc_pfoall(const char*, ...); /* print to stdout not optionally */
-int lmsc_pfeopt(const char*, ...); /* print to stderr optionally */
-int lmsc_pfeall(const char*, ...); /* print to stderr not optionally */
-int lmsc_pf_dbg(const char*, ...); /* print debug messages optionally */
+/* print to stdout optionally */
+int lmsc_pfoopt(const char*, ...) _CKFMT1;
+/* print to stdout not optionally */
+int lmsc_pfoall(const char*, ...) _CKFMT1;
+/* print to stderr optionally */
+int lmsc_pfeopt(const char*, ...) _CKFMT1;
+/* print to stderr not optionally */
+int lmsc_pfeall(const char*, ...) _CKFMT1;
+/* print debug messages optionally */
+int lmsc_pf_dbg(const char*, ...) _CKFMT1;
 #if ! HAVE_ERROR
-void lmsc_error(int code, int errn, const char* fmt, ...);
+void lmsc_error(int code, int errn, const char* fmt, ...) _CKFMT3;
 #endif
 #if NO_PUTS_MACROS
 int lmsc_oputs(const char*); /* puts to stdout optionally */

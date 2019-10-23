@@ -94,21 +94,19 @@ unset_paths(void)
 
 /* string safety return checks; fatal err */
 #define SCPYCHK(d, s, c) \
-    { \
+    do { \
         size_t n, sz = (size_t)(c); \
         if ( (n = strlcpy(d, s, sz)) >= sz ) { \
             pfeall( \
-            _("%s: string size (&llu) error: exceeds space (%llu)\n"), \
+            _("%s: string size (%llu) error: exceeds space (%llu)\n"), \
             program_name, CAST_ULL(n), CAST_ULL(sz)); \
             exit(1); \
         } \
-    }
+    } while ( 0 )
 
 void
 set_paths(const char* mountp, const char* outname)
 {
-    size_t sz;
-
     unset_paths();
 
 #if DYNALLOC_BUFFERS
@@ -133,7 +131,7 @@ set_paths(const char* mountp, const char* outname)
         exit(1);
     }
 
-    /* clear trailing seperator */
+    /* clear trailing separator */
     if ( strcmp(outd, "/") ) {
         while ( outdlen && outd[outdlen - 1] == '/' ) {
             outd[--outdlen] = '\0';
@@ -169,20 +167,20 @@ set_paths(const char* mountp, const char* outname)
         return;
     }
 
-    /* add trailing seperator . . . */
+    /* add trailing separator . . . */
     if ( mntdlen && mntd[mntdlen - 1] != '/' ) {
         mntd[mntdlen++] = '/';
     }
     vidd[viddlen++] = '/';
 
     /* . . . and name to check */
-    SCPYCHK(&mntd[mntdlen], "VIDEO_TS", mntdbufdlen - mntdlen)
+    SCPYCHK(&mntd[mntdlen], "VIDEO_TS", mntdbufdlen - mntdlen);
     if ( !access(mntd, F_OK) ) {
         okvid = 1;
         viddlen +=
             strlcpy(&vidd[viddlen], "VIDEO_TS", viddbufdlen - viddlen);
     } else {
-        SCPYCHK(&mntd[mntdlen], "video_ts", mntdbufdlen - mntdlen)
+        SCPYCHK(&mntd[mntdlen], "video_ts", mntdbufdlen - mntdlen);
         if ( !access(mntd, F_OK) ) {
             okvid = 1;
             viddlen += strlcpy(&vidd[viddlen],
@@ -192,7 +190,7 @@ set_paths(const char* mountp, const char* outname)
     }
     mntd[mntdlen] = '\0';
 
-    /* clear trailing seperator */
+    /* clear trailing separator */
     if ( strcmp(mntd, "/") ) {
         while ( mntdlen && mntd[mntdlen - 1] == '/' ) {
             mntd[--mntdlen] = '\0';

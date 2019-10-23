@@ -1,0 +1,56 @@
+#! /bin/sh
+#
+# Attempt to boot the autoconf system, making the configure
+# script and makefile input template.
+#
+# License inherited from enclosing/including source package.
+#
+
+PROG=${0##*/}
+
+UNM=$(uname)
+
+# On OpenBSD auto{conf,make} are small scripts that check
+# for $AUTO{CONF,MAKE}_VERSION in env and complain if not
+# set, so that a version must be selected
+test XOpenBSD = X"$UNM" && {
+	obsd_acam_setver () {
+		_prg="$1"
+		_var="$2"
+		_ver="$3"
+
+		for _F in "$_prg"-*; do
+			_V=${_F##*-}
+			test X'*' = X"$_V" && { unset _V; break; }
+			test X"$_ver" = X"$_V" && break
+		done
+
+		test X = X"$_V" && return 1
+
+		eval "$_var=\"$_V\"; export $_var"
+
+		return 0
+	}
+
+	obsd_acam_setver $(which autoconf) AUTOCONF_VERSION 2.69
+	obsd_acam_setver $(which automake) AUTOMAKE_VERSION 1.15
+}
+
+: ${ALLDIRS:="lib_misc ."}
+
+e2 () { printf '%s: %s\n' "$PROG" "$*" 1>&2; }
+fail () { e2 "$@"; exit 1; }
+
+#AREC='autoreconf -fiv --no-recursive'
+AREC='autoreconf -fiv'
+
+splay () {
+	( cd "$1" && $AREC ) || \
+		fail failed \"$AREC\" in \""$1"\"
+}
+
+for D in $ALLDIRS ; do
+	e2 running \"$AREC\" in \""$D"\"
+    splay "$D"
+done
+

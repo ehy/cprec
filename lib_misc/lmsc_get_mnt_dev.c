@@ -1,4 +1,4 @@
-/* 
+/*
    lmsc_*.[hc] - library of misc. funcs.
 
    Copyright (C) 2007 Ed Hynan
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 /* this program's various incs */
@@ -98,7 +98,7 @@ lmsc_get_mnt_dev(const char* mtpt, char* outbuf, size_t path_max)
         return -1;
     }
 
-    while ( pme = getmntent(fp) ) {
+    while ( (pme = getmntent(fp)) != NULL ) {
         if ( strcmp(pme->mnt_dir, want_mtpt) == 0 ) {
             size_t l = path_max;
 
