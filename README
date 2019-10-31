@@ -22,7 +22,7 @@ This program names the package simply because it was written first.
 The odd name should evoke "CoPy RECusrsively".  The DVD must be
 mounted, and the mount point given as an argument.
 
-This is useful if you would like to add additioanl files to your
+This is useful if you would like to add additional files to your
 backup.  For example, for a favorite DVD you might like to add
 images, web pages and research, or what have you (being careful,
 of course, not exceed the capacity of the target writable disc).
