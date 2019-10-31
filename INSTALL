@@ -34,7 +34,7 @@ Peculiarities of this package:
   write to blank, and provides a number of options.
 
   The wxDVDBackup program is written in python, requiring python 2.7
-  or greater (but not python 3.x), and uses wxPython -- the python
+  or greater (including python 3.x), and uses wxPython -- the python
   module providing wxWidgets.  wxPython should be available from
   the package systems of most Unix-like systems.  wxDVDBackup also
   requires that certain DVD tool programs be available: growisofs,
